@@ -1,0 +1,77 @@
+name: Deploy Docs to GitHub Pages & Server
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'pnpm'
+      - name: Install Dependencies
+        run: pnpm install
+      - name: Build Documentation Site
+        run: pnpm run build:site
+      - name: Clean Invalid Filenames
+        run: |
+          echo "🔧 清理文件名中的冒号..."
+          find dist -depth -name '*:*' | while read item; do
+            mv "$item" "$(echo "$item" | tr ':' '_')"
+          done
+          if find dist -name '*:*' | grep -q .; then
+            echo "❌ 仍有包含冒号的文件"
+            exit 1
+          fi
+      - name: Verify Build Output
+        run: |
+          if [ ! -d 'dist' ]; then
+            echo '❌ Build output directory dist not found!'
+            exit 1
+          fi
+      - name: Setup GitHub Pages
+        uses: actions/configure-pages@v4
+      - name: Upload Artifact for GitHub Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+      - name: Upload Build Artifact for Server
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-dist
+          path: dist/
+          retention-days: 1
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
