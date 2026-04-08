@@ -11,7 +11,7 @@ nav:
       <div class="welcome-logo">
         <img src="../public/logo.png" alt="logo" />
       </div>
-      <div class="welcome-title">欢迎来到建华python总结1</div>
+      <div class="welcome-title">欢迎来到建华python总结</div>
       <p class="desc">python学习 | 持续更新</p>
       <div class="welcome-buttons">
         <a href="/base/base-01" class="button primary">开始逛逛</a>
