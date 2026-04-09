@@ -279,5 +279,7 @@ VS Code 下载地址：[https://code.visualstudio.com/](https://code.visualstudi
 使用 VS Code 时，需要安装 Python 相关插件。
 
 ![示例图片](../images/base/202604081648.png)
+
 安装插件后，就可以直接编写 Python 代码，然后点击右上角的三角形标识运行。
+
 ![示例图片](../images/base/202604081649.png)
