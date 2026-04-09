@@ -272,9 +272,6 @@ PyCharm Professional 是收费的，PyCharm Community Edition 是免费的。
 vscode的下载地址为：[https://code.visualstudio.com/](https://code.visualstudio.com/)
 
 使用vscode的时候需要安装插件。
-
 ![示例图片](../images/base/202604081648.png)
-
 然后就可以直接写python相关的内容，然后点击对应的三角标识运行python代码。
-
 ![示例图片](../images/base/202604081649.png)
