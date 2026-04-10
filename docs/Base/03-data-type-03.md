@@ -21,6 +21,8 @@ nav:
 
 **返回值**：类型对象（如 `<class 'int'>`）。
 
+**原理**：`type()` 实际上是一个内置函数，它返回的是对象的**直接类**（即 `object.__class__`）。在 CPython 中，每个对象都包含一个指向其类型对象的指针，`type()` 就是读取该指针并返回对应的类型对象。它不会沿着继承链向上查找。
+
 ```python
 print(type(42))        # <class 'int'>
 print(type(3.14))      # <class 'float'>
@@ -39,12 +41,12 @@ if type(x) == int:
     print("整数")
 ```
 
-**注意**：`type()` 不考虑继承关系。例如，`bool` 是 `int` 的子类，但 `type(True) == int` 返回 `False`。
+**注意事项**（不设标题，以普通段落呈现）
 
-```python
-print(type(True) == int)   # False
-print(type(True) == bool)  # True
-```
+- `type()` **不考虑继承关系**。例如，`bool` 是 `int` 的子类，但 `type(True) == int` 返回 `False`，因为 `type(True)` 是 `<class 'bool'>`。
+- 对于自定义类的实例，`type(obj)` 返回该实例的**直接类**，不会返回任何父类。
+- 如果只需要精确匹配某个类（不包括子类），使用 `type(obj) is SomeClass` 比 `==` 更安全（避免元类影响）。
+- `type()` 无法直接判断一个变量是否为 `None`（因为 `type(None)` 是 `NoneType`，但通常用 `is None` 更合适）。
 
 ---
 
@@ -61,6 +63,8 @@ print(type(True) == bool)  # True
 
 **返回值**：`True` 或 `False`
 
+**原理**：`isinstance()` 会检查 `object` 的**类型**（即 `type(object)`）是否与 `classinfo` 相同，或者 `object` 的类型是否是 `classinfo` 的子类。具体实现上，它会沿着 `object.__class__` 的**方法解析顺序（MRO）**向上查找，如果 `classinfo` 出现在 MRO 链中，则返回 `True`，否则 `False`。因此它能正确处理继承关系。
+
 ```python
 print(isinstance(42, int))           # True
 print(isinstance(True, int))         # True（因为 bool 是 int 的子类）
@@ -68,7 +72,13 @@ print(isinstance(True, bool))        # True
 print(isinstance(3.14, (int, float)))# True（匹配元组中的任一类型）
 ```
 
-**优势**：能够正确处理继承关系，因此比 `type()` 更灵活，是判断类型的推荐方式。
+**注意事项**
+
+- `isinstance()` **会考虑继承链**，因此 `isinstance(True, int)` 返回 `True`，而 `type(True) == int` 返回 `False`。
+- 第二个参数可以是**元组**，只要对象属于元组中的任一类型即返回 `True`。这在需要匹配多种类型时非常方便。
+- 对于自定义类，`isinstance()` 也能正确识别子类关系。
+- 不要将 `isinstance()` 用于基本类型判断而忽略了 `None` 的情况，因为 `None` 不是任何其他类型的实例（`isinstance(None, int)` 为 `False`）。
+- `isinstance()` 可以接受**类型元组**，但注意元组中如果包含 `None` 类型（`type(None)`），可以同时判断 `None`，例如 `isinstance(x, (int, type(None)))`。
 
 ---
 
@@ -82,7 +92,13 @@ if x.__class__ is int:
     print("int")
 ```
 
-但这种方式不如 `isinstance()` 直观，通常不推荐直接使用。
+**原理**：`__class__` 是 Python 对象的内部属性，直接存储了该对象的类型引用。访问 `obj.__class__` 等同于 `type(obj)`，但 `type()` 是更规范的方式。
+
+**注意事项**
+
+- 这种方式不如 `isinstance()` 直观，且同样不考虑继承关系（因为 `__class__` 是直接类）。
+- 不推荐在常规代码中使用，除非有特殊需求（如元编程）。
+- 对于 `None`，`None.__class__` 是 `NoneType`，但依然推荐使用 `x is None`。
 
 ---
 
@@ -94,6 +110,14 @@ if x.__class__ is int:
 print(issubclass(bool, int))   # True
 print(issubclass(int, object)) # True（所有类都继承自 object）
 ```
+
+**原理**：`issubclass(cls, parent)` 会检查 `cls` 的 MRO 链中是否包含 `parent`。它不会检查实例，只检查类本身。
+
+**注意事项**
+
+- 第一个参数必须是**类**，不能是实例。如果想判断实例的类是否为另一个类的子类，需要先取 `type(obj)`。
+- 第二个参数也可以是类型元组，只要类属于元组中任一类型的子类即返回 `True`。
+- 注意 `issubclass(bool, int)` 为 `True`，但 `issubclass(int, bool)` 为 `False`。
 
 ---
 
@@ -161,5 +185,15 @@ def add_safe(a, b):
 ```
 
 ---
+
+## 9. 通用注意事项汇总
+
+- `type()` 和 `isinstance()` 的主要区别在于**是否考虑继承**。根据需求选择合适的方法。
+- 不要用 `type(x) == SomeClass` 来判断子类实例，应使用 `isinstance(x, SomeClass)`。
+- 判断 `None` 时始终使用 `x is None`，不要用 `type(x) is NoneType`。
+- 对于数字类型，`bool` 是 `int` 的子类，所以 `isinstance(True, int)` 为 `True`，但 `type(True) is int` 为 `False`。
+- 使用 `isinstance(x, (int, float))` 可以同时匹配多种类型，避免多个 `or` 判断。
+- 不要使用 `__class__` 属性进行常规类型判断，除非有元编程需求。
+- 类型提示仅用于静态分析和 IDE 辅助，不会在运行时强制类型，需要手动检查。
 
 掌握这些类型判断方法，可以更安全地编写泛型代码，避免类型错误。
