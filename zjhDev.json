@@ -1,0 +1,12 @@
+{
+  "name": "Python 学习总结",
+  "description": "Python 基础知识学习笔记",
+  "basePath": "auto",
+  "pages": [
+    {
+      "name": "首页",
+      "path": "/",
+      "description": "Python 学习总结首页"
+    }
+  ]
+}
