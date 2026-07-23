@@ -113,6 +113,23 @@ print(len(s))    # 11（长度为字符实际数量，包含看不见的 \n）
 
 ### 2.1 常见转义字符详解
 
+转义字符英文对照记忆表：
+
+| 转义字符 | 英文全称 | 含义 | 示例 |
+| :--- | :--- | :--- | :--- |
+| **`\n`** | newline | 换行符，在输出中表示另起一行 | `print("Hello\nWorld")` → Hello 换行 World |
+| **`\t`** | tab / horizontal tab | 水平制表符，相当于按一次 Tab 键，用于对齐文本 | `print("A\tB\tC")` → A    B    C |
+| **`\\`** | backslash | 反斜杠本身，用于输出一个 `\` | `print("C:\\Users")` → C:\Users |
+| **`\'`** | single quote | 单引号本身，用于在单引号字符串中输出 `'` | `print('It\'s OK')` → It's OK |
+| **`\"`** | double quote | 双引号本身，用于在双引号字符串中输出 `"` | `print("He said \"Hi\"")` → He said "Hi" |
+| **`\b`** | backspace | 退格符，将光标回退一格（不一定所有终端都支持） | `print("abc\bd")` → abd（c 被退格删除） |
+| **`\r`** | carriage return | 回车符，将光标移到行首（常与 `\n` 配合，即 `\r\n`，用于 Windows 换行） | `print("Hello\rWorld")` → World（Hello 被覆盖） |
+| **`\f`** | form feed | 换页符，一般用于打印机控制，在终端中很少使用 | 不常用 |
+| **`\v`** | vertical tab | 垂直制表符，类似 `\t` 但纵向，在终端中很少使用 | 不常用 |
+| **`\ooo`** | octal value | 八进制 ASCII 码，`ooo` 为三位八进制数 | `print("\101")` → A（ASCII 65 = A） |
+| **`\xhh`** | hex value | 十六进制 ASCII 码，`hh` 为两位十六进制数 | `print("\x41")` → A（ASCII 65 = A） |
+| **`\N{name}`** | Unicode name | 通过 Unicode 标准名称来输出字符 | `print("\N{GREEK CAPITAL LETTER OMEGA}")` → Ω |
+
 #### 2.1.1 换行符 `\n`
 
 `\n` 是最常用的转义字符，表示"换行"（Line Feed, LF），ASCII 码 10。在几乎所有编程场景中，`\n` 都是表示"新行"的标准方式。
