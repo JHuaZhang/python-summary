@@ -1,5 +1,6 @@
 import { defineConfig } from 'dumi';
 import { defineThemeConfig } from 'dumi-theme-antd/dist/defineThemeConfig';
+import path from 'path';
 
 const isDev = process.env.NODE_ENV === 'development' || process.env.DUMI_ENV === 'devbuild';
 // Jenkins 构建时通过 BASE_PATH 环境变量注入部署路径，本地开发和 GitHub Pages 不受影响
@@ -12,6 +13,13 @@ export default defineConfig({
   base: basePath,
   publicPath: basePath,
   title: 'python-summary',
+    // 将 dumi 默认搜索组件重定向到自定义轻量搜索（解决上千个md文件全文索引导致卡顿）
+  alias: {
+    'dumi/theme-default/slots/SearchBar': path.resolve(
+      __dirname,
+      '.dumi/theme/slots/SearchBar/index.tsx',
+    ),
+  },
   themeConfig: defineThemeConfig({
     name: 'python',
     title: 'python',

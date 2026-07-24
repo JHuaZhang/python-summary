@@ -12,7 +12,10 @@ coverage/
 /build
 /dist
 /storybook-static
-.dumi
+# 忽略 dumi 临时文件，但保留自定义主题
+.dumi/tmp
+.dumi/tmp-production
+!.dumi/theme
 .justconf/
 /test/coverage
 /node_modules
