@@ -5,7 +5,7 @@ group:
 order: 6
 title: csv 读写 CSV 文件
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

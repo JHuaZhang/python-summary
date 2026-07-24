@@ -5,7 +5,7 @@ group:
 order: 1
 title: import 与 from...import —— 模块导入的两种方式
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

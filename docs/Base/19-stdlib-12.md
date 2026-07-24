@@ -5,7 +5,7 @@ group:
 order: 12
 title: time.sleep 与时间戳
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

@@ -5,7 +5,7 @@ group:
 order: 5
 title: sorted 自定义排序
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

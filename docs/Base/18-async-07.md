@@ -5,7 +5,7 @@ group:
 order: 7
 title: asyncio.gather 与 asyncio.wait
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

@@ -5,7 +5,7 @@ group:
 order: 7
 title: 异常链raise_from
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

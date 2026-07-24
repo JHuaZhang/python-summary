@@ -5,7 +5,7 @@ group:
 order: 1
 title: 装饰器本质
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

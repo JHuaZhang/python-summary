@@ -5,7 +5,7 @@ group:
 order: 5
 title: asyncio.sleep 模拟异步 IO
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

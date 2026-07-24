@@ -5,7 +5,7 @@ group:
 order: 1
 title: 同步阻塞痛点
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

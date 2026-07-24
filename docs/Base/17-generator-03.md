@@ -5,7 +5,7 @@ group:
 order: 3
 title: 生成器表达式
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

@@ -5,7 +5,7 @@ group:
 order: 16
 title: logging.basicConfig 日志配置
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

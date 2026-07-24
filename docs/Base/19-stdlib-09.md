@@ -5,7 +5,7 @@ group:
 order: 9
 title: 正则常用模式速查
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

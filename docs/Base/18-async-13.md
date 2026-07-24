@@ -5,7 +5,7 @@ group:
 order: 13
 title: 同步代码调用异步代码
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

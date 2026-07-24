@@ -5,7 +5,7 @@ group:
 order: 15
 title: random 随机数与采样
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

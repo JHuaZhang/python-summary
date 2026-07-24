@@ -5,7 +5,7 @@ group:
 order: 12
 title: asyncio.Lock 异步锁
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

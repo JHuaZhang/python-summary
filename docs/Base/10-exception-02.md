@@ -5,7 +5,7 @@ group:
 order: 2
 title: 捕获多个异常
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

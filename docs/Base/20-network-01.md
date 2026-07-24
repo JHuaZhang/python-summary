@@ -5,7 +5,7 @@ group:
 order: 1
 title: requests 基础请求
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

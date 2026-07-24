@@ -5,7 +5,7 @@ group:
 order: 10
 title: datetime.now 与 strftime
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

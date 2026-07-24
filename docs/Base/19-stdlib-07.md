@@ -5,7 +5,7 @@ group:
 order: 7
 title: re 正则：match / search / findall
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

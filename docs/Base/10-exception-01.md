@@ -5,7 +5,7 @@ group:
 order: 1
 title: try-except基础异常捕获
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

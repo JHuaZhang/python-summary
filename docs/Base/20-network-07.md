@@ -5,7 +5,7 @@ group:
 order: 7
 title: redis.asyncio 异步 Redis
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

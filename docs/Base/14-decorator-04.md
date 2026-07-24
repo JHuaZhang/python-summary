@@ -5,7 +5,7 @@ group:
 order: 4
 title: functools.wraps 保留原函数信息
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

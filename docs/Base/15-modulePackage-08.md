@@ -5,7 +5,7 @@ group:
 order: 8
 title: pyproject.toml 现代配置
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

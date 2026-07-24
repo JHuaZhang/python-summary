@@ -5,7 +5,7 @@ group:
 order: 3
 title: pathlib 路径拼接与文件属性
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

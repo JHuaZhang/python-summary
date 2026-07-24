@@ -5,7 +5,7 @@ group:
 order: 4
 title: requests 超时与代理
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

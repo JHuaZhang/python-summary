@@ -5,7 +5,7 @@ group:
 order: 5
 title: pickle 二进制序列化 —— Python 对象的存取与安全红线
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

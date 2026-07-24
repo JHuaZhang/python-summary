@@ -5,7 +5,7 @@ group:
 order: 1
 title: yield 生成器定义
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

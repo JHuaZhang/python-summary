@@ -5,7 +5,7 @@ group:
 order: 7
 title: 生成器 vs 列表内存对比
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

@@ -5,7 +5,7 @@ group:
 order: 14
 title: uuid 生成唯一 ID
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

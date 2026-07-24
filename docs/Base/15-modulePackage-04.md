@@ -5,7 +5,7 @@ group:
 order: 4
 title: Package 与 __init__.py
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

@@ -5,7 +5,7 @@ group:
 order: 8
 title: 装饰器实战：lru_cache 缓存
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

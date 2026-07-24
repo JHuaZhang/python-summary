@@ -5,7 +5,7 @@ group:
 order: 8
 title: nonlocal 在闭包中的使用
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

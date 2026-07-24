@@ -5,7 +5,7 @@ group:
 order: 4
 title: else子句
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

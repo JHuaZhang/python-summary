@@ -5,7 +5,7 @@ group:
 order: 6
 title: __all__ 控制导出列表
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

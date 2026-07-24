@@ -5,7 +5,7 @@ group:
 order: 6
 title: 主动抛异常raise
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

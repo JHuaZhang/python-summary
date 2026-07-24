@@ -5,7 +5,7 @@ group:
 order: 7
 title: requirements.txt 生成依赖
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

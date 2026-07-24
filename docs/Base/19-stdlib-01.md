@@ -5,7 +5,7 @@ group:
 order: 1
 title: sys 模块：命令行参数与标准流
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

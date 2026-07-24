@@ -5,7 +5,7 @@ group:
 order: 3
 title: __name__ 与程序入口
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

@@ -5,7 +5,7 @@ group:
 order: 2
 title: map 映射函数
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

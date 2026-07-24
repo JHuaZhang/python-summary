@@ -5,7 +5,7 @@ group:
 order: 8
 title: 生成器与协程关系
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

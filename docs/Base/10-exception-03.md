@@ -5,7 +5,7 @@ group:
 order: 3
 title: 获取异常对象
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

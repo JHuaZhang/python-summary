@@ -5,7 +5,7 @@ group:
 order: 3
 title: 装饰器执行顺序
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

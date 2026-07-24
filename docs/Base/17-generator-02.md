@@ -5,7 +5,7 @@ group:
 order: 2
 title: 生成器惰性求值过程
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

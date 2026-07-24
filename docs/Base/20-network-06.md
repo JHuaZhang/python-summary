@@ -5,7 +5,7 @@ group:
 order: 6
 title: redis-py 同步 Redis
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

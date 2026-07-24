@@ -5,7 +5,7 @@ group:
 order: 10
 title: aiohttp 异步 HTTP 请求
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

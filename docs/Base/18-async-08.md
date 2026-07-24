@@ -5,7 +5,7 @@ group:
 order: 8
 title: 任务取消与超时控制
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

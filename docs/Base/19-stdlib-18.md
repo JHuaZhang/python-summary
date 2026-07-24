@@ -5,7 +5,7 @@ group:
 order: 18
 title: argparse 命令行参数解析
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

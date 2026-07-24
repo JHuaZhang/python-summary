@@ -5,7 +5,7 @@ group:
 order: 1
 title: 函数是一等公民
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

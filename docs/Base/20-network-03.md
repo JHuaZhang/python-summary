@@ -5,7 +5,7 @@ group:
 order: 3
 title: requests 响应处理
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

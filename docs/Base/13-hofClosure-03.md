@@ -5,7 +5,7 @@ group:
 order: 3
 title: filter 过滤函数
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

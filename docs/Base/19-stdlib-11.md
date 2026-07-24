@@ -5,7 +5,7 @@ group:
 order: 11
 title: datetime.strptime：解析字符串为 datetime 对象
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

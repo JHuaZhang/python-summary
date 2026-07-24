@@ -5,7 +5,7 @@ group:
 order: 5
 title: yield from 委托 —— 把生成器的"产出"与"交互"整体转发
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

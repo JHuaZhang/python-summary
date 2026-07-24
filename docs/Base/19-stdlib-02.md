@@ -5,7 +5,7 @@ group:
 order: 2
 title: os 模块：环境变量与进程
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

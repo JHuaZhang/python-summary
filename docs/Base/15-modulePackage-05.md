@@ -5,7 +5,7 @@ group:
 order: 5
 title: 相对导入
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

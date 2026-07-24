@@ -5,7 +5,7 @@ group:
 order: 13
 title: timedelta 时间差计算
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

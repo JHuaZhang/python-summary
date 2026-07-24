@@ -5,7 +5,7 @@ group:
 order: 7
 title: 装饰器实战权限校验
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

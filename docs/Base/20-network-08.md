@@ -5,7 +5,7 @@ group:
 order: 8
 title: python-dotenv 环境变量管理
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

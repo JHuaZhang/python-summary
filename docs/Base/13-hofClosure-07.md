@@ -5,7 +5,7 @@ group:
 order: 7
 title: 闭包应用场景
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

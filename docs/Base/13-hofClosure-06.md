@@ -5,7 +5,7 @@ group:
 order: 6
 title: 闭包（closure）
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

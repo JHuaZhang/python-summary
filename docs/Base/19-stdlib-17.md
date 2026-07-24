@@ -5,7 +5,7 @@ group:
 order: 17
 title: logging.FileHandler 与日志轮转
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

@@ -5,7 +5,7 @@ group:
 order: 11
 title: asyncio.Queue 异步队列
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

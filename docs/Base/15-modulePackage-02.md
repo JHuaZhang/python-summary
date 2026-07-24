@@ -5,7 +5,7 @@ group:
 order: 2
 title: 模块搜索路径 sys.path
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

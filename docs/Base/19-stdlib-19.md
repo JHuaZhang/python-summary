@@ -5,7 +5,7 @@ group:
 order: 19
 title: collections 常用工具
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 

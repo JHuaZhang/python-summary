@@ -5,7 +5,7 @@ group:
 order: 4
 title: 生成器 send 方法
 nav:
-  title: Python
+  title: Python基础
   order: 1
 ---
 
