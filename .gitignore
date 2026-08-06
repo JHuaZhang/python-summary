@@ -12,16 +12,13 @@ coverage/
 /build
 /dist
 /storybook-static
-# 忽略 dumi 临时文件，但保留自定义主题
-.dumi/tmp
-.dumi/tmp-production
-!.dumi/theme
 .justconf/
 /test/coverage
 /node_modules
 /lib
 *.log
-/dist
 
-# Ignore Vite temporary config timestamp files
+# Rspress
+.rspack/
+.rspress/
 *.timestamp-*.mjs

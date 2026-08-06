@@ -31,8 +31,10 @@ jobs:
           cache: 'pnpm'
       - name: Install Dependencies
         run: pnpm install
+      - name: Generate Config & Knowledge
+        run: pnpm run nav
       - name: Build Documentation Site
-        run: pnpm run build:site
+        run: pnpm run build
       - name: Clean Invalid Filenames
         run: |
           echo "🔧 清理文件名中的冒号..."

@@ -605,7 +605,7 @@ vim .env                 # 按提示填入本地真实值
 
 `.env` 本身要写进 `.gitignore`，确保永远不会被提交：
 
-```gitignore
+```text
 # .gitignore
 .env
 .env.*
