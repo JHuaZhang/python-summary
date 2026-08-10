@@ -41,11 +41,11 @@ export default defineConfig({
                     "link": "/Base/01-firstEncounter-02"
                 },
                 {
-                    "text": "pip包管理器",
+                    "text": "venv虚拟环境",
                     "link": "/Base/01-firstEncounter-03"
                 },
                 {
-                    "text": "venv虚拟环境",
+                    "text": "pip包管理器",
                     "link": "/Base/01-firstEncounter-04"
                 },
                 {
