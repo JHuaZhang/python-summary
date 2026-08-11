@@ -92,8 +92,6 @@ VS Code 高度可配置,配置散在几类文件里,先建立整体认知,后续
 
 ---
 
----
-
 ## 2. 核心内容
 
 本章详尽讲解 VS Code 的安装、Python 扩展、解释器选择、运行调试、Linter/Formatter 配置、设置与快捷键、Git 集成、远程开发等,让读者照着把 VS Code 配成顺手的 Python IDE。
