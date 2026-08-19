@@ -9,944 +9,858 @@ nav:
   order: 1
 ---
 
+# float类型与精度问题
+
 ## 1. 介绍
 
-### 1.1 什么是 int 类型
+### 1.1 什么是 float 类型
 
-`int` 是 Python 中表示整数(whole number)的内置类型,涵盖正整数、负整数和零,如 `10`、`-5`、`0`、`99_999`。它是编程中最基础的数值类型,用于计数、索引、位运算、标识符等一切"不可分割的离散量"场景。
-
-Python 的 `int` 与 C/Java 这类静态类型语言的整数有一个根本差异:**它是任意精度的(arbitrary precision),没有大小上限**。在 C 里,`int` 通常是 32 位有符号整数,范围约 ±21 亿,超出就**溢出回绕**(overflow wrap-around);Java 的 `long` 也只有 64 位,约 ±9.2 × 10¹⁸。而 Python 的 `int` 可以表示任意大的整数,只要机器内存够,你可以计算 `10 ** 1000`(一个 1001 位的整数)、阶乘 `1000!`、大素数,完全不会溢出。这是 Python 在数值计算上一个被低估的优势。
+`float` 是 Python 中表示浮点数(小数)的内置类型,如 `3.14`、`-0.5`、`2.71828`、`1.0`。它用于表示一切"带小数的连续量"——温度、长度、比例、概率、科学测量、计算结果中的非整数部分。当你写下 `3.14` 这个字面量时,得到的就是一个 `float` 对象。
 
 ```python
-print(10 ** 100)        # 一个 101 位的整数,精确无溢出
-print(2 ** 64)          # 18446744073709551616 —— 远超 C 的 long long 范围,无溢出
-print(type(10))         # <class 'int'>
+print(3.14)         # 3.14
+print(type(3.14))   # <class 'float'>
+print(type(1.0))    # <class 'float'> —— 即便值是整数,写了小数点就是 float
 ```
 
-正因为没有上限,Python 不区分 C 的 `short`/`int`/`long`/`long long`——只有一个 `int`,装多大都行。这也意味着你不用担心"这个计数会不会超过 int 范围",一个心理负担被彻底消除。
-
-`int` 是**不可变(immutable)**类型。这一点非常重要:对 `int` 的任何"修改"操作(加减乘除、位运算)都返回一个**新的 int 对象**,原对象不变。理解不可变性,才能理解为何 `x += 1` 是 `x` 改指向新对象、为何 `int` 可哈希(能做 `dict` 键)、为何共享 int 引用不会出问题(详见《变量赋值机制》《基础数据类型》):
+`float` 与 `int` 最大的不同,在于它**不能精确表示大多数十进制小数**。这是 `float` 最重要的特性,也是它绝大多数"诡异行为"的根源:
 
 ```python
-x = 10
-print(id(x))          # 地址 A
-x = x + 1             # 不是把 10 改成 11,而是创建新 int 11,x 改指
-print(id(x))          # 地址 B(不同),原 10 对象不变
-d = {10: "ten"}       # int 可哈希,可做 dict 键
+print(0.1 + 0.2)           # 0.30000000000000004 —— 不是 0.3!
+print(0.1 + 0.2 == 0.3)    # False
 ```
 
-本篇要系统讲透 `int` 的全部内容:整数的字面量写法(进制、下划线)、完整的算术运算及其与 `float` 的交互、整除与取余的规则(尤其负数)、位运算、`int` 的方法与构造、与其他类型的转换、任意精度的实现原理与性能、以及实战中的注意事项。作为本大章节的基础类型专题之一,本篇聚焦于 `int` 本身的深度细节,与《基础数据类型》的总览、《字面量详解》的字面量规则、《显式/隐式类型转换》的转换机制互为补充。
+`0.1 + 0.2` 不等于 `0.3`,这并非 Python 的 bug,而是所有遵循 IEEE 754 浮点标准的语言(C、Java、JavaScript、Go 无一例外)的共同现象。`float` 内部用二进制存储数值,而 `0.1`、`0.2` 在二进制下是无限循环小数,存储时被截断,累加后误差暴露。本篇的核心任务之一,就是讲清这个误差从何而来、如何规避。
 
-### 1.2 整数与小数:int 与 float 的分野
+`float` 的一些关键事实:
 
-在深入 `int` 前,先厘清它与 `float` 的边界——这关系到何时该用 int、何时该用 float。`int` 表示**精确的、不可分割的整数量**;`float` 表示**近似的小数量(IEEE 754 双精度浮点)**,有精度误差。选择哪个,取决于数据本质是否"是整数"以及是否需要精度。
+- **底层是 IEEE 754 双精度(64 位)**:1 位符号 + 11 位指数 + 52 位尾数。这套标准由 CPU 硬件直接支持,运算极快。
+- **有范围限制**:`float` 能表示的最大值约 `1.8 × 10^308`,超出变 `inf`(无穷);最小正数约 `5e-324`,更小变 `0.0`。这是和 `int`(任意精度无上限)的本质区别。
+- **不可变(immutable)**:与 `int` 一样,`float` 不可变,运算返回新对象,可哈希能做 `dict` 键。
+- **特殊值**:`inf`(无穷)、`-inf`(负无穷)、`nan`(非数,Not a Number)。
 
 ```python
-# int:精确,无误差
-print(100 + 200)               # 300,精确
-
-# float:有精度误差
-print(0.1 + 0.2)               # 0.30000000000000004,不精确!
-print(0.1 + 0.2 == 0.3)        # False
+print(1.0 / 0.0)          # ZeroDivisionError(Python 不允许浮点除零,与某些语言不同)
+print(float('inf'))       # inf
+print(float('nan'))       # nan
 ```
 
-判定数据该用 int 还是 float 的实用原则:
+本篇要系统讲透 `float`:字面量写法、算术运算与精度误差、`round` 的银行家舍入、`inf`/`nan` 的行为、`float` 的方法、与 `int` 的转换与隐式提升、**精度问题的完整规避方案**(`int` 存最小单位、`Decimal`、`Fraction`、容差比较)、以及 IEEE 754 的内部原理。这是本大章节里最该认真对待的类型——因为它的精度陷阱在生产环境中引发过无数金额计算 bug。
 
-- **本质是离散计数**(人数、个数、索引、ID、份数、次数)→ `int`。这些量天然不可分割,且需精确。
-- **本质是连续量/带小数**(温度、长度、比例、科学测量)→ `float`。
-- **精度敏感的金额/利率** → 用 `int` 存最小单位(金额存"分"),或用 `decimal.Decimal`。**绝不要用 float 存金额**(详见《float 类型与精度问题》)。
+### 1.2 int 与 float:何时用哪个
+
+`int` 与 `float` 的选择,取决于数据本质是"离散整数"还是"连续小数",以及是否需要精度:
+
+- **本质是离散计数**(个数、索引、ID、份数)→ `int`。精确无误差。
+- **本质是连续量/带小数**(温度、长度、比例)→ `float`。物理测量本就有误差,float 的精度通常足够。
+- **精度敏感的金额/利率** → 用 `int` 存最小单位(金额存"分"),或 `decimal.Decimal`。**绝不要用 `float` 存金额**。
 
 ```python
 # 金额:用 int 存"分",精确
-total_cents = 199 + 299 + 499    # 997 分
-print(total_cents / 100)         # 9.97(仅展示时转元,计算全程用整数分)
+total_cents = 199 + 299 + 499    # 997 分,精确
+print(total_cents / 100)         # 9.97(仅展示时转元)
 
-# 计数:用 int
-user_count = 1024                # 用户数,整数
-
-# 物理量:用 float
-temperature = 36.6               # 体温,连续量
+# float 存金额会出问题
+print(0.1 + 0.2)                 # 0.30000000000000004 —— 这就是不能存金额的原因
+print(49.99 * 100)               # 4998.999999999999,不是 4999
 ```
 
-这条"金额用 int 存最小单位"的实践极其重要——它用 `int` 的精确性规避了 `float` 的精度误差,是工业级金额计算的标配方法(数据库里 `DECIMAL` 类型同理)。后续遇到任何涉及钱的逻辑,第一反应应是"用整数分"。
+"金额用 int 存分"这条实践极其重要——它用 `int` 的精确性规避了 `float` 的精度误差,是工业级金额计算的标配(数据库的 `DECIMAL` 类型同理)。凡涉及钱的逻辑,第一反应应是"用整数最小单位"。
 
-### 1.3 int 的核心特性速览
+何时该用 `float`?科学计算、物理量、比例、统计分析、图形坐标——这些场景数据本就来自测量(有固有误差),float 的 15~17 位有效数字精度通常远超需求,且 float 运算由 CPU 硬件加速,性能远高于 `Decimal`。NumPy 等科学计算库也基于 float。所以 `float` 不是"坏类型",只是在"精确十进制"场景(金额)用错了地方。
 
-下表汇总 `int` 的核心特性,作为后续展开的索引:
+### 1.3 float 的核心特性速览
 
 | 特性 | 说明 |
 |------|------|
-| 精度 | 任意精度,无大小上限(受内存限制) |
-| 可变性 | 不可变(immutable),运算返回新对象 |
+| 底层 | IEEE 754 双精度(64 位),硬件加速 |
+| 精度 | 约 15~17 位有效十进制数字 |
+| 范围 | 约 ±1.8×10³⁰⁸,超出 → `inf`;最小正数约 5e-324 |
+| 可变性 | 不可变,运算返回新对象 |
 | 可哈希 | 是,可做 `dict` 键 / `set` 元素 |
-| 字面量 | 十进制 `42`、二进制 `0b101010`、八进制 `0o52`、十六进制 `0x2A`,支持下划线 `1_000` |
-| 算术运算 | `+ - * / // % **`,其中 `/` 返回 float、`//` 整除 |
-| 位运算 | `& | ^ ~ << >>`,整数按二进制位操作 |
-| 继承关系 | `bool` 是 `int` 的子类(`True==1`、`False==0`) |
-| 类型转换 | `int("42")`、`int(3.9)`(截断)、`int("0xff", 16)` |
+| 精度误差 | 二进制无法精确表示多数十进制小数 |
+| 特殊值 | `inf`、`-inf`、`nan` |
+| `int` 混合运算 | 隐式提升为 float,结果 float |
 
-特别注意"bool 是 int 子类"这条——`True` 和 `False` 在数值上就是 1 和 0,能参与所有 int 算术。这是 Python 沿袭 C 语言"真值即整数"约定的设计,会导致 `isinstance(True, int)` 为 `True`、`sum([True, True, False])` 为 `2` 等现象(详见《bool 类型与短路逻辑》)。
+理解这张表,就建立了 `float` 的全局认知。后续章节会逐一展开,重点是"精度误差"这条——它是 `float` 一切特殊行为的根源,也是本篇着墨最多的部分。
 
 ---
 
 ## 2. 核心内容
 
-本章详解 `int` 的全部用法。每节遵循"规则 → demo → 陷阱 → 场景"展开。整除取余的负数规则、位运算、`int` 方法是重点,因为它们的细节最多、最易踩坑。
+本章详解 `float` 的全部用法与精度问题。每节遵循"规则 → demo → 陷阱 → 场景"展开。精度误差与 `round`、`inf`/`nan`、Decimal 规避方案是重点,因为它们最易在生产环境出问题。
 
-### 2.1 整数字面量的进制写法
+### 2.1 float 字面量
 
-`int` 字面量支持四种进制,用前缀区分;值相同的四种写法产生完全相同的 int 对象(进制只是书写形式):
+`float` 字面量有多种形式,核心规则:**必须含小数点 `.` 或指数 `e`/`E` 之一**(否则就是 `int`)。
 
 ```python
-print(42)           # 十进制,无前缀 → 42
-print(0b101010)     # 二进制,前缀 0b(或 0B)→ 42
-print(0o52)         # 八进制,前缀 0o(或 0O)→ 42
-print(0x2A)         # 十六进制,前缀 0x(或 0X)→ 42
-print(0x2A == 42)   # True —— 不同进制只是写法不同,值与类型相同
+print(3.14)        # 3.14 —— 标准小数
+print(3.)          # 3.0 —— 小数点后数码可省略
+print(.5)          # 0.5 —— 小数点前数码可省略
+print(2e3)         # 2000.0 —— 科学计数法,2 × 10³
+print(2E3)         # 2000.0 —— E 大小写均可
+print(1.5e-3)      # 0.0015 —— 负指数
+print(3.14e2)      # 314.0
 ```
 
-各进制允许的数字字符:
+科学计数法 `eN` 表示"乘以 10 的 N 次方"。`2e3` = 2000.0。注意凡含 `e` 的字面量都是 `float`,哪怕结果看起来是整数(`2e3` 是 `2000.0` 不是 `2000`)。
 
-- 二进制(`0b`):仅 `0`、`1`。
-- 八进制(`0o`):`0`~`7`。
-- 十六进制(`0x`):`0`~`9`、`a`~`f`/`A`~`F`(大小写不敏感)。
-- 十进制:无前缀,`0`~`9`。
+⚠️ `.5` 与 `3.` 这种省略形式合法但可读性见仁见智:`.5` 容易被一眼扫成 `5`。团队代码里写 `0.5` 更稳妥。省略形式在数学公式里常见,正式工程代码倾向写全。
 
-非法字符会语法错误:
+**下划线分隔**(3.6+):float 也支持,提升可读性:
 
 ```python
-# 0b2              # SyntaxError: 二进制不能有 2
-# 0o9              # SyntaxError: 八进制不能有 9
-print(0xFF)        # 255
-print(0xff)        # 255,大小写不敏感
+print(1_000.5)         # 1000.5
+print(6.022_140_76e23) # 阿伏伽德罗常数,分组清晰
 ```
 
-⚠️ **八进制前缀的 Python 2 → 3 变化**:Python 2 允许 `017` 表示八进制 15(前导零即八进制,继承自 C),但这极易与十进制 `17` 混淆(只差一个零,值却不同)。Python 3 废弃了这种写法,**要求八进制必须用 `0o` 前缀**,`017` 直接是 SyntaxError:
+**特殊浮点值**:`float` 没有直接表示 `inf`/`nan` 的字面量语法,但可通过 `float()` 构造或 `math` 模块:
 
 ```python
-# 017              # SyntaxError(Python 3):八进制必须用 0o 前缀
-print(0o17)        # 15,正确的八进制
-print(17)          # 17,这是十进制
-```
-
-从 C/Java 转来的人若习惯写 `0` 前导表八进制,在 Python 3 里会直接报错——这是好事,它消除了"017 vs 17"的歧义。
-
-**下划线分隔**(Python 3.6+):在数字任意位置插入 `_` 提升可读性,被编译器忽略。对大数极其实用:
-
-```python
-print(1_000_000)        # 1000000 —— 金额/计数
-print(1_073_741_824)    # 1073741824 —— 1GB 的字节数,一眼可读
-print(0xFF_FF_FF_FF)    # 4294967295 —— 32 位掩码
-print(0b_1010_0011)     # 163 —— 二进制分组,对应位
-```
-
-下划线规则:不能在开头/结尾(`_42`、`42_` 非法),不能连续两个(`42__3` 非法),不能紧跟进制前缀(`0x_FF` 非法,前缀后要先有数字)。养成大数用下划线的习惯,代码可读性显著提升。
-
-**进制选择原则**:进制不是随意,而要让数字的工程语义对读者最直接——
-
-- **权限/模式位**用八进制:Unix 文件权限 `0o755`(对应 rwx 三位组)、文件模式 `0o644`。
-- **位掩码/颜色/字节值**用十六进制:`0xFFFFFF`(白色)、`0xFF`(一字节全 1)、内存地址。
-- **可计数的大数**用十进制 + 下划线:`1_000_000`。
-- **二进制位示教/位运算演示**用二进制:`0b1010_0011`。
-
-### 2.2 算术运算:加减乘与除法
-
-`int` 支持全套算术运算符,但要特别注意**除法**——这是 int 运算里最易出错的部分:
-
-```python
-print(7 + 3)        # 10
-print(7 - 3)        # 4
-print(7 * 3)        # 21
-print(7 / 2)        # 3.5  —— / 真除法,永远返回 float,即使能整除!
-print(7 // 2)       # 3    —— // 地板除(整除),返回 int
-print(7 % 2)        # 1    —— % 取余
-print(2 ** 10)      # 1024 —— ** 幂运算
-```
-
-关键区分:`/` 与 `//`。
-
-- **`/`(真除法,true division)**:无论操作数是否整数,结果**总是 `float`**。`7 / 2 = 3.5`、`8 / 2 = 4.0`(注意是 `4.0` 不是 `4`)。这是 Python 3 的设计(Python 2 的 `/` 对整数会整除,3 改为永远真除,消除歧义)。
-
-```python
-print(8 / 2)        # 4.0 —— 能整除也返回 float!
-print(type(8 / 2))  # <class 'float'>
-```
-
-- **`//`(地板除,floor division)**:对结果向下取整(向负无穷方向),返回**整数类型**(操作数全 int 时返回 int)。
-
-```python
-print(7 // 2)       # 3
-print(8 // 2)       # 4
-print(type(8 // 2)) # <class 'int'> —— 操作数全 int,返回 int
-```
-
-`/` 永远给 float、`//` 才是"整数除法",这是 Python 3 区分两者的核心。当你需要"整数结果"时用 `//`,需要"精确商"时用 `/`。
-
-**乘方 `**`**:右结合,支持负指数(负指数返回 float):
-
-```python
-print(2 ** 10)      # 1024
-print(2 ** 0)       # 1
-print(2 ** -1)      # 0.5 —— 负指数返回 float(等价 1/2)
-print(2 ** 3 ** 2)  # 512 —— 右结合:2**(3**2) = 2**9 = 512,不是 (2**3)**2=64
-```
-
-`2 ** -1` 返回 float 不是 int——因为负指数意味着分数,结果不是整数。`**` 右结合这点也易错:`2 ** 3 ** 2` 是 `2 ** (3 ** 2)`。
-
-### 2.3 整除 // 与取余 % 的负数规则(重点)
-
-`//` 与 `%` 对**负数**的行为,是 int 运算里最该牢记的规则,它与 C/Java 截然不同,是高频踩坑点。
-
-**核心规则:Python 的 `//` 向"负无穷"取整(floor),`%` 的结果与除数同号。** 并满足恒等式 `a == (a // b) * b + (a % b)`。
-
-```python
-# 正数:符合直觉
-print(7 // 2)       # 3
-print(7 % 2)        # 1
-
-# 负数被除数:反直觉!
-print(-7 // 2)      # -4(不是 -3!)—— 向负无穷取整
-print(-7 % 2)       # 1(不是 -1!)—— 余数与除数同号(除数 2 为正,余数 1 为正)
-```
-
-为何 `-7 // 2` 是 `-4` 而非 `-3`?因为 `-7 / 2 = -3.5`,向负无穷取整就是 `-4`(负无穷方向是更小的数)。C/Java 的整数除法是"向零取整",`-3.5` 向零取整是 `-3`。两者规则不同:
-
-| 表达式 | Python(`//` 向负无穷) | C/Java(向零) |
-|--------|------------------------|--------------|
-| `-7 // 2` | `-4` | `-3` |
-| `7 // -2` | `-4` | `-3` |
-| `-7 % 2` | `1` | `-1` |
-| `7 % -2` | `-1` | `1` |
-
-`%` 的符号规则:余数**总与除数同号**。`-7 % 2`:除数 2 为正,余数为正 1;`7 % -2`:除数 -2 为负,余数为负 -1。这保证 `a == (a//b)*b + a%b` 恒成立:
-
-```python
-a, b = -7, 2
-print((a // b) * b + a % b)   # -7,恒等式成立:(-4)*2 + 1 = -7
-```
-
-**这个规则为何如此设计?** 为了数学一致性:向负无穷取整让"取整函数 floor"在数轴上一致(总是往小的方向),余数符号统一(与除数同号),在数学/科学计算里行为可预测。C 的"向零取整"看似对正数直觉,但负数行为不一致。Python 选了数学一致性,代价是"反直觉"。
-
-**实战影响**——涉及负数的分页、日期差、索引计算时务必注意:
-
-```python
-# 分页:计算第 -1 页(从末页往前)用 // 会反直觉
-# 想要"向零取整"的行为,用 int(a / b) 或 math.trunc
+print(float('inf'))       # inf —— 正无穷
+print(float('-inf'))      # -inf
+print(float('nan'))       # nan
 import math
-print(int(-7 / 2))      # -3 —— 先真除得 -3.5,再 int 截断(向零)
-print(math.trunc(-7 / 2))  # -3 —— 显式向零截断
-print(math.floor(-7 / 2))  # -4 —— 显式向负无穷(等同 //)
+print(math.inf)           # inf —— math 常量,更清晰
+print(math.nan)           # nan
 ```
 
-需要"向零取整"(C 风格)时,用 `int(a / b)` 或 `math.trunc`。明确语义再选用,负数场景不能照搬其他语言直觉。
+严格说 `float('inf')` 是构造函数调用而非字面量(需执行函数),但它是写出 `inf`/`nan` 的标准方式。`math.inf`/`math.nan` 是更清晰的替代。
 
-**`divmod` 同时取商与余**:
+### 2.2 精度误差:float 最核心的问题
+
+这是 `float` 最重要的章节。`0.1 + 0.2 != 0.3` 不是 bug,而是 IEEE 754 浮点的本质。先看现象:
 
 ```python
-print(divmod(7, 2))     # (3, 1) —— (商, 余)
-print(divmod(-7, 2))    # (-4, 1) —— 遵循同样的负数规则
-q, r = divmod(100, 7)   # 一次取商余,常见于进制转换、分桶
-print(q, r)             # 14 2
+print(0.1 + 0.2)              # 0.30000000000000004
+print(0.1 + 0.2 == 0.3)       # False
+print(0.1 + 0.2 - 0.3)        # 5.551115123125783e-17 —— 极小残差
+print(1.1 + 2.2)              # 3.3000000000000003
+print(0.1 * 3)                # 0.30000000000000004
+print(0.7 - 0.1)              # 0.6(恰好干净的情况也有,看二进制表示)
 ```
 
-`divmod(a, b)` 返回 `(a // b, a % b)`,一次拿到商和余,比分别算高效,常用于进制转换、时间换算(秒→时分秒)。
-
-### 2.4 位运算
-
-`int` 支持完整的位运算符,把整数当作二进制位串操作。位运算在底层编程、权限标志、加密、算法优化中常用。各运算符:
-
-| 运算符 | 名称 | 说明 |
-|--------|------|------|
-| `&` | 按位与 | 两边都为 1 才 1 |
-| `\|` | 按位或 | 任一为 1 即 1 |
-| `^` | 按位异或 | 不同为 1,相同为 0 |
-| `~` | 按位取反 | 一元,每位翻转(等价 `-x - 1`) |
-| `<<` | 左移 | 各位左移,低位补 0(等价 `* 2**n`) |
-| `>>` | 右移 | 各位右移,高位补符号位(等价 `// 2**n`) |
+误差从何而来?`float` 用二进制存储数值,而 **`0.1` 在二进制下是无限循环小数**(`0.0001100110011...`),存储时被截断到 52 位尾数,实际存储值略偏离 0.1。两个"略偏"的数相加,误差暴露。用 `repr` 看真相:
 
 ```python
-print(0b1100 & 0b1010)   # 8   (0b1000) —— 按位与
-print(0b1100 | 0b1010)   # 14  (0b1110) —— 按位或
-print(0b1100 ^ 0b1010)   # 6   (0b0110) —— 异或
-print(~0b1100)           # -13 —— 取反(详见下方)
-print(0b0001 << 3)       # 8   (0b1000) —— 左移 3 位 = ×2³
-print(0b1000 >> 2)       # 2   (0b0010) —— 右移 2 位 = ÷2²
+print(repr(0.1))              # 0.1 —— Python 的 repr 会"巧妙"显示成 0.1(repr 优化)
+print(f"{0.1:.20f}")          # 0.10000000000000000555 —— 实际存储值略大于 0.1
+print(f"{0.3:.20f}")          # 0.29999999999999998890 —— 实际存储值略小于 0.3
 ```
 
-**`~` 取反的真相**:`~x` 等于 `-x - 1`,不是"把 1 变 0、0 变 1"那么简单——因为 Python 整数是**任意精度有符号补码**,没有固定位宽。"取反"在无限位下会让所有高位变 1,表现为负数:
+`repr(0.1)` 显示 `0.1` 是因为 Python 的浮点 repr 用了"最短表示"算法——找到与 0.1 实际存储值最接近的、能唯一回转到该存储值的短十进制串,显示成 `0.1`。但底层存储值是 `0.10000000000000000555...`。所以 `0.1 + 0.2` 加出来是 `0.30000000000000004`,它与 `0.3` 的存储值(`0.29999...`)不相等。
+
+**这影响的不仅是相等比较,还有累积误差**:
 
 ```python
-print(~0)        # -1  (~0 = -0 - 1 = -1)
-print(~5)        # -6  (~5 = -5 - 1 = -6)
-print(~-1)       # 0   (~-1 = 1 - 1 = 0)
+total = 0.0
+for _ in range(10):
+    total += 0.1
+print(total)                  # 0.9999999999999999 —— 不是 1.0!
+print(total == 1.0)           # False
 ```
 
-不要把 `~` 当成"固定位宽翻转"(那是 C 的事)。Python 里 `~x` 就是 `-x - 1`,记住这个等价。
+10 个 `0.1` 相加不等于 `1.0`——若这是金额累加,账就对不平了。这正是 float 不能用于金额的根本原因。
 
-**左移 `<<` 与右移 `>>`**:左移 n 位等于乘 `2**n`,右移 n 位等于整除 `2**n`(向负无穷)。
+**误差的几个表现维度**:
 
 ```python
-print(1 << 10)      # 1024 —— 1 × 2¹⁰
-print(1024 >> 3)    # 128  —— 1024 // 2³
-print(-8 >> 1)      # -4  —— 负数右移,向负无穷
+# 显示与实际不符
+print(0.1 + 0.2)              # 0.30000000000000004(显示)
+print(round(0.1 + 0.2, 17))   # 0.30000000000000004(无法靠 round 修好)
+
+# 比较失效
+print(0.1 + 0.2 == 0.3)       # False
+
+# 累积
+total = sum([0.1] * 10)       # 0.9999999999999999
+print(total)
+
+# 大数吞噬小数(精度丢失)
+big = 1e16
+print(big + 1.0)              # 1e+16 —— 1.0 被"吞掉"了!因 1e16 已用满 52 位尾数
+print(big + 1.0 == big)       # True
 ```
 
-移位常用于快速乘除 2 的幂(比 `*`/`//` 略快,但现代 Python 优化后差异极小,优先可读性用 `* 2`)。
+最后一条"大数吞噬小数"值得注意:当数值很大(接近精度上限)时,加上一个相对极小的数,小数会被舍入掉,因为 float 的 52 位尾数无法同时容纳大数的所有有效位和那个小增量。这解释了"`1e16 + 1 == 1e16`"这种看似荒谬的结果。
 
-**位运算的典型应用**:
+**核心结论**:`float` 是"近似值"而非"精确值"。任何依赖 float 精确相等的逻辑(比较、累加求和、金额)都会出问题。
+
+### 2.3 round() 的银行家舍入陷阱
+
+`round(x, n)` 把 `x` 四舍五入到 n 位小数。但它有个反直觉细节:**银行家舍入(round half to even)**——当待舍入位正好是 5 时,向**最近的偶数**舍入,而非总是向上。
 
 ```python
-# 1. 权限标志(位掩码):每个权限占一位
-READ = 0b001      # 1
-WRITE = 0b010     # 2
-EXEC = 0b100      # 4
-perm = READ | WRITE        # 3,有读+写权限
-print(perm & READ)         # 1(非零),说明有读权限
-print(bool(perm & EXEC))   # False,无执行权限
-
-# 2. 异或交换两数(无需临时变量,但可读性差,演示用)
-a, b = 5, 9
-a ^= b; b ^= a; a ^= b
-print(a, b)                # 9 5
-
-# 3. 异或找唯一不重复元素(出现两次的抵消)
-nums = [1, 2, 3, 2, 1]
-result = 0
-for n in nums:
-    result ^= n
-print(result)              # 3 —— 成对异或抵消,留下唯一的
-
-# 4. 清最低位的 1:n & (n-1)
-n = 0b10100   # 20
-print(bin(n & (n - 1)))    # 0b10000 —— 清掉最低位的 1
+print(round(3.14159, 2))    # 3.14 —— 正常四舍五入
+print(round(2.5))           # 2!不是 3 —— .5 时向偶数舍入
+print(round(3.5))           # 4
+print(round(0.5))           # 0
+print(round(1.5))           # 2
+print(round(2.675, 2))      # 2.67(不是 2.68!)—— 见下方精度解释
 ```
 
-位运算的技巧(`n & (n-1)` 判 2 的幂、异或找单数、位掩码权限)是算法题常客,理解其位级语义后能写出高效的位操作代码。但日常业务代码优先可读性,位运算用于"确实需要位级操作"的场景(权限、协议、算法),不要为了炫技用。
+`round(2.5) → 2`、`round(3.5) → 4`:两者都向最近的偶数靠(2 是偶数,4 是偶数)。这与多数人"四舍五入逢 5 进 1"的直觉冲突。银行家舍入的目的是在大量数据上避免系统性偏差(若总向上,正误差累积;向偶数则长期正负抵消),金融领域常用。
 
-### 2.5 int 的常用方法与构造
-
-`int` 虽是内置类型,也有少量方法。最实用的是 `bit_length()`:
+⚠️ **`round(2.675, 2)` 为何是 `2.67` 而非 `2.68`?** 这又是 float 精度问题:`2.675` 的实际存储值略小于 2.675(`2.67499999...`),所以 `round` 在"比 5 略小"的位置,向 2.67 舍。也就是 `round` 的"银行家规则"只在数值**真的精确等于 5** 时才触发,而 float 几乎不可能精确等于 5,所以实际行为常被精度误差干扰,不可预测。
 
 ```python
-n = 42
-print(n.bit_length())    # 6 —— 二进制表示所需位数(42 = 0b101010,6 位)
-print((1).bit_length())  # 1
-print((0).bit_length())  # 0 —— 0 的位数为 0
-print((256).bit_length())# 9 —— 256 = 0b100000000
+print(f"{2.675:.20f}")    # 2.67499999999999982236 —— 实际略小,故 round 到 2.67
 ```
 
-`bit_length()` 返回"表示该整数所需的最少二进制位数",在判断"某个数需要几个字节存储"、位运算算法中常用。注意它不含符号位,负数返回的是其绝对值的位数。
-
-**`int.to_bytes` / `int.from_bytes`**:整数与字节序列互转,处理二进制协议、加密、序列化时核心:
+**`round` 返回 float**(`round(3.14, 2)` 返回 `3.14` 这个 float,仍是近似值):
 
 ```python
-n = 1024
-# 整数 → 字节(大端,2 字节)
-b = n.to_bytes(2, byteorder='big')
-print(b)                 # b'\x04\x00'(1024 = 0x0400)
-# 字节 → 整数
-print(int.from_bytes(b, byteorder='big'))   # 1024
-
-# 小端字节序
-print((258).to_bytes(2, 'little'))          # b'\x02\x01'(258 = 0x0102,小端先存低字节 0x02)
-print(int.from_bytes(b'\x02\x01', 'little'))# 258
+print(type(round(3.14, 2)))   # <class 'float'>
+print(round(2.675, 2))        # 2.67 —— 仍是 float,仍有精度问题
 ```
 
-`byteorder` 指'big'(大端,高位在前,网络协议常用)或'little'(小端,低位在前,x86 常用)。`to_bytes` 还接受 `signed` 参数处理负数。这套方法让你精确控制整数的二进制表示,是网络协议、文件格式解析的基础。
-
-**`int()` 构造函数**:从其他类型创建 int,有三种用法:
+⚠️ **round 不能"修好"精度问题**:`round(0.1 + 0.2, 1)` 得 `0.3`,看似好了,但 `round` 结果仍是 float,内部仍是近似值,后续运算误差会再冒出来。round 只能"限制显示位数",不能让 float 变精确。
 
 ```python
-# 1. 从字符串(默认十进制)
-print(int("42"))         # 42
-print(int("-5"))         # -5
-print(int("  42  "))     # 42 —— 容忍首尾空白
-# 2. 从字符串 + 指定进制(2~36)
-print(int("ff", 16))     # 255 —— 十六进制字符串转 int
-print(int("1010", 2))    # 10 —— 二进制字符串转 int
-print(int("17", 8))      # 15 —— 八进制字符串转 int
-print(int("z", 36))      # 35 —— 36 进制(z=35)
-# 3. 从 float(截断小数,向零)
-print(int(3.9))          # 3
-print(int(-3.9))         # -3(向零截断,不是 floor)
+x = round(0.1 + 0.2, 2)    # 0.3(显示)
+print(x == 0.3)             # True(恰好),但
+print(x * 3)                # 0.8999999999999999!round 后再算又冒误差
 ```
 
-⚠️ **`int(3.9)` 是截断(向零)不是四舍五入**:`int(3.9) → 3`、`int(-3.9) → -3`,直接丢弃小数部分。要四舍五入用 `round()`,要向下取整用 `math.floor()`:
+**正确取整/舍入的多种方式**:
 
 ```python
 import math
-print(int(3.9))        # 3 —— 截断
-print(round(3.9))      # 4 —— 四舍五入
-print(math.floor(3.9)) # 3 —— 向下取整
-print(math.trunc(3.9)) # 3 —— 向零截断(等同 int)
-print(math.ceil(3.9))  # 4 —— 向上取整
+# 截断
+print(math.trunc(3.7))      # 3(向零)
+print(int(3.7))             # 3(等同 trunc)
+# 向下/向上
+print(math.floor(3.7))      # 3
+print(math.ceil(3.7))       # 4
+# 四舍五入(传统,非银行家)
+print(math.floor(3.5 + 0.5)) # 4(传统四舍五入的实现:加0.5后向下取整,但负数要另处理)
 ```
 
-⚠️ **`int()` 转换失败的错误**:
+需要"传统四舍五入(逢5进1)"而非银行家舍入时,Python 内建没有直接函数,可用 `Decimal` 的 `ROUND_HALF_UP` 模式(见 §2.6)。round 的银行家规则要刻进认知,避免在金额/统计中误用产生系统性偏差。
 
-```python
-# int("abc")     # ValueError: 无法解析
-# int("12.5")    # ValueError: 含小数点,不能直接转
-# int("0x1f")    # ValueError: 默认十进制不认 0x 前缀
-print(int("0x1f", 16))  # 报错!有 0x 前缀时需先去掉,或:
-print(int("1f", 16))    # 31,正确(不带前缀,指定进制)
-print(int(float("12.5")))  # 12 —— 先转 float 再截断,绕过
-```
+### 2.4 特殊浮点值:inf 与 nan
 
-处理用户输入/外部数据时,`int()` 转换可能抛 `ValueError`,需 try/except 或先校验。这是 `int` 实战的高频点。
+`float` 有两个特殊值:`inf`(无穷)和 `nan`(Not a Number,非数)。它们遵循独特的运算规则,处理不当会引入隐蔽 bug。
 
-### 2.6 进制转换函数
-
-把 int 转换为各进制字符串,内建有三个配套函数:
-
-```python
-print(bin(42))     # '0b101010' —— 转二进制字符串(带 0b 前缀)
-print(oct(42))     # '0o52'    —— 转八进制字符串(带 0o 前缀)
-print(hex(42))     # '0x2a'    —— 转十六进制字符串(带 0x 前缀)
-```
-
-注意返回的是**字符串**(带进制前缀),不是 int(int 本身没有进制,进制只是表示形式)。前缀让你能直接复制粘贴回代码用作字面量。
-
-若想得到**不带前缀**的字符串,用切片或 format:
-
-```python
-print(bin(42)[2:])          # '101010' —— 去掉 0b 前缀
-print(format(42, 'b'))      # '101010' —— format 不带前缀
-print(format(255, 'x'))     # 'ff' —— 十六进制不带前缀
-print(format(255, 'X'))     # 'FF' —— 大写十六进制
-print(format(42, '#b'))     # '0b101010' —— # 加前缀
-print(f"{42:b}")            # '101010' —— f-string 格式化也不带前缀
-```
-
-**任意进制转换**(2~36):没有直接内置,但可手写。常见需求是十进制转任意进制:
-
-```python
-def to_base(n, base):
-    """十进制整数转 base 进制字符串(2<=base<=36)。"""
-    if n == 0:
-        return "0"
-    digits = "0123456789abcdefghijklmnopqrstuvwxyz"
-    sign = "-" if n < 0 else ""
-    n = abs(n)
-    parts = []
-    while n > 0:
-        parts.append(digits[n % base])
-        n //= base
-    return sign + "".join(reversed(parts))
-
-print(to_base(255, 16))    # 'ff'
-print(to_base(42, 2))      # '101010'
-print(to_base(1000, 36))   # 'rs'
-```
-
-`int(s, base)` 能从任意进制字符串转回 int,而 int→任意进制字符串需自行实现(或用第三方库)。这套"进制转换"在编码、哈希、ID 生成(b16/b32/b62 编码)场景常用。
-
-### 2.7 int 与 bool 的关系
-
-`bool` 是 `int` 的子类,`True == 1`、`False == 0`。这一关系让 bool 能无缝参与 int 算术,也会带来一些需注意的行为:
-
-```python
-print(True == 1)          # True
-print(False == 0)         # True
-print(True + True)        # 2 —— bool 当 int 算术
-print(True * 5)           # 5
-print(sum([True, True, False, True]))  # 3 —— 计数满足条件的项
-```
-
-"用 `sum` 统计满足条件的项"是个实用技巧:
-
-```python
-# 统计列表中偶数的个数
-nums = [1, 2, 3, 4, 5, 6]
-even_count = sum(1 for n in nums if n % 2 == 0)   # 标准写法
-even_count2 = sum(n % 2 == 0 for n in nums)        # 利用 bool 即 int,简洁
-print(even_count, even_count2)   # 3 3
-```
-
-`sum(n % 2 == 0 for n in nums)` 利用了 `True`==1,把"是否偶数"直接求和得计数。这种写法简洁但牺牲一点可读性,团队看习惯会用。
-
-⚠️ **bool 与 int 混淆的陷阱**:因为 bool 是 int 子类,`isinstance(True, int)` 为 True,在按类型分支时要先排除 bool:
-
-```python
-def handle(x):
-    if isinstance(x, bool):       # 先判 bool,否则下面 int 分支会吃掉 True/False
-        return "布尔"
-    if isinstance(x, int):
-        return "整数"
-    return "其他"
-print(handle(True))    # 布尔
-print(handle(42))      # 整数
-```
-
-若不先判 bool,`True` 会落进 int 分支(因 bool 是 int 子类)。这是 `int` 与类型判断(《类型判断与 type 系统》)交叉的常见陷阱。bool 的更多行为见《bool 类型与短路逻辑》。
-
-### 2.8 int 与其他类型的转换
-
-`int` 与其他类型互转是高频操作。从 int 转出:
-
-```python
-print(str(42))           # '42' —— int → str(十进制字符串)
-print(float(42))         # 42.0 —— int → float
-print(bool(42))          # True —— int → bool(0 为 False,非 0 为 True)
-print(bool(0))           # False
-print(chr(65))           # 'A' —— int(码点)→ 字符
-print(chr(0x4e2d))       # '中'
-```
-
-`bool(x)` 对 int:0 → False,任意非 0(含负数)→ True。`chr(n)` 把 Unicode 码点转字符(`chr(65)='A'`),配合 `ord` 可在字符与码点间转换。
-
-转入 int:
-
-```python
-print(int(3.9))          # 3 —— float → int(截断)
-print(int("42"))         # 42 —— str → int
-print(int(True))         # 1 —— bool → int
-print(ord('A'))          # 65 —— 字符 → 码点 int
-```
-
-**取整的多种方式对比**(int 与 float 转换的核心知识点):
+**inf(无穷)**:表示超出表示范围的值,有正负。
 
 ```python
 import math
-x = 3.7
-print(int(x))            # 3   —— 向零截断
-print(math.trunc(x))     # 3   —— 向零截断(等同 int)
-print(math.floor(x))     # 3   —— 向下取整(向负无穷)
-print(math.ceil(x))      # 4   —— 向上取整
-print(round(x))          # 4   —— 四舍五入(银行家舍入)
-
-x = -3.7
-print(int(x))            # -3  —— 向零截断
-print(math.floor(x))     # -4  —— 向下(向负无穷)
-print(math.ceil(x))      # -3  —— 向上
-print(round(x))          # -4  —— 四舍五入
+print(math.inf)          # inf
+print(-math.inf)         # -inf
+print(float('inf'))      # inf
+print(1e400)             # inf —— 超出最大值,变成 inf
+print(math.inf > 1e308)  # True
+print(math.inf + 1)      # inf —— 无穷加有限仍无穷
+print(math.inf * 2)      # inf
+print(1 / math.inf)      # 0.0
 ```
 
-这五种"取整"语义不同:`int`/`trunc` 向零、`floor` 向负无穷、`ceil` 向正无穷、`round` 四舍五入(银行家舍入)。负数下差异明显(`int(-3.7)=-3` vs `floor(-3.7)=-4`)。明确你要哪种语义再选函数,别混用。
+**nan(非数)**:表示"无意义的运算结果"(如 `0/0`、`inf - inf`、负数开方等数学未定义运算)。nan 的核心特性:**nan 与任何值(含自身)都不相等**。
 
-**隐式转换**:int 与 float 混合运算时,int 会**隐式提升为 float**(混合类型向更宽的类型看齐),见《隐式类型转换》:
+```python
+print(math.nan)               # nan
+print(float('nan'))           # nan
+nan = math.nan
+print(nan == nan)             # False! —— nan 不等于自己
+print(nan != nan)             # True
+print(nan > 0, nan < 0)       # (False, False) —— nan 与任何数比较都 False
+print(math.isnan(nan))        # True —— 判 nan 唯一可靠方式
+```
+
+⚠️ **`nan != nan` 为 True** 是 nan 最反直觉的特性。它导致"用 `==` 判 nan 永远失败":
+
+```python
+x = math.nan
+# 错误:nan 永远不等于 nan,这个判断永远 False
+if x == math.nan:
+    print("是 nan")
+# 正确:用 math.isnan
+if math.isnan(x):
+    print("是 nan")   # ← 走这里
+```
+
+判 nan **必须**用 `math.isnan(x)`,绝不能用 `x == float('nan')`(恒为 False)。这是 nan 处理的第一守则。
+
+**inf 的运算规则**:
+
+```python
+inf = math.inf
+print(inf - inf)         # nan —— 无穷减无穷无意义
+print(inf / inf)         # nan
+print(0.0 * inf)         # nan
+print(inf + inf)         # inf
+print(inf * 0.0)         # nan
+print(1.0 / 0.0)         # ZeroDivisionError!Python 浮点除零会报错,不像某些语言返回 inf
+```
+
+注意 Python 的 `1.0 / 0.0` 抛 `ZeroDivisionError`,而非返回 `inf`(与 JavaScript/IEEE 某些实现不同)。但 `1.0 / inf` 是 `0.0`,`inf - inf` 是 `nan`。
+
+**nan 在数据中的危害**:nan 一旦混入数据,会"污染"统计结果——任何与 nan 的算术都得 nan,且 nan 比较都 False,导致求和、平均值、排序混乱:
+
+```python
+data = [1.0, math.nan, 3.0]
+print(sum(data))         # nan —— 一个 nan 毒化整个求和
+print(max(data))         # nan —— 排序也乱
+# 数据清洗时必须先剔除 nan
+clean = [x for x in data if not math.isnan(x)]
+print(sum(clean))        # 4.0
+```
+
+处理含 nan 的数据时,务必先用 `math.isnan` 过滤,否则整个计算被毒化。NumPy 有 `np.nanmean`/`np.nansum` 等专门的 nan 安全函数。
+
+### 2.5 float 的常用方法
+
+`float` 作为内置类型,方法不多,但有几个实用:
+
+**`as_integer_ratio()`**:把 float 表示为分数(分子/分母),精确揭示其内部值:
+
+```python
+print((0.5).as_integer_ratio())    # (1, 2) —— 0.5 = 1/2,精确(2 的幂可精确表示)
+print((0.1).as_integer_ratio())    # (3602879701896397, 36028797018963968) —— 0.1 的近似分数
+print((0.1).as_integer_ratio())    # 0.1 实际 = 3602879701896397/36028797018963968
+```
+
+`0.5` 的 ratio 是干净的 `1/2`(因 0.5 是 2 的幂次,二进制精确),而 `0.1` 的 ratio 是个巨大分数——直观证明 `0.1` 无法精确表示。这是理解 float 误差的利器。
+
+**`is_integer()`**:判断 float 是否为整数值(值层面,非类型层面):
+
+```python
+print((3.0).is_integer())    # True —— 值是整数(但类型仍是 float)
+print((3.5).is_integer())    # False
+print((0.1).is_integer())    # False
+```
+
+注意 `3.0` 类型是 `float`,但 `is_integer()` 为 `True`(它的值是整数)。常用于"判断浮点结果是否恰好整数"。
+
+**`hex()`**:float 的十六进制表示,直观看到其内部指数/尾数:
+
+```python
+print((1.0).hex())           # '0x1.0000000000000p+0'
+print((0.1).hex())           # '0x1.999999999999ap-4'
+```
+
+`p` 后是二进制指数。这个方法日常少用,但在深入分析 float 表示时有用。
+
+**`float()` 构造**:从其他类型创建 float:
+
+```python
+print(float(3))          # 3.0 —— int → float
+print(float("3.14"))     # 3.14 —— str → float
+print(float("1e5"))      # 100000.0 —— 含指数的字符串
+print(float("inf"))      # inf
+print(float(True))       # 1.0 —— bool → float(True 即 1)
+# float("abc")           # ValueError
+# float("3,14")          # ValueError —— 不认逗号(欧洲小数点写法)
+```
+
+⚠️ `float()` 转换失败抛 `ValueError`,处理外部输入需捕获。注意 `float("3,14")` 报错——欧洲用逗号作小数点,直接转失败,需先替换。
+
+### 2.6 精度问题的规避方案(重点)
+
+这是 `float` 实战最关键的部分——既然 float 有精度问题,如何在需要精度的场景规避?有四条出路。
+
+**方案一:int 存最小单位(推荐用于金额)**
+
+把金额存成"分"等最小单位的整数,全程用 int 精确计算,仅在展示时除以 100 转元。彻底绕开浮点。
+
+```python
+# 金额用 int 存"分"
+price_cents = 4999          # 49.99 元 = 4999 分
+qty = 3
+total_cents = price_cents * qty   # 14997 分,精确
+print(f"总计:{total_cents / 100:.2f} 元")  # 总计:149.97 元(仅展示转元)
+
+# 对比 float 的错误
+print(49.99 * 3)           # 149.97(显示),但
+print(49.99 * 100)         # 4998.999999999999 —— 内部不精确
+```
+
+这是最简单、最可靠、最高性能的金额方案,工业界广泛使用。缺点:需全程维护"分"的约定,且不适合有非整数比例(如利率 3.75%)直接参与运算的场景(那种用 Decimal)。
+
+**方案二:decimal.Decimal(精确十进制)**
+
+`decimal` 模块提供十进制浮点运算,"存什么是什么",精确表示 `0.1`。它是为金融/财务场景设计的标准库。
+
+```python
+from decimal import Decimal, getcontext
+
+a = Decimal('0.1')          # 注意:用字符串构造!用 float 构造会带入精度
+b = Decimal('0.2')
+print(a + b)                # 0.3 —— 精确!
+print(a + b == Decimal('0.3'))  # True
+
+# 对比 float
+print(0.1 + 0.2 == 0.3)     # False
+```
+
+⚠️ **Decimal 必须用字符串构造**:`Decimal(0.1)` 会把 float 0.1 的不精确值原样带进 Decimal(得到 `0.1000000000000000055...`),失去精度。必须 `Decimal('0.1')` 从字符串构造,才是精确的 0.1:
+
+```python
+print(Decimal(0.1))         # Decimal('0.1000000000000000055511151231257827021181583404541015625') —— 带 float 误差!
+print(Decimal('0.1'))       # Decimal('0.1') —— 精确
+# 所以:永远用字符串构造 Decimal
+```
+
+Decimal 的精度与舍入可控:
+
+```python
+from decimal import Decimal, ROUND_HALF_UP, getcontext
+getcontext().prec = 6       # 全局精度:6 位有效数字
+# 传统四舍五入(逢5进1),用 ROUND_HALF_UP
+print(Decimal('2.675').quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))  # 2.68 —— 传统舍入!
+# 对比 round(2.675,2) = 2.67(银行家)
+```
+
+Decimal 支持 `ROUND_HALF_UP`(传统四舍五入)、`ROUND_HALF_EVEN`(银行家,默认)、`ROUND_DOWN`、`ROUND_CEILING` 等多种舍入模式,金融计算可精确控制。代价:运算比 float 慢得多(软件实现的十进制运算,无 CPU 加速),性能敏感场景慎用。
+
+**方案三:fractions.Fraction(精确有理数)**
+
+`fractions.Fraction` 用分数(分子/分母)精确表示有理数,运算无任何误差,直到需要时才转 float。
+
+```python
+from fractions import Fraction
+a = Fraction(1, 10)         # 1/10
+b = Fraction(2, 10)         # 2/10
+print(a + b)                # 3/10 —— 精确
+print(a + b == Fraction(3, 10))  # True
+print(float(a + b))         # 0.3 —— 需要时转 float
+```
+
+Fraction 适合"精确有理数运算"(如分数计算、精确比例),自动约分(`Fraction(2,10)` = `Fraction(1,5)`)。缺点:无法表示无理数(π、√2),分母增长导致运算变慢,不适合大规模数值计算。
+
+**方案四:容差比较(epsilon)**
+
+当必须用 float 但要比较相等时,不用 `==`,改用"差值小于某容差"判断:
+
+```python
+def almost_equal(a, b, eps=1e-9):
+    return abs(a - b) < eps
+
+print(almost_equal(0.1 + 0.2, 0.3))    # True —— 容差比较
+print(0.1 + 0.2 == 0.3)                # False —— 严格相等失败
+
+# 更稳妥:用相对容差(math.isclose,3.5+)
+import math
+print(math.isclose(0.1 + 0.2, 0.3))           # True
+print(math.isclose(1e9 + 1, 1e9))             # True(默认相对容差,大数也判近)
+print(math.isclose(1e-9, 1e-12))              # False(相对容差下不算近)
+print(math.isclose(1e-9, 0, abs_tol=1e-8))    # True(加绝对容差判接近0)
+```
+
+`math.isclose(a, b, rel_tol=1e-9, abs_tol=0.0)` 是 Python 3.5+ 提供的容差比较,默认相对容差(适合大数),可加 `abs_tol` 绝对容差(适合接近 0 的小数)。比手写 `abs(a-b)<eps` 更稳健(处理了大数/小数两种情况)。**float 相等比较几乎总该用 `math.isclose`,而非 `==`**。
+
+**四方案选型**:
+
+| 场景 | 推荐方案 |
+|------|---------|
+| 金额(货币) | int 存最小单位,或 Decimal |
+| 利率/财务精确十进制 | Decimal(可控精度与舍入) |
+| 精确有理数/分数 | Fraction |
+| 科学计算/物理量 | float(精度足够,性能好) |
+| float 相等比较 | math.isclose(容差) |
+| float 显示固定小数位 | round 或格式化(仅显示,不解决精度) |
+
+记住总原则:**精度敏感追求精确 → int/Decimal/Fraction;性能敏感可接受近似 → float;float 比较 → isclose**。
+
+### 2.7 float 与 int 的转换与隐式提升
+
+`float` 与 `int` 互转是高频操作,且要注意"隐式提升"——int 与 float 混算时结果总变 float。
+
+**int ↔ float**:
+
+```python
+print(float(5))         # 5.0 —— int → float
+print(int(3.9))         # 3 —— float → int(截断,向零)
+print(int(-3.9))        # -3(向零截断,不是 floor 的 -4)
+print(int(3.0))         # 3
+```
+
+⚠️ `int(3.9)` 是**截断(向零)**不是四舍五入:`int(3.9)=3`、`int(-3.9)=-3`,直接丢小数部分。要四舍五入用 `round()`,要向下用 `math.floor()`:
+
+```python
+import math
+print(int(3.9))         # 3(截断)
+print(round(3.9))       # 4(四舍五入,但注意银行家规则)
+print(math.floor(3.9))  # 3(向下)
+print(math.ceil(3.9))   # 4(向上)
+print(math.trunc(3.9))  # 3(向零,等同 int)
+```
+
+**除法的类型规则**(回顾,与《int 类型详解》呼应):
+
+```python
+print(8 / 2)            # 4.0 —— / 真除,永远 float(即便整除)
+print(8 // 2)           # 4 —— // 地板除,操作数全 int 返回 int
+print(8.0 // 2)         # 4.0 —— 有 float 参与,// 返回 float
+print(7 / 2)            # 3.5
+print(7 // 2)           # 3
+print(7.0 // 2)         # 3.0
+```
+
+`//` 的返回类型取决于操作数:全 int 返回 int,有 float 返回 float。但 `//` 在有 float 时仍是地板除(向负无穷),只是结果类型是 float:
+
+```python
+print(-7.0 // 2)        # -4.0 —— float 地板除,向负无穷
+```
+
+**隐式提升(int → float)**:int 与 float 混合运算时,int 自动提升为 float,结果 float。这是"向更宽的类型看齐"的规则:
 
 ```python
 print(3 + 0.5)          # 3.5 —— int 3 提升为 3.0 再加 float
 print(type(3 + 0.5))    # <class 'float'>
 print(2 * 3.0)          # 6.0 —— 结果 float
+print(10 - 2.5)         # 7.5
+print(4 ** 0.5)         # 2.0 —— 0.5 是 float,结果 float(开平方)
 ```
 
-参与运算只要有 float,结果就是 float;全 int 的 `+ - * // % **`(正指数)结果仍是 int。这条规则决定了"何时结果从 int 变 float",理解它就不会对 `8/2=4.0` 感到意外。
+只要运算中有 float,结果就是 float。这条规则决定了"何时结果从 int 变 float",理解它就不会对 `8/2=4.0`、`4**0.5=2.0` 感到意外。详见《隐式类型转换》。
 
-### 2.9 综合示例:int 在实战中的协作
-
-下面用一个"金额计算 + 进制展示 + 权限位"的综合片段,串起 int 的各用法,阅读时对照每个 int 特性:
+**float → str**(显示与解析):
 
 ```python
-# 1. 金额计算:用 int 存"分",全程整数精确无误差
-def cart_total(items):
-    # items: [(名称, 单价分, 数量), ...]
-    total_cents = 0
-    for _, price_cents, qty in items:
-        total_cents += price_cents * qty          # int * int = int,精确
-    return total_cents
-
-cart = [("书", 4999, 2), ("笔", 599, 3)]     # 单位:分(4999 分 = 49.99 元)
-total = cart_total(cart)
-print(f"总计:{total} 分 = {total / 100:.2f} 元")  # 仅展示转元
-
-# 2. 进制转换:把权限码用不同进制展示
-perm = 0o755                         # Unix 文件权限,八进制最直观
-print(f"八进制 0o{perm:o} = 十进制 {perm} = 二进制 {perm:b}")
-# 输出:八进制 0o755 = 十进制 493 = 二进制 111101101
-
-# 3. 权限位运算:判断某权限位是否设置
-R, W, X = 0o4, 0o2, 0o1              # 4=读 2=写 1=执行
-my_perm = R | W                      # 6,有读+写
-print("可读:", bool(my_perm & R))    # True
-print("可执行:", bool(my_perm & X))  # False
-
-# 4. 任意精度:大数运算无溢出
-import math
-print("100 的阶乘位数:", len(str(math.factorial(100))))  # 158 位,无溢出
-print("2 的 256 次方:", 2 ** 256)    # 一个 78 位的精确整数
-
-# 5. divmod 做时间换算(秒 → 时分秒)
-total_seconds = 7384
-hours, rem = divmod(total_seconds, 3600)
-minutes, seconds = divmod(rem, 60)
-print(f"{hours}时{minutes}分{seconds}秒")  # 2时3分4秒
-
-# 6. bool 即 int:统计计数
-nums = [1, 2, 3, 4, 5, 6]
-print("偶数个数:", sum(n % 2 == 0 for n in nums))  # 3
+print(str(3.14))        # '3.14'
+print(repr(3.14))       # '3.14'(最短表示)
+print(f"{3.14159:.2f}") # '3.14' —— 格式化两位小数
+print(f"{0.1+0.2:.2f}") # '0.30' —— 格式化能"掩盖"显示误差(但内部仍不精确)
+print(f"{1234567.89:,}")# '1,234,567.89' —— 千分位
 ```
 
-跑一遍这段示例,对照输出:int 的精确金额、多进制等价表示、位运算权限、任意精度大数、divmod 换算、bool 计数——int 的核心能力就完整呈现了。
+⚠️ 格式化(`:.2f`)能控制显示位数,看起来"修好了"误差,但内部 float 值不变,后续运算误差会再冒出。格式化只是"显示层",不是"精度解决方案"。
+
+### 2.8 综合示例:float 精度问题的完整诊断与规避
+
+下面这个片段集中演示 float 的精度现象与规避方案,阅读时对照每种现象的成因与解法:
+
+```python
+import math
+from decimal import Decimal, ROUND_HALF_UP
+
+# 1. 精度误差现象
+print("=== 精度误差 ===")
+print(f"0.1 + 0.2 = {0.1 + 0.2}, == 0.3? {0.1 + 0.2 == 0.3}")
+print(f"0.1 实际值: {0.1:.20f}")
+print(f"10 次 0.1 累加: {sum([0.1]*10)}, == 1.0? {sum([0.1]*10) == 1.0}")
+
+# 2. isclose 容差比较(正确比较方式)
+print("=== 容差比较 ===")
+print(f"isclose(0.1+0.2, 0.3) = {math.isclose(0.1 + 0.2, 0.3)}")
+print(f"isclose(1e16+1, 1e16) = {math.isclose(1e16 + 1, 1e16)}")
+
+# 3. round 银行家舍入
+print("=== round 银行家舍入 ===")
+print(f"round(2.5) = {round(2.5)}, round(3.5) = {round(3.5)}")
+print(f"round(2.675, 2) = {round(2.675, 2)}(精度干扰,非 2.68)")
+
+# 4. Decimal 精确十进制(金额方案)
+print("=== Decimal 精确 ===")
+price = Decimal('49.99')           # 字符串构造,精确
+total = price * 3                  # Decimal 乘法,精确
+print(f"49.99 × 3 = {total}")
+# 传统四舍五入
+print(f"2.675 传统舍入到2位: {Decimal('2.675').quantize(Decimal('0.01'), ROUND_HALF_UP)}")
+
+# 5. int 存最小单位(金额另一方案)
+print("=== int 存分 ===")
+total_cents = 4999 * 3            # 4999 分 × 3
+print(f"总计 {total_cents} 分 = {total_cents/100:.2f} 元")
+
+# 6. 大数吞噬小数
+print("=== 大数吞噬 ===")
+big = 1e16
+print(f"1e16 + 1 == 1e16? {big + 1.0 == big}(1 被精度吞掉)")
+
+# 7. inf 与 nan
+print("=== inf / nan ===")
+print(f"inf - inf = {math.inf - math.inf}(nan)")
+print(f"nan == nan? {math.nan == math.nan}(False), isnan? {math.isnan(math.nan)}(True)")
+```
+
+跑一遍这段示例,对照输出:float 的误差现象、isclose 的正确比较、round 的银行家规则、Decimal/int 的精确规避、大数吞噬、inf/nan 行为——float 的完整图景与应对就清晰了。核心结论:**精度敏感场景必须绕开 float(int/Decimal),float 比较用 isclose,round 不能修精度**。
 
 ---
 
 ## 3. 最佳实践
 
-### 3.1 金额等精度敏感数据用 int 存最小单位,不用 float
+### 3.1 金额等精度敏感数据绝不用 float
 
 ```python
-# 推荐:int 存"分",全程整数精确
-price_cents = 4999        # 49.99 元
-total = price_cents * 3   # 14997 分,精确
-# 不推荐:float 存"元",有精度误差
-total_bad = 49.99 * 3     # 149.97,看似对,但 0.1+0.2 类场景会出错
-print(49.99 * 100)        # 4998.999...,不是 4999
+# 推荐:int 存分,或 Decimal
+total = 4999 * 3                      # int 存分
+total = Decimal('49.99') * 3          # Decimal 精确
+# 绝不推荐:float 存金额
+total_bad = 49.99 * 3                 # 内部 4998.999...,账对不平
 ```
 
-货币计算用 int 存最小货币单位(分),展示时 `/ 100` 转元。彻底规避 float 精度误差,是工业级金额计算标配。需更复杂十进制运算用 `decimal.Decimal`。
+货币、利率、税率、手续费等精度敏感计算,禁用 float。用 int 存最小单位(分)最简高效,需复杂十进制运算或可控舍入用 Decimal。这是 float 实践的头号红线。
 
-### 3.2 大数用下划线分组,提升可读性
+### 3.2 float 相等比较用 math.isclose,不用 ==
 
 ```python
 # 推荐
-million = 1_000_000
-timeout_ms = 30_000
-byte_limit = 1_073_741_824
+if math.isclose(a, b): ...
+if math.isclose(a, b, abs_tol=1e-9): ...   # 接近 0 时加绝对容差
 # 不推荐
-million = 1000000          # 几个零要数
+if a == b: ...    # 0.1+0.2 == 0.3 会 False
 ```
 
-下划线零成本(编译期忽略)、显著提升可读性。金额、时间戳、字节数、ID 等 ≥5 位的数都该用。
+float 是近似值,`==` 几乎总会因误差失败。`math.isclose` 用相对容差(默认 1e-9,适合大数)加可选绝对容差(适合小数),是 float 比较的标准方式。
 
-### 3.3 进制选择贴合数据的工程语义
+### 3.3 round 是银行家舍入,且不能"修好"精度
 
 ```python
-# 推荐:进制让语义直接
-file_perm = 0o755          # Unix 权限,八进制对应 rwx 三位组
-color = 0xFFFFFF           # 颜色,十六进制对应 RGB 字节
-mask = 0b1100              # 位掩码,二进制对应位
-# 不推荐
-file_perm = 493            # 493 是 0o755?谁也记不住
+# 记住:round(2.5) == 2(向偶数),非 3
+# round 结果仍是 float,后续运算误差会再冒出
+# 需传统四舍五入用 Decimal + ROUND_HALF_UP
+from decimal import Decimal, ROUND_HALF_UP
+Decimal('2.675').quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)  # 2.68
 ```
 
-权限/模式用八进制、字节/颜色/地址用十六进制、位演示用二进制、可数大数用十进制。进制不是炫技,是给读者的语义提示。
+不要指望 round 解决精度问题,它只控显示位数、且是银行家舍入(逢 5 向偶数)。金额/统计需传统四舍五入时用 Decimal 的 ROUND_HALF_UP。
 
-### 3.4 注意 // 和 % 的负数规则,与其他语言不同
+### 3.4 Decimal 必须用字符串构造
 
 ```python
-# Python(向负无穷)
-print(-7 // 2)    # -4
-print(-7 % 2)     # 1
-# C/Java(向零)
-# -7 / 2 == -3, -7 % 2 == -1
+# 正确
+Decimal('0.1')      # 精确 0.1
+# 错误
+Decimal(0.1)        # 带 float 误差,= 0.1000000000000000055...
 ```
 
-Python 的 `//` 向负无穷、`%` 与除数同号,与 C/Java 截然不同。分页/日期/索引涉及负数时务必验证,需要"向零取整"用 `int(a / b)` 或 `math.trunc`。别用其他语言的直觉套 Python。
+`Decimal(float)` 会把 float 的不精确值原样带入,失去意义。从字符串、int 构造才精确。从 float 转时先 `str(float)` 也行但不如直接用字符串源。
 
-### 3.5 取整时明确语义,int 是截断不是四舍五入
+### 3.5 累加大量 float 用更稳的算法
+
+```python
+# naive 累加有误差累积
+total = 0.0
+for x in data:
+    total += x          # 误差累积
+# 更稳:fsum(数学库的高精度求和)
+math.fsum(data)         # 用更高内部精度求和,误差小得多
+# 或 Kahan 求和算法(手动补偿误差)
+```
+
+大量 float 累加时误差会累积。`math.fsum` 用扩展精度内部累加,显著降低误差,比循环 `+=` 稳。精度敏感的求和优先 `math.fsum`。
+
+### 3.6 数据中混入 nan 会毒化计算,先清洗
+
+```python
+# nan 会毒化求和/排序
+clean = [x for x in data if not math.isnan(x)]
+total = sum(clean)
+# 判 nan 用 math.isnan,不用 ==
+if math.isnan(x): ...
+```
+
+一个 nan 让整个 sum/max/min 变 nan。处理含 nan 数据(缺失值、未定义运算结果)前必须用 `math.isnan` 过滤。判 nan 永远用 isnan,不用 `==`(nan != nan)。
+
+### 3.7 大数运算注意精度吞噬
+
+```python
+# 1e16 后加 1 会被吞
+big = 1e16
+big + 1 == big     # True!精度丢失
+# 需要大数精度用 int(任意精度)或 Decimal
+```
+
+float 只有 ~15~17 位有效数字,大数后加小增量会被舍入丢失。需要大整数精度用 int(任意精度无上限),需大十进制精度用 Decimal。
+
+### 3.8 取整明确语义:int 是截断非四舍五入
 
 ```python
 # 截断(向零)
-print(int(3.7))        # 3
+int(3.9)          # 3
 # 四舍五入
-print(round(3.7))      # 4
+round(3.9)        # 4(但注意银行家)
 # 向下/向上
-import math
-print(math.floor(3.7)) # 3
-print(math.ceil(3.7))  # 4
+math.floor(3.9)   # 3
+math.ceil(3.9)    # 4
 ```
 
-`int()` 是向零截断,不是四舍五入(新手常误以为)。明确你要截断、四舍五入、向下、向上哪种,选对应函数。`round` 还有银行家舍入(`round(2.5)==2`)的细节,见《float 类型与精度问题》。
+`int()` 向零截断,新手常误以为是四舍五入。明确你需要截断、四舍五入、向下、向上哪种,选对应函数,负数下差异更明显(`int(-3.9)=-3` vs `floor(-3.9)=-4`)。
 
-### 3.6 除法:要整数结果用 //,要精确商用 /
+### 3.9 除法:要整数用 //,要小数用 /
 
 ```python
-# 要整数商(丢余数)
-page = total // page_size
-# 要精确商(可能小数)
+# 要整数商
+avg_int = total // count
+# 要小数精确商
 avg = total / count
 ```
 
-`/` 永远返回 float(即便整除),`//` 返回整数。需要 int 结果用 `//`,需要 float 精确值用 `/`。`8 / 2` 得 `4.0` 不是 `4`,这一条要记牢。
+`/` 永远 float(即便整除 `8/2=4.0`),`//` 返回整数类型(全 int 时)。需要 int 结果用 `//`,需要小数用 `/`。
 
-### 3.7 int() 转字符串可能抛 ValueError,处理外部输入要捕获
+### 3.10 科学计算用 float,追求性能合理
 
 ```python
-# 推荐:防御外部输入
+# 科学计算、NumPy:用 float,硬件加速,精度通常足够
+import numpy as np
+arr = np.array([0.1, 0.2, 0.3], dtype=np.float64)
+```
+
+float 不是"坏类型"——物理量、统计分析、图形、机器学习里 float 的 15 位精度远超需求,且 CPU 硬件加速、NumPy 向量化,性能远高于 Decimal。错的是"在金额等精确十进制场景用 float",而非 float 本身。
+
+### 3.11 float 转换外部输入需捕获 ValueError
+
+```python
 try:
-    n = int(user_input)
+    x = float(user_input)
 except ValueError:
-    print("请输入有效整数")
-# 也可用 str.isdigit() 预检(仅正整数)
-if user_input.lstrip("-").isdigit():
-    n = int(user_input)
+    print("请输入有效数字")
 ```
 
-外部输入(用户输入、JSON、配置)转 int 可能失败抛 `ValueError`。生产代码需 try/except 或预校验,别假设输入总是合法。
+`float("abc")`、`float("3,14")` 会抛 ValueError。处理用户输入/配置/JSON 解析的字符串转 float 时,务必 try/except 或预校验,别假设输入合法。
 
-### 3.8 位运算用于真实位级需求,不为炫技
+### 3.12 显示固定小数位用格式化,但记住它不解决精度
 
 ```python
-# 合理:权限标志、协议位域、算法优化
-perm = READ | WRITE
-has = bool(perm & READ)
-# 不合理:为省临时变量用异或交换
-a ^= b; b ^= a; a ^= b   # 难读,直接 a, b = b, a 更好
+# 显示控制(仅显示层)
+f"{0.1+0.2:.2f}"    # '0.30',显示干净
+# 但内部仍不精确,后续运算误差会再出
+# 真正解决精度要用 int/Decimal,不是格式化
 ```
 
-位运算价值在权限位、二进制协议、位级算法。日常变量交换等场景用普通写法更可读。位运算代码最好配注释说明位级意图。
-
-### 3.9 利用 bool 即 int 做计数,但注意可读性
-
-```python
-# 简洁(count True)
-count = sum(n > 0 for n in nums)
-# 显式(同样可)
-count = sum(1 for n in nums if n > 0)
-```
-
-`sum(条件 for ...)` 利用 bool==1 统计为真项个数,简洁。团队不熟时,`sum(1 for ... if 条件)` 更显式。按团队习惯选,前者更地道。
-
-### 3.10 任意精度是优势,但极大整数有性能成本
-
-```python
-# 放心用:无溢出
-big = 2 ** 1000
-# 但注意:极大整数运算随位数增长变慢
-# 密码学高频大数运算可用 gmpy2 加速
-```
-
-Python int 无上限是优势,日常无需担心溢出。但天文级整数(数万位)运算会明显变慢(软件实现逐段进位),密码学/大数高频场景考虑 `gmpy2` 等加速库。
-
-### 3.11 处理二进制数据用 to_bytes/from_bytes,明确字节序
-
-```python
-# 明确字节序,避免歧义
-n.to_bytes(4, 'big')           # 大端,网络协议
-n.to_bytes(4, 'little')        # 小端,x86
-```
-
-整数与字节互转时务必指定 `byteorder`,大端(网络/Java)与小端(x86/CPU)不同。解析二进制协议/文件格式时,字节序错会导致数值完全错误。
+格式化(`:.2f`)、`round` 控制 float 显示位数,适合"展示给用户",但绝不能当作"精度解决方案"。内部 float 值不变,精度问题依旧潜伏。
 
 ---
 
 ## 4. 原理
 
-本章讲清 `int` 背后的机制:任意精度的数组实现、小整数缓存、不可变性与可哈希性、`bool` 继承 `int` 的内部、整除取余负数规则的数学根源、位运算在补码下的行为。这些是"int 为何这样工作"的根基。
+本章讲清 `float` 背后的 IEEE 754 机制:二进制浮点为何无法精确表示十进制小数、64 位的结构(符号/指数/尾数)、精度与范围的来源、特殊值 inf/nan 的编码、误差累积与大数吞噬的成因。这些是"float 为何如此"的根基,也是规避方案的依据。
 
-### 4.1 任意精度的实现:数字数组(需理解,详述)
+### 4.1 IEEE 754 双精度结构(需理解,详述)
 
-Python `int` 能表示任意大整数且不溢出,根本在于其内部**不使用固定字长的硬件整数**,而是用一个**动态长度的"数字数组"(digits array)**存储。这是理解 int 性能与行为的关键。
-
-CPython 的实现(`longobject.c`):每个 `int` 对象内部是一个数组,数组的每个元素是一个 30 位的"位段"(digit,即 `2^30` 为基),整数值 = `digit[0] + digit[1]*2^30 + digit[2]*2^60 + ...`。数组长度随数值增大而增长:
+`float` 底层是 IEEE 754 双精度浮点数(double),共 64 位,分三段:
 
 ```
-小整数 42:
-  digit 数组 = [42],长度 1 个 30 位段
-
-大整数 2^100:
-  需要 ceil(101/30) = 4 个 30 位段
-  digit 数组长度 4
+| 1 位符号 | 11 位指数 | 52 位尾数 |
 ```
 
-加法/减法:逐段相加并处理进位,类似手算竖式;乘法:类似竖式乘(O(n²),Karatsuba 优化大数);除法:逐段长除。所有运算都是**软件实现的逐段操作**,不依赖 CPU 的单指令整数运算(那只能处理固定字长)。
+- **符号位(sign)**:1 位,0 正 1 负。
+- **指数(exponent)**:11 位,偏置值 1023,表示 2 的幂次。范围约 -1022 ~ +1023,决定了 float 的数值范围(约 ±1.8×10³⁰⁸)。
+- **尾数(mantissa/significand)**:52 位,存有效数字。因规格化数隐含最高位 1,实际精度 53 位,约 15~17 位十进制有效数字。
 
-**这带来的后果**:
-
-- **无溢出**:数组可无限增长(受内存),故无上限。
-- **小整数与硬件整数一样快**:小整数(一两个 digit)的运算是几次内存操作加 Python 对象开销,与定长整数差异不大,且有缓存(§4.2)。
-- **大整数随位数变慢**:1000 位的乘法是 O(位数²) 级,远慢于硬件 64 位乘法。极大整数运算成为性能瓶颈。
-
-**与 C/Java 定长整数的对比**:
-
-| 维度 | Python int | C int (32位) |
-|------|-----------|--------------|
-| 表示 | 动态 30 位段数组 | 固定 32 位硬件整数 |
-| 范围 | 任意(受内存) | ±2³¹ ≈ ±21 亿 |
-| 溢出 | 无 | 有(回绕或 UB) |
-| 小数运算速度 | 近似硬件(有对象开销) | 单 CPU 指令,极快 |
-| 大数运算速度 | 随位数增长变慢 | 不适用(根本存不下) |
+一个 float 值 = `(-1)^符号 × 1.尾数 × 2^指数`(规格化形式)。例如 `0.5` = `1.0 × 2⁻¹`,`3.0` = `1.5 × 2¹`。
 
 ```python
-# 验证任意精度的可见效果
-print(2 ** 1000)             # 10001...一个 302 位的精确整数
-print(len(str(2 ** 1000)))   # 302 位十进制
+# 用 as_integer_ratio 和 hex 窥探内部
+print((0.5).as_integer_ratio())   # (1, 2) = 1/2 = 1.0 × 2⁻¹
+print((0.5).hex())                # '0x1.0000000000000p-1' = 1.0 × 2⁻¹
+print((3.0).hex())                # '0x1.8000000000000p+1' = 1.5 × 2¹
+```
+
+`0x1.8p+1` 解读:`1.8`(十六进制,即 1.5 十进制)× `2¹` = 3.0。这套表示直观对应 IEEE 754 的"1.尾数 × 2^指数"结构。
+
+**这套结构的核心限制**:尾数 52 位(53 位有效)决定了**精度上限 ~15~17 位十进制**。超过这个位数的数字无法精确存储,会被截断。这就是 §2.2"大数吞噬小数"的根源——`1e16` 用满了 53 位有效位,再加 1 进不到有效位,被舍掉。
+
+```python
+print(f"{1e16:.0f}")      # 10000000000000000(17 位,接近精度上限)
+print(1e16 + 1)           # 1e+16 —— 1 被舍掉
+print(f"{1e15 + 1:.0f}")  # 1000000000000001 —— 1e15 还能容纳 +1
+```
+
+`1e15 + 1` 能精确(15 位有效,未超限),`1e16 + 1` 不能(16 位有效,接近上限,1 被舍)。理解 53 位有效数字的精度上限,就能预判何时会发生精度丢失。
+
+### 4.2 为何 0.1 无法精确表示(需理解,详述)
+
+float 用**二进制**表示数值,而二进制只能精确表示"分母是 2 的幂"的小数(0.5、0.25、0.125、0.0625...),其余十进制小数(0.1、0.2、0.3、0.7...)在二进制下是**无限循环小数**,存储时被截断到 52 位尾数,产生舍入误差。
+
+以 `0.1` 为例,转成二进制:`0.1 = 0.0001100110011001100...`(0011 无限循环)。这就像十进制下 `1/3 = 0.3333...` 无法精确表示一样——0.1 在二进制下是无限循环的。52 位尾数只存有限位,必然截断:
+
+```python
+# 0.1 的真实存储值
+print(f"{0.1:.20f}")    # 0.10000000000000000555 —— 略大于 0.1
+# 用 as_integer_ratio 看精确分数
+print((0.1).as_integer_ratio())
+# (3602879701896397, 36028797018963968) —— 0.1 实际 = 3602879701896397 / 2^55
+```
+
+`0.1` 的实际存储值是 `3602879701896397 / 2^55 = 0.100000000000000005551...`,略大于 0.1。同理 `0.2` 略偏差。两个略偏的数相加,误差暴露为 `0.30000000000000004`:
+
+```python
+print(f"{0.1:.20f}")    # 0.10000000000000000555(略大)
+print(f"{0.2:.20f}")    # 0.20000000000000001110(略大)
+print(f"{0.3:.20f}")    # 0.29999999999999998890(略小)
+# 0.1+0.2 的实际值 ≈ 0.30000000000000004,与 0.3 的存储值(略小)不等
+```
+
+这与 C/Java/JavaScript 完全一致——所有 IEEE 754 实现的 0.1 都是同一个不精确值,**这不是任何语言的 bug,而是二进制浮点的固有特性**。十进制小数(人习惯的)与二进制浮点(计算机存储的)之间的不可通约,是问题的数学本质。
+
+**哪些小数能精确表示**?分母是 2 的幂的:`0.5`、`0.25`、`0.125`、`0.0625`、`0.75`(3/4)、`0.375`(3/8)等。这些 `as_integer_ratio` 给出干净的小分母:
+
+```python
+print((0.5).as_integer_ratio())    # (1, 2)    —— 干净,2 的幂分母
+print((0.25).as_integer_ratio())   # (1, 4)
+print((0.75).as_integer_ratio())   # (3, 4)
+print((0.1).as_integer_ratio())    # (3602879701896397, 36028797018963968) —— 巨大,不精确
+```
+
+`0.5` 干净(`1/2`)、`0.1` 不干净(巨大分母)。这解释了"为什么有些小数运算恰好干净、有些出现长串误差"——取决于参与运算的数是否恰好是 2 的幂分母。
+
+**解决之道**:既然二进制浮点无法精确表示十进制小数,需要精确十进制时改用**十进制存储**——`decimal.Decimal`(十进制浮点,存 0.1 就是 0.1)或 `int` 存最小单位(分母=1,纯整数)。这就是 §2.6 规避方案的原理依据:换一种"能精确表示所需数值"的存储方式。
+
+### 4.3 精度范围与 inf/nan 的编码
+
+**范围**:指数 11 位(偏置 1023)给出约 ±1.8×10³⁰⁸ 的范围。超出上限 → `inf`,低于下限(下溢)→ 0。最小正正规数约 2.2×10⁻³⁰⁸,次正规数下到约 5×10⁻³²⁴。
+
+```python
+import sys
+print(sys.float_info.max)     # 1.7976931348623157e+308 —— 最大有限值
+print(sys.float_info.min)     # 2.2250738585072014e-308 —— 最小正规正数
+print(sys.float_info.epsilon) # 2.220446049250313e-16 —— 1.0 与下一个可表示值的差(机器epsilon)
+print(1e400)                  # inf —— 超出上限变 inf
+print(1e-400)                 # 0.0 —— 下溢变 0
+```
+
+`sys.float_info` 暴露 float 的各种界限。`epsilon`(2.22e-16)是"1.0 与最近可区分值的差",代表 float 的相对精度极限——这就是 `math.isclose` 默认 `rel_tol=1e-9` 的参照(远大于 epsilon,留足容差)。
+
+**inf 与 nan 的编码**:IEEE 754 用"指数全 1"的特殊编码表示这两个特殊值:
+
+- 指数全 1、尾数全 0 → `inf`(符号位定正负)。
+- 指数全 1、尾数非 0 → `nan`。
+
+这解释了 inf/nan 为何不遵循普通算术规则——它们是"特殊编码"而非普通数值。nan 的"不等于自身"特性是 IEEE 754 标准有意规定的:为了让"`x != x` 检测 nan"成为可能(即 `math.isnan` 的底层依据,虽然 Python 用专门指令实现)。inf 参与运算的规则(如 `inf - inf = nan`、`inf + 1 = inf`)也是 IEEE 754 明确定义的,反映"无穷与有限数的数学关系"。
+
+```python
 import math
-f = math.factorial(1000)
-print(len(str(f)))           # 2568 位,1000!的精确值
+print(math.inf - math.inf)   # nan —— 无穷减无穷未定义
+print(math.inf / math.inf)   # nan
+print(math.inf + 1)          # inf —— 无穷吞有限
+print(1 / math.inf)          # 0.0
 ```
 
-理解这套数组实现,就理解了 Python int 的全部行为根源:为何无溢出、为何大数会慢、为何 int 对象有内存开销(每个 int 都是个含数组的对象,不像 C 的 int 就 4 字节裸值)。这也是为何"海量小 int"在 Python 里内存占用可观(每个 int 对象开销约 28 字节,而 C 的 int 仅 4 字节)——是任意精度+对象化的代价。
+理解 inf/nan 是"特殊编码"而非普通数,就理解了它们的奇特算术行为,也理解了为何要用 `math.isinf`/`math.isnan` 专门检测(而非 `==`)。
 
-### 4.2 小整数缓存
+### 4.4 误差累积与大数吞噬的成因
 
-CPython 为性能缓存了常用整数对象:-5 到 256 的 int 对象在解释器启动时**预先创建并常驻**,所有引用这些值的变量指向同一缓存对象。这就是"小整数缓存":
+**误差累积**:单次运算误差极小(约 1e-17 量级),但反复累加会放大。10 次 `0.1` 累加误差累积到 `1e-16`,导致 `sum([0.1]*10) != 1.0`:
 
 ```python
-a = 256
-b = 256
-print(a is b)       # True —— 256 在缓存范围,同一对象
-
-a = 257
-b = 257
-print(a is b)       # 不保证 True(交互式下常为 False)—— 257 超出缓存范围
-# 但在"同一编译单元的字面量"或 REPL 某些情况下可能仍 True,实现细节
+print(sum([0.1]*10))         # 0.9999999999999999 —— 误差累积
+print(sum([0.1]*10) - 1.0)   # -1.1102230246251565e-16 —— 累积残差
 ```
 
-为何缓存 -5~256?这些是使用最频繁的整数(循环计数、小索引、`True`/`False` 的 1/0),预先创建复用,省去反复创建/销毁对象的开销。范围是经验值。
-
-**缓存的实用影响**:
-
-- 它是**实现优化,不可依赖**判断值相等。`a is b` 对小整数常为 True 是缓存假象,对大整数不保证。**值相等永远用 `==`,不用 `is`**:
-  ```python
-  # 危险:依赖缓存判断相等
-  # if a is b: ...    # 大整数会失效!
-  # 正确
-  if a == b: ...
-  ```
-- 缓存解释了"`is` 对小整数/短字符串总返回 True"的现象,但只要遵守"`==` 比值、`is` 只比 None 等单例"的准则,缓存就不会造成问题。
-
-缓存范围(-5~256)是 CPython 实现细节,不同 Python 实现(PyPy、Jython)或其他版本可能不同。它属于"知道有这回事、但不依赖"的底层优化。
-
-### 4.3 不可变性与可哈希性
-
-`int` 是**不可变(immutable)**类型——对象创建后,它承载的数值永不改变。任何算术都返回新 int 对象,原对象不变。这与 `list`/`dict`(可变)形成对比。
+每次 `+= 0.1` 都引入一次舍入误差,累积 N 次后误差约 N × epsilon。`math.fsum` 用更高内部精度(80 位扩展或精确求和算法)累加,避免中间舍入,显著降低累积误差:
 
 ```python
-x = 10
-print(id(x))        # A
-x += 1              # 不是改 10 为 11,是创建 11,x 改指新对象
-print(id(x))        # B(不同),原 10 对象不变(且因在缓存,仍在)
+import math
+print(math.fsum([0.1]*10))   # 1.0 —— 高精度求和,无累积误差
 ```
 
-`x += 1` 对 int 的过程:创建新的 int 11(或复用缓存),让 `x` 改指向它;原 int 10 对象不变。这与可变对象的 `+=`(如 list 的 `+=` 就地 extend,id 不变)截然不同,是 `int` 不可变性的直接体现。
+`math.fsum` 维护一个"部分和"列表,用精确的整数运算跟踪舍入,最终给出最接近真值的结果。这是处理大量 float 求和的标准做法。
 
-**不可变性的好处——可哈希**:`int` 因值永不变,其哈希值稳定,故可哈希(hashable),能做 `dict` 键、`set` 元素:
+**大数吞噬**:当数值大到用满 53 位有效数字时,加上一个相对极小的增量,该增量落不到有效位,被舍掉:
 
 ```python
-d = {1: "one", 2: "two"}      # int 键,合法
-s = {1, 2, 3}                 # int 元素
-print(hash(42))               # 42 —— int 的哈希就是它自己(小整数)
-print(hash(42) == 42)         # True —— int 哈希规则:hash(n) == n(大部分情况)
+print(1e16 + 1.0)            # 1e+16 —— 1 落不到有效位,被舍
+print(1e16 + 1.0 == 1e16)    # True
 ```
 
-`int` 的哈希规则很特殊:`hash(n)` 通常等于 `n` 本身(对能放进机器字的整数)。这让 int 做 dict 键时,哈希计算几乎零成本,定位极快——这是(dict 用 int 键时高效的一个原因)。
+`1e16` 的二进制表示已占满 53 位有效位,`+1` 的增量小于"该量级下可分辨的最小步"(ULP,unit in the last place),被舍入丢失。ULP 随数值变大而变大——`1e16` 的 ULP 是 2,`1e0` 的 ULP 是 2⁻⁵²。这是浮点"绝对精度固定(53 位)、相对精度固定(epsilon)、绝对分辨率随量级变化"的特性。需要大数精度时,改用 `int`(任意精度)或 `Decimal`(可控精度)。
 
-不可变性的另一好处——**安全共享**:不可变对象无法被就地修改,故多个名字指向同一 int 时,谁都不会"偷偷改"它:
-
-```python
-a = 100
-b = a            # a, b 指向同一 int 100
-b = 200          # b 改指新对象 200,不动 a
-print(a)         # 100 —— 不受影响
-```
-
-要"改"int 只能换对象(改指向),不会影响其他引用者。这让 int 共享引用天然安全,无需担心 list 那种"共享可变对象被改"的陷阱。理解这条,就理解为何 `int`/`str` 等不可变类型在赋值/传参时"表现得像值拷贝"(实为引用拷贝,但不可变性让副作用无法产生)。
-
-### 4.4 bool 为何是 int 的子类:继承与内部表示
-
-`bool` 继承自 `int`,这不是偶然——是 Python 沿袭 C 语言"真值即整数(0/1)"约定的设计选择。在 CPython 源码层(`boolobject.c`),`bool` 大致是:
-
-```python
-# 概念性伪代码
-class bool(int):
-    """bool 是 int 的子类,值固定 0 或 1,仅重写了字符串表示。"""
-    def __repr__(self):
-        return 'True' if self else 'False'
-    def __str__(self):
-        return 'True' if self else 'False'
-    # 算术行为完全继承 int:True 当 1,False 当 0
-
-True = bool(1)    # 单例
-False = bool(0)   # 单例
-```
-
-`bool` 内部就是一个 int(True 的 int 值是 1,False 是 0),只是:
-
-- **固定取值范围**:只能是 0 或 1(构造 `bool(2)` 仍是 True,即非 0 即 True)。
-- **重写显示**:`repr`/`str` 显示为 `True`/`False` 而非 `1`/`0`。
-- **算术继承 int**:故 `True + True == 2`、`True * 5 == 5`,`bool` 完全作为 int 参与运算。
-
-**继承关系带来的类型判定后果**:
-
-- `isinstance(True, int)` 为 `True` —— bool 是 int 子类。
-- `type(True) is int` 为 `False` —— 精确类型是 bool,不是 int。
-- `issubclass(bool, int)` 为 `True`。
-
-这解释了为何 `isinstance(True, int)` 与 `type(True) is int` 不同(详见《类型判断与 type 系统》)——前者看继承链,True 沿 `bool→int→object` 是 int;后者只看精确类型。
-
-**为何如此设计?** 兼容性与简洁。Python 早期(bool 在 2.3 才引入,之前真值直接用 0/1)许多代码用 0/1 当布尔,让 bool 成为 int 子类,旧代码 `if x:` 和 `x + 1` 之类的混合用法都能无缝工作。代价是"`isinstance(x, int)` 会吃掉 bool"这一需注意的陷阱(实践中先判 bool 短路)。这是"兼容性优先"的典型设计取舍。
-
-### 4.5 整除取余负数规则的数学根源
-
-§2.3 讲了 `//` 向负无穷、`%` 与除数同号的规则,这里讲清其数学根源,理解了就不觉得"反直觉"。
-
-**核心定义**:Python 的 `//` 是 **floor division**(地板除),即 `a // b = floor(a / b)`——取数学上的 floor 函数(向负无穷取整)。`%` 由恒等式 `a == (a // b) * b + (a % b)` 推出,保证余数与除数同号。
-
-```
-对于 a // b = floor(a / b):
-  7 / 2 = 3.5   → floor = 3   ✓ 符合直觉
-  -7 / 2 = -3.5 → floor = -4  ← 向负无穷,所以 -4 不是 -3
-
-余数 a % b = a - (a//b)*b,符号与 b 同:
-  -7 % 2 = -7 - (-4)*2 = -7 + 8 = 1   (b=2 为正,余 1 为正)
-  7 % -2 = 7 - (-4)*(-2) = 7 - 8 = -1 (b=-2 为负,余 -1 为负)
-```
-
-floor 函数在数轴上"总是向负无穷方向取整",对所有实数一致——正数 3.5→3,负数 -3.5→-4。这与 C/Java 的"向零取整"(truncation,3.5→3,-3.5→-3)不同,后者对正负数方向不一致(正数向零即向下,负数向零即向上)。
-
-**为何 Python 选 floor 而非 trunc?**
-
-- **数学一致性**:floor 在数学中是标准取整函数,行为统一可预测。trunc 对正负数方向相反,在数论/算法中不优雅。
-- **余数符号统一**:floor 保证余数总与除数同号,数学性质好(模运算更规整)。trunc 的余数符号与被除数同号,正负不一致。
-- **几何意义**:`a // b` 是"数轴上 a/b 左侧最近的整数",`a % b` 是"a 到该点的距离,方向与 b 一致"。这套语义在周期、分桶、哈希取模场景行为一致。
-```python
-# 分桶/取模:floor 让负索引也能正确取模
-print(-1 % 7)    # 6 —— 负数取模得正余数,适合环形索引(7 个桶,索引 -1 映射到桶 6)
-# 若用 C 的向零取模,-1 % 7 = -1,需额外修正才能做环形
-```
-
-环形缓冲、星期几计算(`(day + offset) % 7`)等场景,Python 的取模规则让负数自动落到正确位置,无需手动修正——这是 floor 规则的实用价值。
-
-**代价**:对正数行为符合直觉(3.5→3),对负数"反直觉"(-3.5→-4 而非 -3),与 C/Java 不同,需重新建立直觉。这是"数学一致性"换"直觉一致性"的取舍。理解了 floor 的定义,就能正确预判所有正负组合的 `//`/`%` 结果,不再依赖直觉。
-
-### 4.6 位运算与补码表示
-
-§2.4 讲了位运算,这里讲清其在 Python int(任意精度补码)下的行为根源,尤其 `~` 取反的真相。
-
-**Python int 的二进制表示**:任意精度有符号整数,采用**符号-绝对值**或概念上的**无限位补码**。关键:Python int 没有固定位宽,理论上位数为"表示该数所需的最少位"+ 符号扩展,正数高位全 0、负数高位全 1(无限延伸)。
-
-**`~x == -x - 1` 的推导**:取反是"每位翻转"。在补码下,翻转所有位等价于 `-x - 1`:
-
-```
-以 4 位补码为例(仅为说明,Python 无限位):
-  5  = 0101
-  ~5 = 1010 = -6(补码 1010 = -8 + 2 = -6)
-  即 ~5 = -5 - 1 = -6 ✓
-
-Python 无限位:5 = ...0000101,~5 = ...1111010 = -6(高位全 1 表负数)
-~x = -x - 1 精确成立,与位宽无关。
-```
-
-这就是为何 `~0 = -1`、`~5 = -6`——取反在无限位补码下必然得负数(正数高位 0 翻成 1 变负),且等价 `-x-1`。
-
-**移位 `<<`/`>>`**:
-
-- `x << n`:左移,等价 `x * (2 ** n)`(在任意精度下无溢出,左移只是位数增长)。
-- `x >> n`:右移,等价 `x // (2 ** n)`(向负无穷,因 floor)。正数右移高位补 0,负数右移高位补 1(算术右移,保持符号)。
-
-```python
-print(5 << 3)      # 40 = 5 * 8
-print(-5 << 3)     # -40 = -5 * 8
-print(40 >> 2)     # 10 = 40 // 4
-print(-40 >> 2)    # -10 = -40 // 4(向负无穷,-10 而非 -9 或 -10)
-print(-7 >> 1)     # -4 = -7 // 2(floor)
-```
-
-右移等价 floor 整除 2^n,故负数右移遵循 floor 规则(`-7 >> 1 = -4`,与 `-7 // 2 = -4` 一致)。这条一致性来自移位与整除的定义统一。
-
-**位运算无固定位宽的影响**:在 C 里 `~0u` 是"全 1 的无符号整数"(固定位宽,可作掩码),但 Python 里 `~0 = -1` 是个负数,不是"全 1 的正掩码"。Python 中"全 1 的 n 位掩码"要用 `(1 << n) - 1`:
-
-```python
-mask_8bit = (1 << 8) - 1     # 255 = 0xFF,8 位全 1
-print(mask_8bit)             # 255
-print(0xFF)                  # 255 —— 直接写十六进制字面量也行
-# ~0 不是 8 位全 1,是 -1(无限位全 1),用法完全不同
-```
-
-理解 Python int 位运算"无固定位宽、负数用无限位补码",就不会把 C 的位运算直觉(固定位宽、`~0` 当全 1 掩码)照搬过来。Python 里做位掩码,用 `(1 << n) - 1` 或直接十六进制字面量 `0xFF`,而非 `~0`。
+理解误差累积与大数吞噬的成因,就理解了"为何 float 累加会偏、大数运算会丢增量",从而在精度敏感场景主动选用更稳的算法或类型。
 
 ---
 
@@ -954,37 +868,26 @@ print(0xFF)                  # 255 —— 直接写十六进制字面量也行
 
 ### 5.1 本文内容回顾
 
-- **int 定义**:Python 整数类型,任意精度无上限,不可变,可哈希;与 C 定长整数有本质差异。
-- **int vs float**:离散计数用 int、连续量用 float、金额用 int 存最小单位或 Decimal,绝不用 float 存金额。
-- **字面量**:四种进制(`0b`/`0o`/`0x`/十进制,Python 3 八进制必须 `0o` 不能 `017`),下划线分隔,进制只改写法不改值,选进制贴合工程语义。
-- **算术运算**:`/` 真除永远 float、`//` 地板除返回 int、`%` 取余、`**` 幂(右结合,负指数返回 float)。
-- **负数规则(重点)**:`//` 向负无穷、`%` 与除数同号,恒等式 `a==(a//b)*b+a%b`;与 C/Java 向零取整不同,需向零时用 `int(a/b)` 或 `math.trunc`;`divmod` 一次取商余。
-- **位运算**:`& | ^ ~ << >>`,有权限掩码、异或找单数、`n&(n-1)` 清最低位 1 等技巧;`~x == -x-1`,无限位补码无固定位宽。
-- **int 方法与构造**:`bit_length()`、`to_bytes`/`from_bytes`(明字节序)、`int()` 三种构造(字符串/字符串+进制/float 截断),`int()` 是截断非四舍五入,转换失败抛 ValueError。
-- **进制转换函数**:`bin`/`oct`/`hex`(带前缀串)、`format`/f-string(不带前缀)、手写任意进制。
-- **bool 即 int**:`True==1`/`False==0`,`sum(条件)` 计数,`isinstance(True,int)` 为 True 需先判 bool 短路。
-- **类型转换**:与 str/float/bool/字符码点互转,五种取整(int 截断/round 四舍五入/floor/ceil/trunc)语义不同,隐式提升 int→float。
-- **原理**:任意精度=30 位段动态数组(无溢出、大数变慢、对象有开销);小整数缓存 -5~256(不可依赖 is 比值);不可变性带来可哈希与安全共享(hash(n)==n);bool 继承 int(值 0/1、重写显示、算术继承);`//`/`%` 负数规则源于 floor 函数数学一致性(余数与除数同号,环形取模友好);位运算在无限位补码下 `~x=-x-1`,无固定位宽需用 `(1<<n)-1` 做掩码。
-- **最佳实践**:金额用 int 存分、大数下划线、进制贴合语义、注意负数整除取余、取整明语义、除法 `//` vs `/`、int 转换捕获 ValueError、位运算用于真实需求、bool 计数、大数性能代价、二进制明确字节序。
+- **float 定义**:Python 浮点数类型,底层 IEEE 754 双精度(64 位),不可变,可哈希;有范围限制(±1.8×10³⁰⁸)与精度限制(~15~17 位有效数字)。
+- **int vs float**:离散计数用 int、连续量用 float、金额等精度敏感用 int 存最小单位或 Decimal,绝不用 float 存金额。
+- **字面量**:含 `.`/`e` 即 float,科学计数法,下划线分隔;inf/nan 用 `float()`/`math` 构造无字面量。
+- **精度误差(核心)**:二进制无法精确表示多数十进制小数(0.1 是无限循环二进制),`0.1+0.2!=0.3`,累加有累积误差,大数吞噬小数;误差是 IEEE 754 共性非 Python bug。
+- **round 银行家舍入**:逢 5 向偶数舍入(`round(2.5)=2`),且受精度干扰(`round(2.675,2)=2.67`),不能"修好"精度;传统四舍五入用 Decimal ROUND_HALF_UP。
+- **inf/nan**:inf 超范围值,nan 表无意义运算结果;nan 不等于自身,判 nan 用 `math.isnan`,混入数据毒化计算需先清洗。
+- **float 方法**:`as_integer_ratio`(看精确分数,揭示 0.1 不精确)、`is_integer`(判整数值)、`hex`(看内部表示)、`float()` 构造(失败抛 ValueError)。
+- **精度规避方案**:int 存最小单位(金额)、Decimal(精确十进制,须字符串构造、可控舍入)、Fraction(精确分数)、math.isclose(容差比较);四方案按场景选型。
+- **转换与隐式提升**:`int(3.9)` 截断(向零)非四舍五入;`/` 永远 float、`//` 地板除(有 float 返回 float);int 与 float 混算隐式提升为 float。
+- **原理**:IEEE 754 双精度结构(1 符号 + 11 指数 + 52 尾数,53 位有效决定 ~15~17 位精度);0.1 在二进制下无限循环被截断(分母非 2 的幂的小数都不精确);inf/nan 用指数全 1 的特殊编码;误差累积源于每次运算的舍入放大、math.fsum 用高精度求和规避;大数吞噬因 53 位有效位用满后小增量落不到有效位。
+- **最佳实践**:金额不用 float、float 比较用 isclose、round 是银行家且不能修精度、Decimal 用字符串构造、累加用 fsum、清洗 nan、大数用 int/Decimal、取整明语义、除法 // vs /、科学计算用 float、转换捕获 ValueError、格式化仅显示层不解决精度。
 
 ### 5.2 读完本文你应能掌握
 
-- 说明 Python `int` 任意精度、不可变、可哈希的核心特性,对比 C/Java 定长整数的溢出差异。
-- 用四种进制与下划线书写整数,说明进制只改写法不改值,指出 Python 3 八进制必须 `0o` 前缀。
-- 区分 `/`(真除返回 float)与 `//`(地板除返回 int),预判 `8/2==4.0`。
-- 预判 `//` 与 `%` 在各种正负组合下的结果(如 `-7//2==-4`、`-7%2==1`),说明 floor 规则与 C/Java 的差异,用 `int(a/b)` 实现向零取整。
-- 用 `divmod` 同取商余,用 `bin`/`oct`/`hex`/`format` 做进制转换,手写十进制转任意进制。
-- 用位运算符进行权限掩码、异或找单数等操作,说明 `~x == -x-1` 的补码根源与"无固定位宽"对掩码的影响。
-- 用 `int()` 从字符串(含进制)、float(截断)构造 int,处理 `ValueError`,说明 `int()` 截断非四舍五入。
-- 用 `bit_length`、`to_bytes`/`from_bytes`(明字节序)等方法。
-- 说明 `bool` 是 `int` 子类的后果(`True+True==2`、`isinstance(True,int)` 为 True),用 `sum(条件)` 计数,处理 bool/int 类型分支陷阱。
-- 选用正确的取整方式(int/round/floor/ceil/trunc),说明隐式 int→float 提升。
-- 阐述任意精度的数组实现、小整数缓存、不可变性与可哈希、bool 继承 int、负数规则的 floor 根源、无限位补码位运算等原理。
-
-### 5.3 延伸方向
-
-- **float 类型与精度问题**:int 与 float 的完整交互、为何 `/` 返回 float、float 精度误差、`Decimal` 替代,见《float 类型与精度问题》。
-- **bool 类型与短路逻辑**:bool 作为 int 子类的全部行为、真值测试、`and`/`or` 短路返回操作数,见《bool 类型与短路逻辑》。
-- **类型转换机制**:显式转换(`int()` 等构造函数的完整规则)与隐式转换(int→float 提升等),见《显式类型转换》《隐式类型转换》。
-- **hash 与可哈希类型**:int 的 `hash(n)==n` 规则、哈希表如何用 int 键高效定位,见《hash 与可哈希类型》。
-- **类型判断**:bool/int 的 `isinstance` 与 `type() is` 差异、按类型分支的规范,见《类型判断与 type 系统》。
+- 说明 `float` 的 IEEE 754 双精度结构(符号/指数/尾数)与精度(~15~17 位)、范围限制。
+- 解释 `0.1 + 0.2 != 0.3` 的根本原因(二进制无法精确表示 0.1),指出这是所有 IEEE 754 实现的共性而非 Python bug。
+- 选用正确方案规避精度问题:金额用 int 存分、精确十进制用 Decimal(字符串构造)、分数用 Fraction、float 比较用 math.isclose。
+- 说明 `round` 的银行家舍入规则及其受精度干扰的现象,用 Decimal 实现传统四舍五入。
+- 说明 inf/nan 的行为(nan 不等于自身、毒化计算),用 `math.isnan`/`math.isinf` 检测,清洗含 nan 数据。
+- 用 `as_integer_ratio`/`is_integer`/`hex` 观察 float 内部,解读结果。
+- 说明 `int(3.9)` 是截断非四舍五入,区分 int/round/floor/ceil/trunc 的取整语义。
+- 说明 `/`(真除 float)与 `//`(地板除)的返回类型规则,以及 int 与 float 混算的隐式提升。
+- 阐述 IEEE 754 结构、0.1 不精确的数学本质、inf/nan 编码、误差累积与大数吞噬的成因。

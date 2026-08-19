@@ -113,42 +113,6 @@ export default defineConfig({
                 {
                     "text": "None类型详解",
                     "link": "/Base/02-dataType-07"
-                },
-                {
-                    "text": "complex复数类型",
-                    "link": "/Base/02-dataType-08"
-                },
-                {
-                    "text": "类型注解基础",
-                    "link": "/Base/02-dataType-09"
-                },
-                {
-                    "text": "Union 与 Any 类型",
-                    "link": "/Base/02-dataType-10"
-                },
-                {
-                    "text": "TypeVar泛型",
-                    "link": "/Base/02-dataType-11"
-                },
-                {
-                    "text": "类型注解运行时行为",
-                    "link": "/Base/02-dataType-12"
-                },
-                {
-                    "text": "mypy静态类型检查",
-                    "link": "/Base/02-dataType-13"
-                },
-                {
-                    "text": "显式类型转换",
-                    "link": "/Base/02-dataType-14"
-                },
-                {
-                    "text": "隐式类型转换",
-                    "link": "/Base/02-dataType-15"
-                },
-                {
-                    "text": "hash与可哈希类型",
-                    "link": "/Base/02-dataType-16"
                 }
             ]
         },

@@ -9,963 +9,979 @@ nav:
   order: 1
 ---
 
+# 类型判断与type系统
+
 ## 1. 介绍
 
-### 1.1 什么是字面量
+### 1.1 为什么需要类型判断
 
-字面量(literal)是**直接写在源代码里、表面形式就代表其值的固定量**。当你写下 `42`、`3.14`、`"hello"`、`True`、`None` 这些写法时,你并没有"调用什么去构造一个值",而是直接把值写在了代码里——这些就是字面量。与之相对的是通过表达式、函数调用、变量名产生值的方式,如 `int("42")`、`len("abc")`、`x`,它们需要"求值"才得到值,而字面量的值由它的字面写法直接决定。
+Python 是动态类型语言——变量没有类型，对象才有类型。一个名字 `x` 可以先后指向 `int`、`str`、`list` 等任意类型的对象，这在带来灵活性的同时，也带来一个问题：**当你在运行时拿到一个对象，如何知道它到底是什么类型？** 这正是"类型判断"要解决的需求。
 
-可以这样区分:如果一段代码 token 自身"长什么样就是什么值",它是字面量;如果一段 token 需要"执行点什么"才得到值,它就不是。`42` 长什么样就是 42(字面量);`0x2A` 虽写法不同,值仍是 42(也是字面量,十六进制形式);`2 + 3` 需要执行加法得到 5(表达式,不是字面量);`x` 需要查名字空间(变量引用,不是字面量)。
+类型判断在真实开发中无处不在：
 
-字面量是程序里"值的源头"——所有数据最终都从字面量(或外部输入)进入程序。你写的每一个初始值、默认值、配置项、测试数据,大多是字面量。掌握各种字面量的写法,能让你:
+- **处理多态输入**：一个函数可能收到 `int` 也可能收到 `str`，需要按类型分支处理（虽然更 Pythonic 的做法是用协议/EAFP，但分支判断仍常见）。
+- **防御性编程**：外部数据（JSON 解析、用户输入、第三方接口）类型不可控，处理前先校验类型，避免 `AttributeError`。
+- **序列化/反序列化**：把对象转成 JSON 时，要区分它是 dict 还是 list、是 str 还是 number。
+- **调试与日志**：打印对象类型辅助排查"为什么这个值的操作不对"。
+- **库的 API 设计**：对传入参数做类型校验，给出清晰的错误提示而非让错误在深层爆发。
 
-- 用最贴切的形式表达数值(金额写 `1_000_000` 而非 `1000000`、位掩码写 `0xFF` 而非 `255`)。
-- 避免那些因写法错误而导致的隐蔽问题(单元素元组漏逗号、`{}` 误当空集合、八进制 `0o17` 与十进制 `17` 混淆)。
-- 写出更短、更安全、更可读的代码(原始字符串处理正则、f-string 插值)。
+围绕这些需求，Python 提供了一整套类型判断工具，本篇将逐一展开。
 
-本篇要系统梳理 Python 中**所有**字面量形式:整数与浮点的多进制写法、字符串的六种引号变体与转义、字节串、布尔与 None、各类容器字面量(list/tuple/dict/set/frozenset)、特殊字面量(`...`/Ellipsis),以及字面量的语法规则与求值行为。与《基础数据类型》侧重"每个类型能做什么"不同,本篇聚焦于"同一个值有哪些字面写法、各写法的规则与陷阱"。
+### 1.2 Python 提供了哪些类型判断方案
 
-### 1.2 字面量与类型的关系
+Python 中的运行时类型判断主要有以下几种方式，每种各有适用场景：
 
-每个字面量都属于一个确定的类型——你在源码写下的形式,就同时决定了它的值和它的类型。Python 没有"无类型字面量"或"待定类型字面量",字面量的类型由其语法形式固定:
+| 方案 | 函数/语法 | 作用 | 典型用法 |
+|------|----------|------|---------|
+| 取精确类型 | `type(obj)` | 返回对象的精确类型（类对象） | `type(42)` → `int` |
+| 按继承链判断 | `isinstance(obj, cls)` | 判断对象是否某类的实例（含父类） | `isinstance(True, int)` → `True` |
+| 判断类间继承关系 | `issubclass(cls, parent)` | 判断类是否另一个类的子类 | `issubclass(bool, int)` → `True` |
+| 身份比较 | `is` | 判断两个对象是否同一个对象 | `x is None` |
+| 取对象的类属性 | `obj.__class__` | 访问对象的类（通常与 `type()` 等价） | `(42).__class__` → `int` |
+| 用 ABC 做行为判断 | `isinstance(obj, ABC)` | 按行为类别而非具体类判断 | `isinstance([], Iterable)` → `True` |
 
-| 字面量形式 | 类型 | 示例 |
-|-----------|------|------|
-| 无小数点、无 `j` | `int` | `42`、`0xFF`、`0o17`、`1_000` |
-| 含小数点或 `e` | `float` | `3.14`、`2e3`、`.5` |
-| 含 `j` | `complex` | `1+2j`、`3j` |
-| `True` / `False` | `bool` | `True`、`False` |
-| `None` | `NoneType` | `None` |
-| 引号包裹 | `str` | `"abc"`、`'x'`、`"""..."""`、`r''`、`f''`、`b''` |
-| `b` 前缀 + 引号 | `bytes` | `b"abc"` |
-| 方括号 `[]` | `list` | `[1, 2, 3]` |
-| 圆括号 `(,)` | `tuple` | `(1, 2)`、`(5,)`、`()`、`1, 2, 3` |
-| 花括号 `{k:v}` | `dict` | `{"a": 1}` |
-| 花括号 `{a, b}`（无冒号） | `set` | `{1, 2, 3}` |
-| `...` | `ellipsis` | `...` |
+这几种方案不是互斥的，而是在不同层次上回答不同问题：
 
-注意几个易混点:整数 `1` 是 `int`,但 `1.0` 是 `float`;布尔 `True` 看着像标识符,但它和 `False`、`None` 一样是被语言保留的字面量常量(不是普通变量名,无法赋值);`{}` 是空 `dict` 而非空 `set`(空集合只能 `set()`)。这些都源于"字面量形式决定类型"的规则。
+- **"它是什么类型的？"** → `type(obj)` 给精确类型，`obj.__class__` 给类对象。
+- **"它是不是某种类型？"** → `isinstance(obj, cls)` 沿继承链判断，是最常用的方式。
+- **"这个类是不是另一个类的子类？"** → `issubclass(cls, parent)`，操作的是类而非实例。
+- **"它是不是 None / True / False？"** → `is`，用于单例对象的身份判断。
+- **"它能不能迭代/有没有长度/能不能做键？"** → 用 ABC（`Iterable`/`Sized`/`Hashable`）按行为判断。
 
-```python
-print(type(42))      # <class 'int'>
-print(type(42.0))    # <class 'float'> —— 写法决定类型,与数值是否整数无关
-print(type(True))    # <class 'bool'>
-print(type(None))    # <class 'NoneType'>
-print(type({}))      # <class 'dict'> —— 不是 set!
-print(type({1}))     # <class 'set'> —— 花括号里有元素(无冒号)才是 set
-```
+### 1.3 type、object 与"一切皆对象"的类型观
 
-### 1.3 字面量的求值时机
+要理解 Python 的类型系统，先建立两个核心对象的认知：`type` 和 `object`。
 
-字面量在 Python **编译期**(compile time)就被求值并转化为常量对象,而非运行时逐行构造。这一点解释了几个观察:
+**`object`** 是所有类的**根基类**（root base class）。Python 里每一个类（无论是内置的 `int`/`str` 还是你自定义的 `class Foo`）都直接或间接继承自 `object`。因此任何对象都"是一个 object"，`isinstance(任何对象, object)` 恒为 `True`。
 
-- 同一个字面量在代码里反复出现,Python 编译器会把它们优化为对同一常量的复用(尤其小整数、字符串驻留)。
-- 字面量参与常量折叠:`2 + 3` 这种"纯字面量表达式"在编译期就被算成 `5`,不会到运行时再加。
-- 字面量是"不可变的常量值",你无法"修改"一个字面量本身——`42` 永远是 42。
+**`type`** 是所有类的**类型**——即"类的类"，称为**元类（metaclass）**。每一个类对象本身的类型都是 `type`：`type(int)` 是 `type`、`type(str)` 是 `type`、`type(你的自定义类)` 也是 `type`。而 `type` 自己也是对象，它的类型是它本身。
 
 ```python
-import dis
-dis.dis(compile("x = 2 + 3", "", "exec"))
-#   LOAD_CONST  0 (5)   —— 直接加载常量 5,编译期已折叠,没有运行时的加法
+print(type(42))          # <class 'int'>     —— 42 的类型是 int
+print(type(int))         # <class 'type'>    —— int 这个类的类型是 type
+print(type(type))        # <class 'type'>    —— type 的类型还是 type（自举）
+print(type(object))      # <class 'type'>    —— object 这个类的类型也是 type
 ```
 
-字节码里是 `LOAD_CONST (5)` 而非两个常量加一个 `BINARY_ADD` —— 这就是"字面量在编译期求值"的直观证据。这条机制的字面意义细节(常量折叠的边界、字符串驻留哪些情况)会在第 4 章原理展开,日常编码只要建立"字面量是编译期常量"的认知即可。
+这两条规则组合，构成了一个精妙的闭环：
 
-理解字面量后,你会发现很多"看着像魔法"的写法其实是字面量规则的自然结果:`0x10` 就是 16、`1_000_000` 就是 1000000、`b"\x41"` 就是 `b"A"`、`(1,)` 是元组而 `(1)` 不是。本篇的目标,就是把这些规则一次讲透。
+- **从"实例→类"看**：`42` 是 `int` 的实例，`int` 是 `type` 的实例。
+- **从"继承"看**：`int` 继承 `object`，`type` 也继承 `object`（所以 `type` 是个"类"）。
+- **特例**：`type` 的类型是 `type` 自己，`object` 的类型是 `type`。
+
+```python
+print(isinstance(42, int))           # True   —— 42 是 int 实例
+print(isinstance(int, type))         # True   —— int 是 type 的实例（类也是对象）
+print(isinstance(int, object))       # True   —— int 继承 object
+print(isinstance(type, object))      # True   —— type 也继承 object
+print(isinstance(object, type))      # True   —— object 自身也是 type 的实例
+print(issubclass(int, object))       # True   —— int 是 object 的子类
+print(issubclass(type, object))      # True   —— type 是 object 的子类
+```
+
+这个"`type` 和 `object` 互相引用、自洽"的结构看似烧脑，但它就是 Python"一切皆对象"的数学骨架：**每个对象都有类型（指向某类），每个类最后都收束到 `object`，而所有类的类型都收束到 `type`**。日常编码不必时刻推演这个闭环，但建立"`type` 是造类的类、`object` 是所有类的根"的认知，是理解后续各类型判断工具的钥匙。
+
+### 1.4 类型判断的两种哲学：静态判断 vs 鸭子类型
+
+在深入每个 API 前，先建立类型判断的两种哲学，它决定了你"是否、何时、如何"判断类型。
+
+**静态类型判断**（nominal typing，名义类型）：看对象"它声明自己是什么类"——`isinstance(x, list)` 问的是"x 是不是 list 类（或其子类）的实例"。这是 C/Java 的思路，按"类名义"判断。
+
+**鸭子类型**（duck typing）：不看对象的类，看它"能做什么"——"走起来像鸭子、叫起来像鸭子，那它就是鸭子"。即按**对象提供的方法/属性**判断，而非按类判断：
+
+```python
+# 鸭子类型：不问"是不是 list"，只问"能不能迭代"
+def print_all(items):
+    for x in items:          # 只要 items 能迭代就行，list/tuple/set/str/生成器都可
+        print(x)
+```
+
+`print_all` 不检查 `items` 是不是 `list`，直接 `for` 迭代——任何可迭代对象都能用，这是 Python 高度推崇的风格。它的好处是"接口契约用行为定义，而非用类定义"，代码通用性强；代价是"如果传入的对象不能迭代，错误要到运行时才暴露"。
+
+Python 同时支持这两种哲学，且历史上偏重鸭子类型（"EAFP"—请求原谅比许可容易）。现代 Python（3.5+ 类型注解 + ABC）则引入了"结构化类型"（structural typing，介于两者间：按"有没有实现某协议方法"判类型，但用类型注解声明）——这属于类型注解专题。本篇聚焦运行时的类型判断工具，以及何时该用判断、何时该用鸭子类型。
 
 ---
 
 ## 2. 核心内容
 
-本章逐一讲解各类字面量的写法、规则与陷阱。每类遵循"有哪些写法 → 规则细节 → 陷阱 → 场景"展开。字符串与字节串的转义、容器字面量的语法是重点,因为它们的陷阱最密集。
+本章逐一讲解 Python 提供的每个类型判断工具：`type()`、`isinstance()`、`issubclass()`、`is`、`__class__`、用 ABC 做行为判断。每节按"作用 → 用法 → 返回值 → 陷阱 → 场景"展开。
 
-### 2.1 整数字面量
+### 2.1 type()：取对象的精确类型
 
-整数字面量有四种进制写法,用前缀区分;并支持下划线分隔提升可读性。
+#### 2.1.1 基本用法
 
-```python
-print(42)           # 十进制,无前缀 → 42
-print(0b101010)     # 二进制,前缀 0b(或 0B)→ 42
-print(0o52)         # 八进制,前缀 0o(或 0O)→ 42
-print(0x2A)         # 十六进制,前缀 0x(或 0X)→ 42
-```
-
-四种进制值都是 42,它们产生的 `int` 对象完全相同——进制只是"书写形式",不影响值与类型。
-
-⚠️ **八进制的经典陷阱**:Python 2 里 `017` 就是八进制 15,但 Python 3 要求八进制必须写 `0o17`,`017` 是**语法错误**。C/Java 背景的人容易误写 `017` 当八进制,在 Python 3 里直接报错:
+`type(obj)` 接收一个对象参数，返回该对象的**精确类型**（类对象本身，不是字符串）。
 
 ```python
-# 017              # SyntaxError(Python 3):八进制必须用 0o 前缀
-print(0o17)        # 15,正确的八进制
-print(17)          # 17,这是十进制
+print(type(42))           # <class 'int'>
+print(type(3.14))         # <class 'float'>
+print(type("hi"))         # <class 'str'>
+print(type([1, 2]))       # <class 'list'>
+print(type(None))         # <class 'NoneType'>
+print(type(True))         # <class 'bool'> —— 注意是 bool 不是 int
 ```
 
-进制前缀的数字部分不能出现非法数码:二进制只能 `0/1`、八进制只能 `0-7`、十六进制 `0-9a-fA-F`。
+**返回值说明**：`type()` 返回的是**类对象本身**，不是类型名字符串。这意味着你可以直接拿返回值做进一步操作——调用它来创建新实例、访问它的属性：
 
 ```python
-# 0b2              # SyntaxError:二进制不能有 2
-# 0o9              # SyntaxError:八进制不能有 9
-print(0xFF)        # 255,十六进制 a-f/A-F 都行
-print(0xff)        # 255,大小写不敏感
+t = type(42)
+print(t is int)           # True —— type(42) 返回的就是 int 这个类对象
+print(t(3.9))             # 3 —— 类对象可调用，int() 截断小数
+print(t.__name__)         # 'int' —— 取类型名字符串
 ```
 
-**下划线分隔**(Python 3.6+):在数字字面量任意位置插入 `_` 提升可读性,被忽略不参与求值。对大数字、位掩码、时间戳极其实用:
+#### 2.1.2 用 is 比较类型
+
+判断一个对象是不是某个精确类型，用 `type(obj) is Class`：
 
 ```python
-print(1_000_000)        # 1000000 —— 金额/计数
-print(0xFF_FF_FF_FF)    # 4294967295 —— 32 位掩码
-print(0b_1010_0011)     # 163 —— 二进制分组,对应位
-print(123_456.789_0)    # 123456.789 —— float 也能用
+print(type(42) is int)           # True
+print(type("hi") is str)         # True
+print(type([1, 2]) is list)      # True
+print(type(True) is int)         # False!  虽然	bool 是 int 子类，但精确类型是 bool
+print(type(True) is bool)        # True
 ```
 
-下划线规则:不能在开头和结尾(`_42`、`42_` 非法),不能连续两个(`42__3` 非法),不能紧跟进制前缀(`0x_FF` 非法,前缀后要先有数码)。合理的下划线让"这串数字到底是什么"一眼可读,是写清晰代码的利器。
+`type(42) is int` 的比较用 `is`（身份比较）而非 `==`，因为类对象是单例——全解释器只有一个 `int` 类对象，`is` 既正确又高效。
 
-**进制转换函数**(不是字面量,但配套常用):
+#### 2.1.3 核心限制：只给精确类型，不看继承链
+
+这是 `type()` 与 `isinstance()` 的根本差异，也是 `type()` 最大的限制：
 
 ```python
-print(bin(42))     # '0b101010' —— int → 二进制字符串
-print(oct(42))     # '0o52'
-print(hex(42))     # '0x2a'
-print(int('2a', 16))  # 42 —— 字符串按指定进制解析回 int
+class Animal: pass
+class Dog(Animal): pass
+d = Dog()
+
+print(type(d) is Dog)         # True
+print(type(d) is Animal)      # False!  精确类型是 Dog，不是 Animal
 ```
 
-**场景**:位运算标志用十六进制(`0xFF` 比二进制紧凑、比十进制直观对应字节)、权限掩码用八进制(`0o755` Unix 文件权限)、大数计数用下划线分组。选进制不是随意,而要让数字的"工程含义"对读者最清晰。
+`type(d) is Animal` 为 `False`，但语义上"一只狗是一种动物"是成立的——`type() is` 只看精确类型，不沿继承链查找。同理，`type(True) is int` 为 `False`，虽然 `bool` 是 `int` 的子类。
 
-### 2.2 浮点数字面量
+**何时用 `type()`**：
 
-`float` 字面量有多种形式,核心规则:必须含小数点 `.` 或指数 `e`/`E` 之一(否则就是 `int`)。
+- 需要获取**类对象本身**（如取类来调用、取 `__name__` 做日志）。
+- 确需**排除子类**（罕见，如要区分"真 list 还是 list 子类"）。
+- 判断"是否某类型（含子类）"几乎总该用 `isinstance`，不要用 `type() is`。
+
+#### 2.1.4 type() 的三参数形式：动态建类
+
+`type()` 还有个鲜为人知但强大的**三参数形式**：`type(name, bases, dict)`——动态创建一个新类。这是 Python 元类机制的入口，理解它才能理解"类也是对象、可运行时构造"。
 
 ```python
-print(3.14)        # 标准小数
-print(3.)          # 3.0 —— 小数点后可省略数码
-print(.5)          # 0.5 —— 小数点前可省略数码
-print(2e3)         # 2000.0 —— 科学计数法,2 × 10³
-print(2E3)         # 2000.0 —— E 大小写均可
-print(1.5e-3)      # 0.0015 —— 负指数
-print(3.14e2)      # 314.0
+# 动态创建一个类，等价于 class Dog: ...
+Dog = type("Dog", (), {"bark": lambda self: print("汪!")})
+
+d = Dog()
+print(type(d))            # <class 'Dog'>
+d.bark()                  # 汪!
 ```
 
-科学计数法 `eN` 表示"乘以 10 的 N 次方",`2e3` = `2 × 1000` = `2000.0`。注意它一定是 `float`(哪怕结果看起来是整数 `2000.0`),因为 `e` 的存在使字面量归类为 float。
+三个参数的含义：
 
-⚠️ `.5` 与 `3.` 这种省略形式合法但可读性见仁见智:`.5` 容易被一眼扫成 `5`,团队代码里写 `0.5` 更稳妥。省略形式在数学公式、紧凑代码里常见,正式工程代码倾向写全。
+| 参数 | 类型 | 作用 |
+|------|------|------|
+| `name` | `str` | 类名字符串，会成为 `__name__` |
+| `bases` | `tuple` | 父类元组，空元组 `()` 默认继承 `object` |
+| `dict` | `dict` | 类的命名空间字典，含方法/类属性 |
 
-**特殊浮点值字面量**:`float` 没有直接表示 `inf`/`nan` 的字面量语法,但可通过 `float()` 构造(注意是构造不是字面量):
+它等价于 `class` 语句，只是把"写死的类定义"变成"运行时动态构造"：
 
 ```python
-print(float('inf'))      # inf —— 正无穷
-print(float('-inf'))     # -inf
-print(float('nan'))      # nan —— 非数
-import math
-print(math.inf)          # inf —— math 模块常量,更清晰
-print(math.nan)          # nan
+# 这两种写法等价
+class Cat:
+    species = "猫科"
+    def meow(self):
+        return "喵"
+
+Cat2 = type("Cat2", (object,), {
+    "species": "猫科",
+    "meow": lambda self: "喵",
+})
 ```
 
-严格说 `float('inf')` 是"构造函数调用"而非字面量(需要执行函数),但它是写出 `inf`/`nan` 的标准方式。`math.inf`/`math.nan` 是更清晰的替代。
-
-**float 的精度**:`float` 字面量写下的十进制值会被转成 IEEE 754 双精度的最近似值,存在舍入误差:
+带继承与多方法的更完整示例：
 
 ```python
-print(0.1 + 0.2)         # 0.30000000000000004 —— 不是 0.3
-print(0.1 + 0.2 == 0.3)  # False
+class Animal:
+    def __init__(self, name):
+        self.name = name
+
+# 动态创建 Animal 的子类，带自定义方法
+def fetch(self):
+    return f"{self.name} 叼回球"
+
+Dog = type("Dog", (Animal,), {"fetch": fetch})
+
+d = Dog("旺财")
+print(d.name)             # 旺财 —— 继承了 Animal.__init__
+print(d.fetch())          # 旺财 叼回球
+print(isinstance(d, Animal))  # True —— 真的是 Animal 子类
 ```
 
-这不是字面量的问题,而是 `float` 类型的本质(详见《float 类型与精度问题》),但它在"写浮点字面量"时就要警觉:不要用 `==` 比 float 相等,精度敏感场合改用 `int` 或 `Decimal`。
+三参数 `type()` 何时用？**当你需要"根据运行时数据决定类的结构"时**。典型场景：ORM 框架根据数据库表结构动态生成模型类、序列化库根据 schema 生成数据类、插件系统动态装载类。日常业务代码极少直接用——`class` 语句更清晰。但理解它能运行时造类，是理解"类是 `type` 的实例、元类可定制类创建"的关键，第 4 章原理会展开。
 
-**虚数字面量**:含 `j`/`J` 后缀的是虚数,与实部相加构成 `complex`:
+### 2.2 isinstance()：按继承链判断类型（首选）
+
+#### 2.2.1 基本用法
+
+`isinstance(obj, cls)` 接收两个参数：要判断的对象 `obj` 和目标类 `cls`。返回 `bool`——沿继承链向上查找，匹配任意祖先类即 `True`。这是判断类型的首选方式。
 
 ```python
-print(3j)           # 3j —— 纯虚数,type 是 complex
-print(type(3j))     # <class 'complex'>
-print(1 + 2j)       # (1+2j) —— 实部(字面量 1)+ 虚部(字面量 2j)
-print(1.5e2j)       # 150j —— 虚部也可用科学计数
+print(isinstance(42, int))         # True
+print(isinstance(42, object))      # True —— int 继承 object，万物皆 object
+print(isinstance("hi", str))       # True
+print(isinstance(42, str))         # False
+print(isinstance(None, type(None)))# True —— NoneType 的实例
 ```
 
-`3j` 单独就是 `complex` 字面量(实部 0)。`1 + 2j` 是表达式(实部字面量 `1` 加虚部字面量 `2j`),结果是 `complex`。纯虚数字面量较罕见,科学计算才用。
+#### 2.2.2 isinstance 与继承链
 
-### 2.3 布尔与 None 字面量
-
-`True`、`False`、`None` 是三个特殊的"常量字面量"——它们看着像标识符,实则是语言保留的常量,值与类型固定。
+`isinstance` 沿继承链向上查找，这是它与 `type() is` 的根本差异：
 
 ```python
-print(True)         # True
-print(type(True))   # <class 'bool'>
-print(False)        # False
-print(None)         # None
-print(type(None))   # <class 'NoneType'>
+class Animal: pass
+class Dog(Animal): pass
+d = Dog()
+
+print(type(d) is Dog)        # True
+print(type(d) is Animal)     # False —— type() 只看精确类型
+print(isinstance(d, Dog))    # True
+print(isinstance(d, Animal)) # True —— isinstance 沿继承链，也是 Animal
 ```
 
-⚠️ **大小写必须严格**:`True` 不能写 `true`/`TRUE`,`None` 不能写 `null`/`nil`。C/Java/JS 背景的人极易写 `true`/`false`/`null`,在 Python 里全部是 `NameError`(被当成未定义的变量名):
+`type(d) is Animal` 为 `False`，但语义上"一只狗是一种动物"是成立的——`isinstance(d, Animal)` 正确返回 `True`。面向对象代码里继承是常态，**当判断语义是"是不是某类（含其子类）"时，`isinstance` 才是正确的工具**。
+
+`bool` 与 `int` 是最常见的继承案例：
 
 ```python
-# print(true)      # NameError: 'true' 未定义
-# print(null)      # NameError: 'null' 未定义
-print(True, False, None)   # ← 正确写法
+print(isinstance(True, int))       # True —— bool 是 int 子类，这就是期望语义
+print(isinstance(True, bool))      # True
+print(type(True) is int)           # False —— 对比：type() 只看精确类型
 ```
 
-这三个字面量是**单例**:全解释器只有一个 `True`、一个 `False`、一个 `None`。因此可以用 `is` 判身份,且 `True is True` 恒为真。它们虽是常量,但语法上属于"关键字常量",不能被赋值覆盖:
+`isinstance(True, int)` 为 `True`——"True 是一种 int"符合直觉。`type(True) is int` 为 `False`，因为精确类型是 `bool`。
+
+#### 2.2.3 元组语法：判断多类型
+
+第二个参数可以传**元组**——判断"是否属于多个类型之一"，任一匹配即 `True`：
 
 ```python
-# True = 1        # SyntaxError: 不能给关键字赋值
-# None = 0        # SyntaxError
+def describe(x):
+    if isinstance(x, (int, float, complex)):
+        return "数字"
+    elif isinstance(x, (str, bytes)):
+        return "文本"
+    elif isinstance(x, (list, tuple, set)):
+        return "容器"
+    return "其他"
+
+print(describe(42))        # 数字
+print(describe("hi"))      # 文本
+print(describe([1, 2]))    # 容器
+print(describe(True))      # 数字 —— bool 也是 int 子类，会匹配！注意
 ```
 
-`None` 的语义是"没有值"——函数无显式 `return` 时返回它、变量"尚未赋值"用它占位、函数默认参数用它做哨兵。`True`/`False` 是布尔运算的结果。它们看似简单,但写错大小写是新手高频错误,务必记牢 Python 的拼写是首字母大写、`None` 不是 `null`。
-
-### 2.4 字符串字面量的引号形式
-
-字符串字面量用引号包裹,Python 提供了远比多数语言灵活的引号形式。先看最基本的:单引号与双引号**完全等价**,选哪个取决于字符串内容含哪种引号,以减少转义:
+⚠️ 注意最后一个 `describe(True)` 返回"数字"——因为 `True` 是 `int` 子类的实例，匹配了 `(int, float, complex)`。若你要"严格区分 boolean 与数字"，需把 `bool` 判断放前面（短路）：
 
 ```python
-s1 = 'hello'           # 单引号
-s2 = "hello"           # 双引号,与 s1 等价,值相同
-print(s1 == s2)        # True
-s3 = "it's fine"       # 含单引号 → 用双引号包,无需转义
-s4 = 'say "hi"'        # 含双引号 → 用单引号包,无需转义
-s5 = 'it\'s fine'      # 也可用反斜杠转义,但不如 s3 清晰
+def describe_strict(x):
+    if isinstance(x, bool):           # 先排除 bool
+        return "布尔"
+    if isinstance(x, (int, float)):   # 再判数字，这样 True 不会落进来
+        return "数字"
+    return "其他"
+
+print(describe_strict(True))   # 布尔
+print(describe_strict(42))     # 数字
 ```
 
-原则:字符串里含单引号就用双引号包,含双引号就用单引号包,尽量减少 `\` 转义。两种引号产生的字符串对象**完全相同**,没有"单引号字符串"和"双引号字符串"的区别。
+`bool` 作为 `int` 子类的这一"渗透"特性，是 `isinstance` 判断里最需要注意的陷阱：凡是用 `isinstance(x, int)` 的地方，`bool` 都会匹配进来。明确不要 bool 时，先判 bool 短路排除。
 
-**三引号**:三个连续单/双引号,可跨多行,字符串内直接含真实换行:
+#### 2.2.4 判断 None 的特殊处理
+
+判断"是不是 None"用 `isinstance` 也行，但更规范的是 `is None`：
 
 ```python
-multi = '''第一行
-第二行
-第三行'''
-print(multi)
-# 第一行
-# 第二行
-# 第三行
-
-doc = """可以跨行,
-也能含 '单引号' 和 "双引号" 而不必转义"""
+x = None
+print(isinstance(x, type(None)))   # True，可行但啰嗦
+if x is None:                      # 规范写法
+    ...
 ```
 
-三引号常用于:多行字符串、文档字符串(docstring,放在函数/类/模块体首行)、SQL/HTML 模板。三引号内只要不连续出现三个同种引号,单双引号都不需转义,写大段文本很方便。
+`None` 是单例，`is None` 比 `isinstance(x, NoneType)` 更直接高效，且 `NoneType` 这个名字需 `type(None)` 获取（它没有内置名）。判 None 一律用 `is`。
 
-### 2.5 字符串前缀:原始、f-string、字节、Unicode
+### 2.3 issubclass()：判断类与类的继承关系
 
-字符串字面量可在引号前加**前缀字符**,改变其解析方式。前缀可组合,大小写不敏感(惯例小写)。这是字符串字面量的核心机制。
+#### 2.3.1 基本用法
 
-**原始字符串(raw)`r`/`R`**:反斜杠不作为转义符,按字面处理。处理正则表达式、Windows 路径、含大量反斜杠的文本时不可或缺:
+`issubclass(cls, parent)` 判断**类** `cls` 是否 `parent` 的子类（含自身）。返回 `bool`。
+
+注意两个参数都必须是**类对象**，不能是实例：
 
 ```python
-print(r'C:\new\folder\todo.txt')   # C:\new\folder\todo.txt —— \n 不转义成换行
-print('C:\new\folder\todo.txt')    # C:    ← 实际 \n 变成换行!小写 new 后换行了
-print(r'\d+\.\d+')                  # \d+\.\d+ —— 正则模式原样保留
-print('\d+\.\d+')                   # 会触发 DeprecationWarning(\d 是无效转义)
+print(issubclass(bool, int))     # True  —— bool 是 int 子类
+print(issubclass(int, object))   # True  —— 所有类都是 object 子类
+print(issubclass(int, int))      # True  —— 类是自身的子类
+print(issubclass(str, int))      # False
+print(issubclass(list, object))  # True
 ```
 
-⚠️ 原始字符串的**唯一限制**:不能以单个反斜杠结尾。`r'\'` 是语法错误,因为即便在原始串里,反斜杠仍会"转义后续的引号"导致引号未闭合。需要以反斜杠结尾时,可用普通字符串加转义,或拼接:
+#### 2.3.2 参数必须是类，不是实例
+
+⚠️ 这是 `issubclass` 与 `isinstance` 的关键区别——传实例会报错：
 
 ```python
-# r'C:\folder\'     # SyntaxError: 末尾单反斜杠
-path = r'C:\folder' + '\\'    # 拼接一个反斜杠 → C:\folder\
+# 正确：两参数都是类
+print(issubclass(bool, int))     # True
+# 错误：第一个参数传了实例
+# print(issubclass(True, int))   # TypeError: issubclass() arg 1 must be a class
+# 错误：第二个参数传了实例
+# print(issubclass(bool, 42))    # TypeError
 ```
 
-**f-string `f`/`F`**(Python 3.6+):在字符串里用 `{表达式}` 插值求值,是格式化字符串的现代首选:
+`issubclass(True, int)` 报错，因为 `True` 是实例不是类。若你拿到的是实例，要先 `type()` 取类：`issubclass(type(x), int)`——但这其实就是 `isinstance(x, int)` 做的事。**判断实例类型用 `isinstance`，判断类间关系才用 `issubclass`**。
+
+#### 2.3.3 元组语法
+
+第二个参数也可传元组，匹配任一即 `True`：
 
 ```python
-name = "Alice"
-age = 30
-print(f"姓名:{name}, 年龄:{age}")      # 姓名:Alice, 年龄:30
-print(f"明年 {age + 1} 岁")            # 明年 31 岁 —— 支持表达式
-print(f"{name!r}")                      # 'Alice' —— !r 调 repr
-print(f"{3.14159:.2f}")                 # 3.14 —— :后是格式说明符
-print(f"{name:>10}")                    #      Alice —— 右对齐宽 10
+print(issubclass(bool, (int, float, str)))  # True —— 匹配任一
+print(issubclass(str, (int, float)))        # False —— 都不匹配
 ```
 
-f-string 的 `{}` 内是真正的 Python 表达式,可调用函数、做运算、访问属性,极大优于旧的 `%` 格式化和 `str.format()`。注意 `{}` 内的引号不能与外层相同(Python 3.11 及以前),3.12+ 放宽了此限制:
+#### 2.3.4 适用场景
+
+`issubclass` 何时用？**当你操作的是"类对象"本身，而非实例时**。典型场景：写装饰器/框架，要在类上判断"它是否某基类的子类"；或检查动态加载的类是否符合预期父类：
 
 ```python
-key = "name"
-# Python 3.11-:f"{d['name']}" 若外层用双引号会报错(引号须不同)
-print(f"{d[key]}")        # 用变量绕开,更通用
-# Python 3.12+:f"{d['name']}" 合法,引号可相同
+def register_plugin(cls):
+    if not issubclass(cls, PluginBase):
+        raise TypeError(f"{cls.__name__} 必须是 PluginBase 子类")
+    _plugins.append(cls)
 ```
 
-f-string 本质是"在编译期展开为表达式",`f"{name}"` 等价于 `''.join(["", name, ...])` 的语法糖,详见第 4 章。
+### 2.4 is：身份比较判断单例对象
 
-**字节串 `b`/`B`**:产生 `bytes` 对象(不可变字节序列)而非 `str`。每个字符必须是 ASCII 或用 `\xHH` 表示字节:
+#### 2.4.1 基本用法
+
+`is` 不是专用于类型判断的关键字，但它在类型判断中有一个重要角色：判断对象是否为 `None`、`True`、`False` 等单例对象。
+
+`is` 比较的是两个对象的**身份**（即内存地址是否相同），而非值是否相等：
 
 ```python
-print(b"abc")            # b'abc' —— type 是 bytes 不是 str
-print(type(b"abc"))      # <class 'bytes'>
-print(b"\x41\x42")       # b'AB' —— 用十六进制指定字节,0x41='A'
-# b"中文"                # SyntaxError: 字节串不能用非 ASCII 字符(中文超 ASCII)
-print("中文".encode())   # b'\xe4\xb8\xad...' —— 中文需编码后得到 bytes
+x = None
+print(x is None)          # True —— x 就是那个唯一的 None 对象
+
+a = [1, 2, 3]
+b = [1, 2, 3]
+print(a == b)             # True —— 值相等
+print(a is b)             # False —— 但不是同一个对象
 ```
 
-`bytes` 与 `str` 是不同类型,`b"abc" == "abc"` 为 `False`。字节串用于处理二进制数据(文件二进制读写、网络协议、加密),文本用 `str`、字节用 `bytes`,二者通过 `.encode()`/`.decode()` 转换:
+#### 2.4.2 判断 None / True / False
+
+`None`、`True`、`False` 是 Python 中的单例——全解释器只有一个 `None` 对象、一个 `True` 对象、一个 `False` 对象。因此用 `is` 判身份是最直接可靠的：
 
 ```python
-s = "ABC"
-b = s.encode('utf-8')    # str → bytes
-print(b)                 # b'ABC'
-print(b.decode('utf-8')) # ABC —— bytes → str
+# 推荐写法
+if x is None: ...
+if x is True: ...
+if x is False: ...
 ```
 
-**Unicode 前缀 `u`/`U`**:Python 3 里所有字符串默认就是 Unicode,`u"abc"` 与 `"abc"` 完全相同。`u` 前缀主要为兼容 Python 2 代码留存,新代码无需写。
+相比之下，`== None` 隐患在于 `__eq__` 可能被自定义类改写，导致"值等于 None"但不是 None。`is` 不调用 `__eq__`，不受影响。
 
-**前缀组合**:`r` 与 `b`、`r` 与 `f` 可组合,顺序不限。最常见的是 `rb`(原始字节串)与 `rf`(原始 f-string,3.12+):
+#### 2.4.3 判断精确类型时的 is
+
+在2.1节提到，判断精确类型时用 `type(obj) is Class` 而非 `==`。这是因为类对象是单例——全解释器只有一个 `int` 类对象，`is` 比地址既正确又高效。`type(42) is int` 比 `type(42) == int` 更合适，虽然结果相同，但 `is` 语义更准确：你要确认的是"是不是同一个类对象"。
+
+### 2.5 __class__ 属性
+
+#### 2.5.1 基本用法
+
+每个对象都有 `__class__` 属性，指向它的类——它通常等价于 `type(obj)`：
 
 ```python
-print(rb"C:\new")        # b'C:\\new' —— 原始字节串,反斜杠不转义
-# rf"{name}\n"           # 3.12+ —— 原始 f-string,\n 是字面反斜杠加 n
+print((42).__class__)         # <class 'int'>
+print((42).__class__ is int)  # True
+print(type(42) is int)        # True —— 两者通常一致
 ```
 
-下表汇总所有前缀:
+99% 的情况 `obj.__class__ is type(obj)`。
 
-| 前缀 | 含义 | 示例 | 结果类型 |
-|------|------|------|---------|
-| 无 | 普通字符串 | `"a"` | `str` |
-| `r` | 原始(反斜杠不转义) | `r"\n"` | `str` |
-| `f` | f-string 插值 | `f"{x}"` | `str` |
-| `b` | 字节串 | `b"a"` | `bytes` |
-| `u` | Unicode(Python 3 冗余) | `u"a"` | `str` |
-| `rb`/`br` | 原始字节串 | `rb"\n"` | `bytes` |
-| `rf`/`fr` | 原始 f-string(3.12+) | `rf"{x}\n"` | `str` |
+#### 2.5.2 __class__ 与 type() 的关系
 
-### 2.6 字符串转义序列
+现代 CPython 里 `type(obj)` 直接读 `obj` 的类型指针，而 `isinstance` 也基于此，二者与 `__class__` 基本一致。`__class__` 的可写特性主要用于**实例的动态"类切换"**（罕见高级技巧，如代理模式），日常不会用。实践中 `type(x)` 和 `x.__class__` 等价，选哪个看风格——`type(x)` 是函数调用更显式、`x.__class__` 更"属性访问"风格。
 
-普通字符串里反斜杠 `\` 引入**转义序列**,表示无法直接键入或会冲突的字符。常量转义:
+#### 2.5.3 实用场景：多态构造
 
-| 转义 | 含义 | 转义 | 含义 |
-|------|------|------|------|
-| `\n` | 换行 | `\t` | 制表符 |
-| `\r` | 回车 | `\\` | 反斜杠本身 |
-| `\'` | 单引号 | `\"` | 双引号 |
-| `\b` | 退格 | `\f` | 换页 |
-| `\v` | 垂直制表 | `\a` | 响铃 |
-| `\0` | 空字符 | `\<newline>` | 行续(忽略换行) |
+`__class__` 常用于**取实例的类再调用**（工厂模式、复制同类）：
 
 ```python
-print("第一行\n第二行")     # \n 换行
-print("a\tb\tc")           # 制表对齐
-print("路径 C:\\folder")   # \\ 表示一个反斜杠
-print('it\'s')              # \' 在单引号串里转义单引号
+class Point:
+    def __init__(self, x, y):
+        self.x, self.y = x, y
+    def clone(self):
+        return self.__class__(self.x, self.y)   # 用自身类构造，子类克隆也正确
+
+class Point3D(Point):
+    def __init__(self, x, y, z):
+        super().__init__(x, y)
+        self.z = z
+
+p = Point3D(1, 2, 3)
+q = p.clone()              # 子类实例的 clone 返回 Point3D，因 __class__ 是 Point3D
+print(type(q))             # <class 'Point3D'> —— 而非 Point
 ```
 
-**数值转义**(指定字符码点):
+`self.__class__(...)` 比 `Point(...)` 更稳健——它在子类调用时自动用子类构造，体现"多态构造"。这是 `__class__` 的实用价值。
+
+### 2.6 用抽象基类（ABC）做结构化判断
+
+#### 2.6.1 什么是 ABC 判断
+
+`isinstance` 不仅能判具体类，还能判**抽象基类（Abstract Base Class, ABC）**——这是 Python 类型系统的高级能力，让你按"对象所属的抽象类别"而非具体类判断。
+
+Python 内置一批 ABC，位于 `collections.abc`，代表了对象的"行为分类"：
 
 ```python
-print("\x41")              # A —— \xHH 两位十六进制
-print("中")            # 中 —— \uHHHH 四位十六进制 Unicode
-print("\U00004e2d")        # 中 —— \UHHHHHHHH 八位十六进制 Unicode
-print("\101")              # A —— \ooo 三位八进制(101₈=65='A')
+from collections.abc import Iterable, Sequence, Mapping, Sized, Hashable
+
+print(isinstance([1, 2], Iterable))     # True —— 列表可迭代
+print(isinstance("hi", Iterable))       # True —— 字符串也可迭代
+print(isinstance(42, Iterable))         # False —— 整数不可迭代
+print(isinstance([1, 2], Sequence))     # True —— 列表是序列
+print(isinstance((1, 2), Sequence))     # True —— 元组也是序列
+print(isinstance("hi", Sequence))       # True —— 字符串也是序列
+print(isinstance({"a": 1}, Mapping))    # True —— 字典是映射
+print(isinstance([1, 2], Sized))        # True —— 列表有长度（len 可用）
+print(isinstance(42, Hashable))         # True —— int 可哈希
+print(isinstance([1, 2], Hashable))     # False —— list 不可哈希
 ```
 
-`\x41`、`中` 用于在字符串里直接嵌入难以输入的字符(如 Unicode 字符、控制字符),避免源码里出现不可见字符。
+ABC 判断的价值在于：**它问的不是"你是哪个具体类"，而是"你属于哪个行为类别"**。`isinstance(x, Iterable)` 判断"x 能不能迭代"，无论它是 list/tuple/set/str/生成器/自定义可迭代类——这正是介于"静态精确类判断"和"纯鸭子类型"之间的好工具：有类型检查的清晰，又有行为分类的通用。
 
-⚠️ **无效转义的陷阱**(Python 3.6+ DeprecationWarning,未来会变 SyntaxError):若反斜杠后跟的字符不是合法转义序列,Python 不报错而是"保留反斜杠"处理,但会警告:
+#### 2.6.2 常用 ABC 速查
+
+| ABC | 代表的行为 | 典型实例 |
+|-----|-----------|---------|
+| `Iterable` | `__iter__`，可迭代 | list/tuple/str/set/dict/生成器 |
+| `Sequence` | 可迭代 + 下标 + 长度 | list/tuple/str |
+| `Mapping` | 键值映射，`__getitem__`/keys/values | dict |
+| `Set` | 集合运算 | set/frozenset |
+| `Sized` | `__len__`，有长度 | 几乎所有容器 |
+| `Hashable` | `__hash__`，可哈希能做键 | int/str/tuple（元素可哈希） |
+| `Container` | `__contains__`，支持 `in` | 所有容器 |
+| `Callable` | `__call__`，可调用 | 函数/类/有 `__call__` 的对象 |
+
+#### 2.6.3 Sequence vs Iterable 的层次
+
+`Iterable`（可迭代，只要有 `__iter__`）是更宽的类别；`Sequence`（序列，有 `__getitem__` 按下标 + 长度 + 可迭代）是更窄的类别。序列一定是可迭代的，反之不然（如 set 可迭代但不是序列，因无下标）：
 
 ```python
-print("\d")                # \d —— 反斜杠被保留(DeprecationWarning: invalid escape)
-print(r"\d")               # \d —— 原始字符串,无警告的正道
+from collections.abc import Iterable, Sequence
+print(isinstance({1, 2}, Iterable))   # True —— set 可迭代
+print(isinstance({1, 2}, Sequence))   # False —— 但不是序列（无下标）
+print(isinstance("abc", Sequence))    # True —— str 是序列
 ```
 
-写正则(`\d`/`\w`/`\s`)、Windows 路径(`\n`/`\t`)时,这些反斜杠组合多不是合法转义,应一律用原始字符串 `r"..."`,既避免警告又避免"`\n` 被误转义成换行"的隐蔽 bug。这是一条强实践:**凡是含反斜杠的字符串,默认考虑用 `r` 前缀**。
+用 ABC 判断比判断具体类更稳健：你的函数若只需"可迭代"，判 `Iterable` 就能让所有可迭代对象（含未来新增类型）都通过，而非写死 `isinstance(x, (list, tuple, set, str, ...))`。ABC 的实现原理（虚拟子类注册、`__subclasshook__`）在第 4 章展开。
 
-### 2.7 隐式字符串拼接
+### 2.7 isinstance 与 type() is 的完整对比
 
-Python 有个独特特性:**相邻的字符串字面量(中间只隔空白/换行/注释)会自动拼接成一个字符串**,无需 `+`。这是字面量层面的语法规则,只对字面量有效,不含变量:
+把两者的差异系统对比，这是类型判断中最该记牢的决策点：
+
+| 维度 | `type(x) is C` | `isinstance(x, C)` |
+|------|----------------|---------------------|
+| 是否看继承链 | 否（只精确类型） | 是（沿继承链向上找） |
+| `bool` 对 `int` | `type(True) is int` → **False** | `isinstance(True, int)` → **True** |
+| 子类实例对父类 | False | True |
+| 第二参数多类型 | 不支持 | 支持元组 `(A, B)` |
+| 性能 | 略快（直接身份比较） | 略慢（沿 MRO 查找） |
+| 适用场景 | 需精确类型、排除子类（罕见） | 判断"是否某类型"（首选） |
 
 ```python
-s = "Hello" " " "World"     # 自动拼接
-print(s)                    # Hello World
+class Animal: pass
+class Dog(Animal): pass
+d = Dog()
 
-# 常用于长字符串换行书写,提升可读
-url = ("https://example.com/api/v2/"
-       "users/list"
-       "?page=1")
-print(url)                  # https://example.com/api/v2/users/list?page=1
+print(type(d) is Dog)        # True
+print(type(d) is Animal)     # False —— 精确类型是 Dog 不是 Animal
+print(isinstance(d, Dog))    # True
+print(isinstance(d, Animal)) # True —— 沿继承链，也是 Animal
 ```
 
-这种拼接在**编译期**完成(因为是字面量),无运行时开销,等价于直接写一整串。它特别适合:长 URL/SQL/正则的可读性换行、多行文本但不想用三引号(三引号会保留换行,隐式拼接不引入换行)。
+`type(d) is Animal` 为 `False`，但语义上"一只狗是一种动物"是成立的——`isinstance(d, Animal)` 正确返回 `True`。这就是"判断类型用 isinstance"的核心理由：它符合继承语义，而面向对象代码里继承是常态。
 
-⚠️ 它**只对字面量有效**:
+**何时反该用 `type() is`？** 极少。一种情况：你确需"严格只接受 list，不接受 list 的子类"（怕子类改写了方法行为）。但即便如此，更 Pythonic 的做法往往是接受任何"行为像 list"的对象（鸭子类型），而非卡死精确类。所以实践经验几乎总是：**判断类型用 `isinstance`，需要精确类对象本身（而非做判断）时用 `type()`**。
+
+### 2.8 综合示例：一个类型分发器
+
+下面这个片段综合运用 `type()`、`isinstance()`、`is`、ABC，实现一个根据输入类型分发的处理器，体现各类判断的取舍：
 
 ```python
-a = "Hello"
-b = a " World"        # SyntaxError: a 是变量不是字面量,不能这样拼
-c = a + " World"      # 正确:变量与字面量用 + 拼接
+from collections.abc import Iterable, Mapping, Sequence
+
+def process(data):
+    """根据输入类型分发处理，演示类型判断的各类用法。"""
+    # 1. 精确判断 None 与 bool（用 is，因 None/True/False 是单例）
+    if data is None:
+        return "空值"
+    if data is True or data is False:
+        return "布尔: " + str(data)
+
+    # 2. 用 isinstance + 元组判数字（注意 bool 已在上面短路排除）
+    if isinstance(data, (int, float, complex)):
+        return f"数字: {data} (类型 {type(data).__name__})"
+
+    # 3. 用 ABC 判行为类别（比判具体类更通用）
+    if isinstance(data, Mapping):               # 优先判映射（键值）
+        return f"映射: {len(data)} 个键"
+    if isinstance(data, str):                    # str 也是 Sequence，需先判出
+        return f"字符串: 长度 {len(data)}"
+    if isinstance(data, Sequence):              # 列表/元组等序列
+        return f"序列: {len(data)} 个元素"
+    if isinstance(data, Iterable):              # 更宽，生成器等
+        return f"可迭代(非序列)"
+
+    return f"未知类型: {type(data).__name__}"
+
+# 测试各类型
+for item in [None, True, 42, 3.14, "hello", [1,2,3], (1,2), {"a":1}, {1,2}, iter([1])]:
+    print(f"{str(item):20} -> {process(item)}")
 ```
 
-注意区分:隐式拼接是"字面量相邻"的语法糖;`+` 是"运行时拼接表达式"。前者零成本但只能拼字面量,后者有运行时成本但能拼变量。
+阅读这段示例，注意几个判断决策：
 
-隐式拼接也可跨多行(用括号包裹实现行续):
-
-```python
-message = (
-    "亲爱的用户:\n"
-    "  您的账户已激活。\n"
-    "  谢谢。"
-)
-# message 是一个三行字符串,每行来源是独立字面量
-```
-
-这比三引号更可控——三引号里行首缩进也会进字符串,而隐式拼接每行独立字面量,缩进不影响内容。写多行提示信息/模板时,这是更干净的写法。
-
-### 2.8 容器字面量:list
-
-`list` 用方括号 `[]`,元素逗号分隔,可含任意类型、可嵌套、可空:
-
-```python
-nums = [1, 2, 3]
-mixed = [1, "a", True, None, [2, 3]]   # 混合类型 + 嵌套
-empty = []
-nested = [[1, 2], [3, 4]]               # 二维
-print(nums, mixed, empty, nested)
-```
-
-**尾随逗号合法**(trailing comma),且不影响内容:
-
-```python
-a = [1, 2, 3,]      # 末尾多一个逗号,等价 [1, 2, 3]
-print(len(a))       # 3
-```
-
-尾随逗号是好习惯——多行列表增删元素时不会因漏逗号出错,版本控制 diff 也更干净(每行一项,增删只动一行)。对比:
-
-```python
-# 推荐:多行每项一行,带尾随逗号
-config = [
-    "debug",
-    "verbose",
-    "trace",
-]
-# 不推荐:单行挤一起,改一项要动多项
-config = ["debug", "verbose", "trace"]
-```
-
-下方"加一行"时,推荐写法只在末尾加一行,不修改既有行,diff 干净;不推荐写法要把前一项的逗号加上,diff 会多动一行。
-
-### 2.9 容器字面量:tuple
-
-`tuple` 字面量规则最易踩坑,值得单独详述。核心:`tuple` 的标志是**逗号**,括号在很多场景可省略。
-
-```python
-t1 = (1, 2, 3)        # 标准写法,括号 + 逗号
-t2 = 1, 2, 3          # 括号可省略,逗号才是关键
-print(t1 == t2)       # True
-print(type(t2))       # <class 'tuple'>
-empty = ()            # 空元组,必须用括号
-```
-
-⚠️ **单元素元组的陷阱**(经典):单个元素必须在元素后加逗号,否则不是元组:
-
-```python
-single = (5,)         # 单元素元组 ← 必须有逗号
-just_int = (5)        # 这只是整数 5,括号是"分组"不是元组!
-print(type(single))   # <class 'tuple'>
-print(type(just_int)) # <class 'int'>,不是 tuple
-print(single == 5)    # False
-print((5) == 5)       # True —— (5) 就是 5
-```
-
-`(5)` 被解析为"加了括号的整数表达式"(括号用于分组),值与类型都是 `int`;只有 `(5,)` 才是含一个元素 5 的元组。漏写这个逗号是元组使用中最频繁的错误,尤其在"返回单值元组""单元素元组做默认参数"时。
-
-**零元素与多元素**:
-
-```python
-print(() == tuple())  # True,() 是空元组
-print((1, 2) == 1, 2) # 小心!等价 ((1,2)==1), 2 —— 优先级陷阱
-```
-
-注意 `==` 优先级高于逗号,`(1, 2) == 1, 2` 实际是 `((1,2) == 1), 2` 即 `(False, 2)`。要比较整个元组用 `(1,2) == (1,2)`。这条优先级陷阱在条件判断里可能意外产生元组,需留意。
-
-**尾随逗号与单元素**:
-
-```python
-print((1,))           # (1,) —— 单元素,逗号必需
-print((1, 2,))        # (1, 2) —— 多元素尾随逗号可选
-```
-
-**函数返回多值即元组字面量**:`return a, b` 实际返回元组 `(a, b)`,这里的逗号构造元组:
-
-```python
-def min_max(lst):
-    return min(lst), max(lst)   # 返回元组,无需括号
-lo, hi = min_max([3, 1, 4])    # 解包接收
-```
-
-理解"逗号构造元组",就能解释为何 `return a, b` 不需括号、为何 `x = 1, 2` 后 `x` 是元组——这是统一的元组字面量语法,而非"return 的特殊规则"。
-
-### 2.10 容器字面量:dict 与 set
-
-`dict` 用花括号 `{键:值}`,`set` 用花括号 `{元素}(无冒号)`,二者共用花括号但靠"有无冒号"区分。
-
-**dict 字面量**:
-
-```python
-person = {"name": "Alice", "age": 30}   # 键:值,逗号分隔
-empty = {}                              # 空花括号 → dict(不是 set!)
-nested = {"list": [1, 2], "info": {"x": 1}}   # 嵌套
-print(person, empty, nested)
-```
-
-**set 字面量**(Python 3.0+):
-
-```python
-s = {1, 2, 3, 2}      # 重复自动去重
-print(s)              # {1, 2, 3}
-print(type(s))        # <class 'set'>
-```
-
-⚠️ **空花括号是 dict 不是 set**——这是最高频的混淆点:
-
-```python
-print(type({}))       # <class 'dict'> —— 空 {} 是字典!
-empty_set = set()     # 空集合必须用 set() 构造
-print(type(empty_set))# <class 'set'>
-```
-
-为什么 `{}` 是 dict?因为 Python 2 时代没有集合字面量,`{}` 早已是 dict;Python 3 引入 set 字面量时,为兼容不能让 `{}` 改义,故空集合只能 `set()`。记忆法:**花括号里有内容才可能是 set(且无冒号),空花括号一律是 dict**。
-
-dict 与 set 的区分完全靠冒号:
-
-```python
-print(type({"a": 1}))   # dict —— 有冒号
-print(type({1, 2}))     # set  —— 无冒号
-# {} 有歧义,Python 规定为 dict
-```
-
-**dict 字面量的键**:必须是表达式且可哈希(通常是 str/int 字面量,也可 tuple)。键重复时后者覆盖前者:
-
-```python
-d = {"a": 1, "a": 2}   # 重复键,后者覆盖
-print(d)               # {'a': 2}
-```
-
-⚠️ 重复键不报错,静默覆盖——这在重构、合并配置时易引入隐蔽 bug,需警惕。
-
-**dict/set 字面量 vs 推导式**:字面量适合已知固定内容,推导式适合由迭代生成:
-
-```python
-fixed = {"a": 1, "b": 2}              # 字面量
-squares = {x: x*x for x in range(5)}  # 字典推导式 → {0:0,1:1,2:4,3:9,4:16}
-unique = {c for c in "hello"}         # 集合推导式 → {'h','e','l','o'}
-```
-
-**frozenset 无字面量**:`frozenset` 是不可变集合,但没有字面量语法,只能 `frozenset({1,2})` 构造。这是少数"内置类型无字面量"的情况(另一个是 `bool` 用 `True/False` 而非字面量,不过 True/False 本身算常量字面量)。
-
-### 2.11 特殊字面量:Ellipsis 与 ...
-
-`...` 是一个特殊字面量,代表 `Ellipsis` 单例(类型 `ellipsis`)。它看着是三个点,实则是单个 token、单个对象:
-
-```python
-print(...)               # Ellipsis
-print(type(...))         # <class 'ellipsis'>
-print(... is Ellipsis)   # True —— ... 和名字 Ellipsis 是同一对象
-```
-
-`...` 与 `Ellipsis`(名字)完全等价,都是同一单例对象。它的用途:
-
-- **NumPy 切片**:`a[..., 0]` 表示"所有剩余维度",比 `a[:, :, :, 0]` 简洁。
-- **类型注解占位/桩(stub)**:函数体只写 `...` 表示"占位,不实现",常见于类型存根文件(`.pyi`)和抽象方法。
-- **Pydantic 3.11+ / FastAPI** 中表示"必填字段"。
-
-```python
-# 类型存根:声明接口但不实现
-def connect(url: str) -> None: ...   # 函数体用 ... 占位
-
-class Runnable:
-    def run(self) -> None: ...        # 抽象方法占位
-```
-
-`...` 作为字面量在普通业务代码里少见,但在类型注解生态(尤其 `.pyi` 文件)里是标准用法。它和 `None`、`True`、`False` 类似,是语言保留的常量字面量。注意 `...` 是**一个合法表达式**,可作为函数体唯一语句,这和 `pass` 角色相近但 `...` 带有"待实现"的语义暗示。
-
-### 2.12 综合示例:各类字面量同台
-
-下面这个片段集中演示各类字面量,阅读时对照每行的字面量形式与最终类型:
-
-```python
-# 数值字面量:多进制、下划线、float、complex
-count = 1_000_000            # int,十进制下划线
-mask = 0xFF_FF               # int,十六进制
-pi = 3.14159                 # float
-big = 6.022e23               # float,科学计数法
-z = 3 + 4j                   # complex
-
-# 布尔与 None
-active = True
-result = None
-
-# 字符串:引号、前缀、转义、隐式拼接
-path = r"C:\new\data"        # 原始字符串,反斜杠不转义
-name = "Alice"
-greeting = f"Hello, {name}"  # f-string 插值
-binary = b"\x48\x49"         # 字节串 → b'HI'
-url = ("https://api.example.com/"
-       "v1/users")           # 隐式拼接,无运行时开销
-
-# 容器字面量
-nums = [1, 2, 3,]            # list,尾随逗号
-point = (10, 20)             # tuple
-single = (42,)               # 单元素元组,逗号必备
-person = {"name": "Alice", "age": 30}   # dict
-tags = {"python", "code"}    # set
-empty_dict = {}              # dict!不是 set
-empty_set = set()            # 空集合
-
-# 特殊字面量
-placeholder = ...            # Ellipsis
-
-# 打印类型对照
-for label, val in [
-    ("count", count), ("mask", mask), ("pi", pi),
-    ("path", path), ("binary", binary), ("url", url),
-    ("point", point), ("single", single), ("person", person),
-    ("tags", tags), ("empty_dict", empty_dict), ("placeholder", placeholder),
-]:
-    print(f"{label:12} -> {type(val).__name__:8} {val!r}")
-```
-
-跑一遍这段示例,对照输出(每个值的类型与字面写法),各类字面量的形式与类型映射就清晰了:进制只改写法不改值、前缀决定 str/bytes、逗号决定 tuple、花括号有无冒号决定 dict/set。
+1. **`None`/`True`/`False` 用 `is`**——单例，`is` 最规范。
+2. **`bool` 在 `int` 之前短路**——否则 `True` 会落进数字分支（`bool` 是 `int` 子类）。
+3. **`Mapping` 优先于 `Sequence`/`Iterable`**——dict 是 Mapping 不是 Sequence，先判 Mapping 避免误归类；`str` 也是 Sequence，若想区分串与列表，`str` 分支要在通用 `Sequence` 前。
+4. **用 ABC（`Mapping`/`Sequence`/`Iterable`）而非判具体类**——让任何符合行为的对象都正确归类，未来扩展类型无需改代码。
 
 ---
 
 ## 3. 最佳实践
 
-### 3.1 选对进制,让数字的工程含义对读者最直接
-
-```python
-# 推荐:进制贴合用途
-file_perm = 0o755          # Unix 权限,八进制最直观
-color_mask = 0xFF_FF_FF    # 颜色/位掩码,十六进制
-bytes_in_gb = 1_073_741_824   # 字节数,十进制下划线分组
-# 不推荐:用十进制写本质是位/权限的数
-file_perm = 493            # 493 是 0o755?谁记得住
-```
-
-进制不是炫技,而是让读者一眼看出数字的工程语义。权限用八进制(对应 rwx 三位组)、字节/位掩码用十六进制(对应字节边界)、可计数的大数用十进制下划线。
-
-### 3.2 大数字一律用下划线分组
+### 3.1 判断"是否某类型"用 isinstance，不用 type() is
 
 ```python
 # 推荐
-million = 1_000_000
-timeout_ms = 30_000
+if isinstance(x, int): ...
 # 不推荐
-million = 1000000          # 几个零?要数
+if type(x) is int: ...
 ```
 
-下划线零成本(编译期忽略)却极大提升可读性,金额、时间戳、字节数、ID 等大数都该用。养成肌肉记忆。
+`isinstance` 尊重继承链（`bool` 是 `int`、子类是父类），符合面向对象语义；`type() is` 只判精确类型，会把子类实例误排除。除非你确需"严格排除子类"（极罕见），否则一律 `isinstance`。
 
-### 3.3 含反斜杠的字符串默认用原始前缀
+### 3.2 判断 None/True/False 用 is，不用 == 或 isinstance
 
 ```python
 # 推荐
-regex = r"\d+\.\d+"
-win_path = r"C:\Users\new\data"
+if x is None: ...
+if x is True: ...
 # 不推荐
-regex = "\\d+\\.\\d+"      # 转义地狱,易错
-win_path = "C:\\Users\\new\\data"   # \n 会被误转义成换行!
+if x == None: ...           # 可能被自定义 __eq__ 改写，不可靠
+if x is None or x is False or x is True: ...   # 啰嗦
 ```
 
-正则、Windows 路径、LaTeX 等含大量反斜杠的字符串,一律 `r"..."`。既避免 `DeprecationWarning`,又杜绝 `\n`/`\t` 被误转义的隐蔽 bug。注意原始串不能以单反斜杠结尾。
+`None`/`True`/`False` 是单例，`is` 判身份最直接可靠。`== None` 隐患在于 `__eq__` 可能被改写。注意判"是否为假值"用 `if not x:`，判"是否就是 None"用 `if x is None:`——二者语义不同别混。
 
-### 3.4 字符串格式化优先 f-string
-
-```python
-# 推荐(Python 3.6+)
-msg = f"用户 {name} 余额 {balance:.2f}"
-# 不推荐
-msg = "用户 %s 余额 %.2f" % (name, balance)   # 旧式,易错位
-msg = "用户 {} 余额 {:.2f}".format(name, balance)  # 啰嗦
-```
-
-f-string 最直观(变量名就地、表达式直接)、最快(编译期优化)、最不易错(无需对位)。除非需兼容旧版本或做模板延迟填充,否则一律 f-string。
-
-### 3.5 单元素元组务必带逗号
-
-```python
-# 正确
-single = (5,)
-return (value,)           # 返回单元素元组
-# 错误(变 int 不是 tuple)
-single = (5)
-```
-
-`(5)` 是整数、`(5,)` 才是元组。写单元素元组、返回单值元组、单元素元组做默认参数时,这个逗号绝不能漏。有疑问就加逗号——多元素元组的尾随逗号也无害。
-
-### 3.6 空集合用 set(),勿用 {}
-
-```python
-# 正确
-seen = set()
-# 错误
-seen = {}                 # 这是 dict!
-```
-
-`{}` 是字典。需要空集合一律 `set()`,需要空 dict 用 `{}`。这是最该刻进记忆的字面量区分。同理 `frozenset` 无字面量,用 `frozenset()`/`frozenset({...})`。
-
-### 3.7 多行容器用每项一行 + 尾随逗号
+### 3.3 用 isinstance 的元组语法判断多类型，而非多个 or
 
 ```python
 # 推荐
-servers = [
-    "db-primary",
-    "db-replica",
-    "cache",
-]
+if isinstance(x, (int, float, complex)): ...
 # 不推荐
-servers = ["db-primary", "db-replica", "cache"]
+if isinstance(x, int) or isinstance(x, float) or isinstance(x, complex): ...
 ```
 
-多行布局 + 尾随逗号:增删项只改一行、diff 干净、可加行末注释。后代维护友好。单行只在元素少且稳定时用。
+元组参数一次判多个类型，简洁且高效（只沿一次 MRO 查找）。这是 `isinstance` 相对 `type() is` 的另一优势。
 
-### 3.8 长字符串换行用隐式拼接或括号,避免单行过长
+### 3.4 处理 bool 与 int 时，先判 bool 短路
 
 ```python
-# 推荐:隐式拼接,无运行时开销,不引入额外换行
-query = (
-    "SELECT id, name, email "
-    "FROM users "
-    "WHERE active = 1"
-)
-# 不推荐:单行过长
-query = "SELECT id, name, email FROM users WHERE active = 1"
-# 不推荐:三引号(会保留换行与缩进,SQL 里可能引入多余空白)
+# 推荐：bool 先判，避免它落进 int 分支
+if isinstance(x, bool):
+    handle_bool(x)
+elif isinstance(x, int):
+    handle_int(x)
+# 不推荐：bool 会被 int 分支吃掉
+if isinstance(x, int):     # True/False 也会进来！
+    handle_int(x)
 ```
 
-隐式拼接是编译期字面量合并,零开销,且每段独立可加注释。三引号会保留源码换行,对 SQL/URL 可能产生不期望的空白。
+`bool` 是 `int` 子类，凡 `isinstance(x, int)` 处 `bool` 都匹配。需区分时把 `bool` 判断放前。这条陷阱在数字处理逻辑里高频出现。
 
-### 3.9 严格区分 str 与 bytes,文本绝不混用 b 前缀
+### 3.5 行为判断优先用 ABC，而非枚举具体类
 
 ```python
-# 文本用 str
-name = "Alice"
-# 二进制用 bytes
-raw = b"\x00\x01\x02"
-# 二者不通用
-# name == b"Alice"   # False,不同类型
+# 推荐：用 ABC，任何可迭代对象都适用
+from collections.abc import Iterable
+def process(items):
+    if not isinstance(items, Iterable):
+        raise TypeError("需要可迭代对象")
+    ...
+# 不推荐：枚举具体类，新增类型要改代码
+if isinstance(items, (list, tuple, set, str, dict, ...)):
+    ...
 ```
 
-`str` 是文本(Unicode)、`bytes` 是字节。文件读文本用 `"r"` 模式得 `str`、读二进制用 `"rb"` 得 `bytes`;网络/加密用 `bytes`。二者通过 `.encode()`/`.decode()` 转换。绝不要在文本场景误用 `b"..."`。
+ABC（`Iterable`/`Sequence`/`Mapping`/`Sized`/`Hashable`）按行为类别判断，比枚举具体类更通用、更不易遗漏。函数需要"可迭代"就判 `Iterable`，而非写死一串具体类。
 
-### 3.10 注意字典字面量的重复键静默覆盖
+### 3.6 能用鸭子类型/EAFP，就不预先判类型
 
 ```python
-# 危险:重复键不报错,后者覆盖
-d = {"a": 1, "b": 2, "a": 3}   # {'a': 3, 'b': 2}
+# 推荐（EAFP：请求原谅比许可容易）
+def avg(values):
+    return sum(values) / len(values)   # 任何"可求和、有长度"的对象都行
+# 不推荐（LBYL：预先检查，过度限制）
+def avg(values):
+    if not isinstance(values, list):
+        raise TypeError("必须传 list")
+    return sum(values) / len(values)   # 限制死了，元组/生成器都不行
 ```
 
-重构/合并配置时若意外出现重复键,Python 不报错静默覆盖,排查困难。可借助 linter(mypy/ruff)或刻意保持键有序、来源单一来规避。
+Python 风格倾向 EAFP（直接尝试，出错再处理）而非 LBYL（look before you leap，先检查再做）。若你的函数只需对象有某行为，直接用该行为、捕获 `TypeError`/`AttributeError`，比预判类型更灵活。类型判断用于"确需按类型分支不同逻辑"或"防御不可控外部输入"，不是默认选项。
 
-### 3.11 True/False/None 严格首字母大写,莫用其他语言写法
+### 3.7 取类型名用 __name__，别直接 str(type(x))
 
 ```python
-# 正确(Python)
-flag = True
-value = None
-# 错误(来自 C/Java/JS 习惯)
-# flag = true     # NameError
-# value = null    # NameError
+# 推荐
+name = type(x).__name__     # 'int' 'list'，干净
+# 不推荐
+name = str(type(x))         # "<class 'int'>"，带杂信息
 ```
 
-Python 是 `True/False/None`,不是 `true/false/null`。建立 Python 拼写习惯,别让其他语言的肌肉记忆引入 `NameError`。
+`type(x).__name__` 给纯类型名，适合日志/错误消息/显示。`str(type(x))` 带 `<class '...'>` 噪音。调试时打印 `type(x)` 可看全，做文案用 `__name__`。
 
-### 3.12 字节串只能含 ASCII,中文等需编码
+### 3.8 issubclass 的参数必须是类，判实例用 isinstance
 
 ```python
-# 错误
-# b"中文"        # SyntaxError
-# 正确
-b = "中文".encode("utf-8")   # b'\xe4\xb8\xad...'
+# 类与类：issubclass
+if issubclass(MyClass, BaseClass): ...
+# 实例与类：isinstance（别误用 issubclass(type(x), C)，那就是 isinstance 的事）
+if isinstance(x, BaseClass): ...
 ```
 
-`b"..."` 字面量内不能直接写非 ASCII 字符。需要中文/emoji 的字节,先写 str 再 `.encode()`。理解 `bytes` 是"字节序列"不是"文本",就不易犯此错。
+记住分工：`isinstance` 判实例、`issubclass` 判类。`issubclass(type(x), C)` 等价 `isinstance(x, C)`，但后者更直接，别绕弯。
+
+### 3.9 判断"是不是某具体容器"仍可用 type()，但慎用
+
+```python
+# 偶尔合理：函数语义上只接受真 list（如要就地修改并返回它）
+def dedup_inplace(lst):
+    if type(lst) is not list:
+        raise TypeError("仅接受 list")
+    ...
+```
+
+少数场景你确实只要"真 list"（不接受 list 子类、不接受 tuple），可用 `type(lst) is list`。但多数情况接受任何 Sequence 更好。用 `type() is` 前自问：我是真的只要精确 list，还是"行为像 list 即可"？后者用 ABC。
+
+### 3.10 动态建类用 class 语句，三参数 type() 仅限框架场景
+
+```python
+# 推荐：静态类用 class 语句
+class Dog(Animal):
+    def bark(self): ...
+# 框架/动态场景才用 type()
+def make_model(table_name):
+    return type(table_name.capitalize(), (BaseModel,), {"__table__": table_name})
+```
+
+三参数 `type()` 动态建类威力大但可读性差，日常写死类用 `class`。只有"类结构由运行时数据决定"（ORM、schema 生成、插件）才用 `type()` 动态构造，且需配文档说明。
+
+### 3.11 自定义类若用于 isinstance 判断，继承关系要正确
+
+```python
+class Plugin: ...
+class AuthPlugin(Plugin): ...     # 显式继承，isinstance(auth, Plugin) 才为 True
+# 不要：不继承又想被当作 Plugin（ABC 注册例外）
+```
+
+若你的类要被 `isinstance(x, SomeBase)` 判定，必须真正继承 `SomeBase`（或用 ABC 的 `register`）。别指望"我没继承但想被认作某类"——名义类型按继承判定，不继承就不算。
 
 ---
 
 ## 4. 原理
 
-本章讲清字面量背后的机制:字面量在编译期如何转化为常量对象、常量折叠的边界、字符串驻留机制、f-string 的编译期展开、隐式拼接为何零开销、为何 `{}` 是 dict 而非 set 的历史成因。这些是"字面量为何这样行为"的根基。
+本章讲解类型系统的底层机制，对应第 2 章中每个类型判断工具的实现原理：`type` 与 `object` 自洽关系、`isinstance`/`issubclass` 如何沿 MRO 查找、`type()` 单参/三参的内部差异、`is` 的身份比较机制、ABC 虚拟子类与 `__subclasshook__` 如何让行为判断生效、元类如何定制类的创建。
 
-### 4.1 字面量的编译期求值与常量折叠
+### 4.1 type 与 object 的自洽关系
 
-字面量在 Python **编译期**(compile time)就被求值,转化为字节码里的常量,而非运行时逐个构造。看 `x = 2 + 3` 的字节码:
+`type` 与 `object` 的互相引用是 Python 类型系统的基石。两条核心事实：
 
-```python
-import dis
-dis.dis(compile("x = 2 + 3", "", "exec"))
-#   LOAD_CONST  0 (5)
-#   STORE_NAME  0 (x)
-```
+**事实一：`object` 是所有类的根基类。** 每个类（含 `type` 自身）都继承 `object`。所以 `issubclass(int, object)`、`issubclass(type, object)` 都为 `True`——`object` 处于继承链的顶端，万物皆 `object` 子类。
 
-结果是 `LOAD_CONST (5)`——编译器在编译期就把 `2 + 3` 算成 `5`,运行时直接加载常量 5,没有加法运算。这叫**常量折叠**(constant folding):由纯字面量组成的表达式在编译期被求值为单个常量。
+**事实二：`type` 是所有类的类型（元类）。** 每个类对象本身的"类型"是 `type`。所以 `type(int) is type`、`type(object) is type`——连 `object` 这个根基类，它自身的类型也是 `type`。`type` 处于"实例→类"链的顶端，所有类都是 `type` 的实例。
 
-常量折叠的边界:
+这两个事实看似循环（`type` 继承 `object`、`object` 类型是 `type`），实则在解释器启动时就被 hardcoded 建立为自洽的初始结构：
 
 ```python
-# 编译期折叠
-x = 2 + 3            # → 常量 5
-y = "a" "b"          # → 常量 "ab"(隐式拼接也是编译期)
-z = 2 * 1024         # → 常量 2048
-
-# 不折叠(含变量/函数调用)
-n = 2
-w = n + 3            # 运行时才加,字节码有 BINARY_ADD
+print(type(object))      # <class 'type'>   —— object 的类型是 type
+print(type(type))        # <class 'type'>   —— type 的类型是 type 自己
+print(issubclass(type, object))  # True      —— type 继承 object
+print(issubclass(object, type))  # False     —— object 不继承 type
 ```
 
-只要表达式里出现变量、函数调用等"运行时才知值"的成分,就不再折叠,转为运行时计算。纯字面量表达式才折叠。
+用一张"两个维度"的图理解：
 
-这条机制的意义:
+```text
+   继承维度(is a subclass of，向上指父类):
+         object  ←── int, str, list, ..., 自定义类
+           ↑
+          type   ←── (type 也是 object 的子类，特例)
 
-- **隐式拼接零开销**:`"a" "b"` 在编译期就合并成 `"ab"`,运行时就是单个字符串常量,与直接写 `"ab"` 无差异。
-- **字面量是"共享常量"**:同一字面量在多处出现,编译器复用同一常量对象(配合字符串驻留/小整数缓存)。
-- **不会因"拼接字面量"产生性能损失**:你担心的 `"a" "b" "c"` 这种多段拼接,编译期已是单个常量。
+   实例维度(is an instance of，指向类型):
+         int 的类型 → type        (类是 type 的实例)
+         type 的类型 → type       (type 自举)
+         object 的类型 → type     (连 object 也是 type 的实例)
+         42 的类型 → int          (普通实例的类型是它的类)
+```
 
-理解常量折叠,就知道"用括号 + 隐式拼接写长字符串"不会有运行时拼接开销——它在编译期就合并了。
+关键洞察：
 
-### 4.2 字符串驻留机制
+- **`type` 是个"类"**（它继承 `object`），所以 `isinstance(type, object)` 为 `True`、"type 是一个 object"。
+- **`type` 又是"造类的类"**（元类），所有类的类型是 `type`，所以 `isinstance(int, type)` 为 `True`、"int 是 type 的实例"。
+- **`object` 也是 `type` 的实例**（类是对象，object 这个类也是 type 造的），但 `object` 不是 `type` 的父类——它是 `type` 的祖先类（`type` 继承 `object`）。
 
-Python 为节省内存,对部分字符串做**驻留(interning)**:让值相同的字符串字面量复用同一对象,而非每次创建新对象。这是"字面量在编译期处理"的延伸。
+这个自洽结构的意义：它让"一切皆对象"在类型层面闭环——任何对象（含类本身）都有类型（指向 `type`），任何类都收束到 `object`。理解它能解释：
+
+- 为何 `isinstance(任意对象, object)` 恒 `True`（万物继承 object）。
+- 为何 `isinstance(任意类, type)` 恒 `True`（所有类都是 type 的实例）。
+- 为何能用 `type(name, bases, dict)` 动态造类（type 是造类的类，调用它就是"让 type 造一个类"）。
+- 后续元类编程（自定义 `metaclass`）为何继承 `type`——因为 type 就是默认元类，自定义元类是 type 的子类。
+
+### 4.2 isinstance/issubclass 如何沿 MRO 查找
+
+`isinstance(x, C)` 与 `issubclass(D, C)` 的实现本质，是沿**方法解析顺序（MRO）**查找。理解它就理解了第 2 章中 `isinstance` 和 `issubclass` 的工作机制。
+
+#### 4.2.1 __mro__ 是什么
+
+类的 `__mro__`（Method Resolution Order，方法解析顺序）记录该类的**完整继承链**——从自身到 `object` 的所有祖先类，按查找顺序排列：
 
 ```python
-a = "hello"
-b = "hello"
-print(a is b)        # True —— 字面量驻留,同一对象
-
-c = "hel" + "lo"    # 常量折叠成 "hello"
-print(a is c)        # True —— 编译期折叠+驻留,仍是同一对象
+class A: pass
+class B(A): pass
+class C(B): pass
+print(C.__mro__)
+# (<class 'C'>, <class 'B'>, <class 'A'>, <class 'object'>)
 ```
 
-哪些字符串会被驻留?CPython 的规则(版本间有差异,大致):
+`C.__mro__` 是个元组，`isinstance(c, X)` 等价于"`X` 在 `type(c).__mro__` 中"。理解 MRO 就理解了 `isinstance` 的工作方式：沿这个顺序找，匹配即 `True`。
 
-- **字面量中只含字母、数字、下划线**(标识符-like)的字符串通常被自动驻留。
-- 含特殊字符(空格、符号)的字符串字面量不一定驻留。
-- 运行时动态拼接产生的字符串默认不驻留(除非显式 `sys.intern()`)。
+#### 4.2.2 issubclass 的判定
+
+`issubclass(D, C)` 检查 `C` 是否出现在 `D.__mro__` 中。`__mro__` 是 D 的继承链元组（含 D 自己到 object）。`C` 在链上则 `True`：
 
 ```python
-a = "hello!"
-b = "hello!"
-print(a is b)        # 不保证 True(含 !,可能未驻留)
-import sys
-a2 = sys.intern("hello!")
-b2 = sys.intern("hello!")
-print(a2 is b2)      # True —— 显式驻留保证复用
+class A: pass
+class B(A): pass
+class C(B): pass
+print(C.__mro__)          # (C, B, A, object)
+print(issubclass(C, A))   # True  —— A 在 C.__mro__ 里
+print(issubclass(C, int)) # False —— int 不在链里
 ```
 
-驻留是**实现优化**,不应依赖其行为判断字符串相等——值相等永远用 `==`,不要用 `is` 比 str(可能因驻留与否得到不一致结果)。`is` 只用于 `None` 等单例。驻留的存在解释了"`a is b` 对字符串有时 True"的现象,但遵守"`==` 比值"准则,驻留就不会造成问题。
+#### 4.2.3 isinstance 的判定
 
-### 4.3 f-string 的编译期展开
-
-f-string(`f"...{expr}..."`)看似特殊,实则在编译期被展开为等价的表达式,`{}` 内的部分作为正常表达式求值,字面量部分作为常量。以 `f"x={y}"` 为例,大致展开为:
+`isinstance(x, C)` 的判定等价于 `issubclass(type(x), C)`，即取 x 的精确类型，再沿该类型的 MRO 找 C：
 
 ```python
-# f"x={y}"  约等价于
-"".join(["x=", str(y), ...])   # 简化示意,实际用 FORMAT_VALUE/MAKE 等字节码
+print(type(True).__mro__)        # (bool, int, object)
+print(isinstance(True, int))     # True —— int 在 bool 的 MRO 里
+print(issubclass(type(True), int))  # True —— 等价写法
 ```
 
-实际字节码:
+`bool` 的 MRO 揭示它为何既是 bool 又是 int：
 
 ```python
-import dis
-y = 5
-dis.dis(compile("f'x={y}'", "", "exec"))
-# LOAD_CONST 'x='
-# LOAD_NAME y
-# FORMAT_VALUE 0        —— 把 y 转成字符串(应用格式说明符)
-# BUILD_STRING 2        —— 用 2 段拼出最终字符串
+print(bool.__mro__)
+# (<class 'bool'>, <class 'int'>, <class 'object'>)
 ```
 
-`FORMAT_VALUE` 负责把 `{}` 内表达式的值按格式说明符(如 `:.2f`、`!r`)转成字符串,`BUILD_STRING` 把各段拼起来。关键点:
+这个机制解释了之前所有现象：
 
-- **`{}` 内是运行时求值的表达式**,不是"特殊插值语法",它就是 Python 表达式,可调用函数、做运算。
-- **字面量部分在编译期确定**,运行时与表达式结果拼接。
-- 因为部分内容运行时求值,f-string **不能**做常量折叠成单个常量(除非 `{}` 内也是常量,某些版本会优化)。
+- `isinstance(True, int)` 为 `True`：bool 的 MRO `(bool, int, object)` 含 int。
+- `type(True) is int` 为 `False`：`is` 比的是精确类型（bool ≠ int），不查 MRO。
+- `isinstance(d, Animal)` 对 `Dog()` 为 `True`：Dog 的 MRO `(Dog, Animal, object)` 含 Animal。
+- `isinstance(42, object)` 恒 `True`：任何类的 MRO 末尾都是 object。
 
-f-string 相比旧式 `%` 和 `.format()` 更快的原因:它直接生成 `FORMAT_VALUE`/`BUILD_STRING` 字节码,避免了 `%` 的格式串解析和 `.format()` 的参数索引查找。这也是它成为推荐格式化方式的技术依据。
+#### 4.2.4 性能特征
 
-### 4.4 隐式拼接的编译期合并
+沿 MRO 查找是线性的（链长度通常很短，大多数类继承链 2~4 层），故 `isinstance` 比 `type() is`（一次身份比较）略慢，但差异在纳秒级，可忽略。判断类型时正确性优先，用 `isinstance`。
 
-相邻字符串字面量自动拼接,是**词法/语法层**的规则:编译器在解析阶段就把相邻的字符串字面量 token 合并成一个字面量,然后才进入后续编译。因此它和"写一个完整字面量"在字节码层面**完全无差异**:
+#### 4.2.5 多继承与 C3 线性化
+
+多继承时 MRO 用 C3 线性化算法计算，保证"子类在父类前、多个父类顺序保留、无矛盾"。菱形继承（`D→B→A`，`D→C→A`）MRO 为 `(D, B, C, A, object)`——B、C 都在 A 前，且 B 在 C 前（按声明顺序）。MRO 不一致会 `TypeError`（无法一致线性化），这是 Python 对多继承冲突的保护。详见面向对象专题。
+
+### 4.3 type() 单参与三参的实现差异
+
+`type()` 既是"取类型"的函数，又是"造类"的元类，这两种身份对应单参与三参两套实现，实为 `type` 作为元类的 `__call__` 行为。
+
+**单参 `type(obj)`**：返回 `obj` 的类型，本质读 `obj` 的 `ob_type` 指针（CPython 内部每个对象头部的类型指针）。这是 O(1) 的字段读取，极快。这解释了第 2 章 `type(42)` 为何能在瞬间返回 `int`——它没做任何查找，只是读了一个字段。
+
+**三参 `type(name, bases, dict)`**：这是**调用 `type` 元类来构造新类**。`type(name, bases, dict)` 触发 `type.__call__`，后者执行类创建流程：
+
+1. 调用 `type.__new__(type, name, bases, dict)`：分配新类对象，设置 `__name__`、`__bases__`、`__dict__`，计算 MRO，处理继承的类属性。
+2. 调用 `type.__init__(新类, name, bases, dict)`：初始化。
 
 ```python
-import dis
-dis.dis(compile("'a' 'b' 'c'", "", "exec"))
-# LOAD_CONST 0 ('abc')   —— 直接是 'abc',无拼接操作
-dis.dis(compile("'abc'", "", "exec"))
-# LOAD_CONST 0 ('abc')   —— 完全相同
+# type("Dog", (), {"bark": lambda self: "汪"}) 的内部流程(简化)
+# 1. type.__new__ 创建 Dog 类对象，设置：
+#    __name__ = "Dog"
+#    __bases__ = ()  → 实际默认 (object,)
+#    __dict__ = {"bark": <函数>, ...}
+#    __mro__  = (Dog, object)
+# 2. type.__init__ 初始化
+# 3. 返回 Dog 类对象
 ```
 
-两者字节码一字不差——这就是"隐式拼接零开销"的原理:它在解析阶段就合并了,运行时根本不存在"拼接"这件动作。
+**为何用 `type` 既能查类型又能造类？** 因为 `type` 是默认元类，类本身就是 `type` 的实例。调用一个类（如 `int(42)`）是"造一个 int 实例"；调用 `type(name, bases, dict)` 就是"造一个 type 的实例"，而 type 的实例正是"类"——所以三参 `type` 造出来的是类。这是"类是对象、由 type 制造"理念的直接体现。
 
-这也解释了为何隐式拼接**只对字面量有效**:合并发生在解析阶段,此时变量(`a`)还只是个名字 token,不是"可合并的字符串字面量",故 `a "b"` 无法合并而报语法错误。`a + "b"` 之所以可行,是因为 `+` 是运行时运算符,作用于求值后的对象,而隐式拼接是编译期的字面量合并,作用于未求值的 token——两个完全不同的层面。
+**与 `class` 语句的关系**：`class Dog(Animal): ...` 在编译期会被翻译为对 `type`（或指定元类）的调用——先用 `type.__prepare__` 准备命名空间，执行类体把名字填进命名空间，最后 `type(name, bases, namespace)` 造类。所以 `class` 语句是三参 `type` 的语法糖，两者等价。理解这点，就能理解"元类可以通过继承 type 并重写 `__new__`/`__init__` 来定制类的创建"——这是第 4.6 节元类的基础。
 
-### 4.5 布尔、None 为何是"常量字面量"而非标识符
+### 4.4 is 的身份比较机制
 
-`True`、`False`、`None` 在语法上是**关键字常量**(keyword constants),不是普通标识符。这意味着:
-
-- 它们不可被赋值(`True = 1` 是 `SyntaxError`,而非运行时错误)——编译期就拒绝。
-- 它们的值在编译期固定,字节码里是 `LOAD_CONST` 加载常量,不是 `LOAD_NAME` 查名字空间。
+`is` 比较的是两个对象的**身份**——即在内存中是否是同一个对象。在 CPython 实现中，这等价于比较两个对象的内存地址（`id(obj)`）是否相同：
 
 ```python
-import dis
-dis.dis(compile("x = None", "", "exec"))
-# LOAD_CONST 0 (None)   —— 直接加载常量 None
-# STORE_NAME 0 (x)
+a = [1, 2, 3]
+b = [1, 2, 3]
+print(id(a))    # 4319852864（示例地址）
+print(id(b))    # 4319852928（不同地址）
+print(a is b)   # False —— 地址不同
+
+c = a
+print(a is c)   # True —— c 和 a 指向同一个对象
 ```
 
-如果是普通标识符,会是 `LOAD_NAME None` 去名字空间查;而 None 是 `LOAD_CONST`,直接加载编译期常量。这与"无法赋值覆盖"是一体两面:因为它不是名字空间的条目,而是固定的常量。
+`is` 不调用 `__eq__` 方法，不受值比较逻辑影响，因此判断单例对象（`None`/`True`/`False`）时最可靠。这也解释了为何 `type(42) is int` 比 `type(42) == int` 更合适——类对象是全局唯一的单例，比较身份即比较"是不是同一个类对象"，语义精确且无需触发 `__eq__`。
 
-`True`/`False` 在 Python 早期版本(2.x)曾是内置名字空间的标识符(可被赋值覆盖,造成混乱),Python 3 把它们升格为关键字常量,杜绝了"True = 0"这种灾难。`...`(Ellipsis)同理是常量,但 `Ellipsis` 这个名字是内置标识符(可被覆盖),而 `...` 这个字面量写法是固定的——这也是为何类型存根里偏爱用 `...` 而非 `Ellipsis`。
+`None`、`True`、`False` 之所以适合用 `is` 判断，正是因为它们在解释器启动时就被创建为唯一实例，所有引用都指向同一个对象：
 
-### 4.6 为何 {} 是 dict 而非 set:历史成因
+```python
+x = None
+print(id(x) is id(None) or id(x) == id(None))  # id 相同
+print(x is None)  # True —— 就是那个唯一的 None
+```
 
-`{}` 是空 dict 而非空 set,是历史遗留而非技术必然。Python 2 时代(2000~2008)只有 dict 用花括号,没有集合字面量——集合要用 `set([1,2,3])` 构造,空集合 `set()`,`{}` 早就是"空字典"的既定语义。Python 3(2008)引入 set 字面量 `{1, 2, 3}` 时,面临两难:
+### 4.5 ABC 虚拟子类与 __subclasshook__
 
-- 让 `{}` 改为空 set → 破坏海量 Python 2 代码(`d = {}; d['k'] = v` 会全坏)。
-- 让 `{}` 保持空 dict → 空集合只能用 `set()`,有"不对称"之憾。
+第 2.6 节提到一个谜：`list.__mro__` 里没有 `Iterable`，但 `isinstance([], Iterable)` 为 `True`。这背后是 ABC 的**虚拟子类（virtual subclass）**机制——`isinstance`/`issubclass` 不仅查真实 MRO，还会查 ABC 的"虚拟注册"关系。
 
-Python 选择了兼容(空 `{}` 仍是 dict),代价是初学者要额外记住"空集合用 `set()`"。这是语言演进中"兼容性优先于一致性"的典型取舍。理解这条历史,就不会觉得"`{}` 是 dict 很反直觉"——它不是设计偏好,而是不能破坏既有代码。
+#### 4.5.1 虚拟注册 register
 
-类似地,八进制从 Python 2 的 `017` 改为 Python 3 的 `0o17`,是因为 `017` 这种"前导零表八进制"的 C 式写法容易和十进制混淆(`017` vs `17` 只差一个零,值却不同),Python 3 用明确的 `0o` 前缀消除歧义,旧的 `017` 直接变语法错误。这也是"为清晰性破坏兼容"的一例。
+ABC 允许把一个类"登记"为它的虚拟子类，无需真实继承：
+
+```python
+from abc import ABC
+class MyABC(ABC): pass
+
+class Foo: pass          # 不继承 MyABC
+
+MyABC.register(Foo)     # 把 Foo 注册为 MyABC 的虚拟子类
+print(issubclass(Foo, MyABC))  # True！但 Foo.__mro__ 里没有 MyABC
+print(isinstance(Foo(), MyABC)) # True
+```
+
+`register` 后 `Foo` 不是真正继承 `MyABC`（MRO 不变、`Foo` 拿不到 `MyABC` 的方法），但 `issubclass`/`isinstance` 认它。这让 ABC 能"事后"把已有类纳入自己的子类范畴，常用于"让旧类符合新抽象"。
+
+#### 4.5.2 __subclasshook 实现行为判定
+
+`collections.abc` 的内置 ABC 没有用 `register` 逐个注册所有容器类型（那不现实），而是用类方法 `__subclasshook__` 实现"按行为判子类"：
+
+```python
+# collections.abc.Iterable 的 __subclasshook__ 大致逻辑（简化）:
+@classmethod
+def __subclasshook__(cls, C):
+    if cls is Iterable:
+        # 任何类只要定义了 __iter__ 方法，就当作 Iterable 的（虚拟）子类
+        if any("__iter__" in B.__dict__ for B in C.__mro__):
+            return True
+    return NotImplemented
+```
+
+`issubclass(list, Iterable)` 时，`Iterable.__subclasshook__(list)` 检查 `list` 的 MRO 里有没有 `__iter__`——`list` 实现了 `__iter__`，返回 `True`。这就是"list 没继承 Iterable，却被判为 Iterable 子类"的原因。
+
+验证一下：
+
+```python
+from collections.abc import Iterable
+print(list.__mro__)
+# (<class 'list'>, <class 'object'>) —— list 直接是 object，没显式继承 Iterable
+# 那为何 isinstance([], Iterable) 为 True？因为 ABC 虚拟子类机制
+```
+
+注意 `list.__mro__` 里没有 `Iterable`！但 `isinstance([], Iterable)` 为 `True`——因为 `Iterable` 通过 `__subclasshook__` 声明"任何实现了 `__iter__` 的类都算我的子类"，绕过了真实继承。这条机制让 ABC 能对内置类型生效，是 Python 类型系统精妙之处。
+
+#### 4.5.3 自定义 ABC 的 __subclasshook__
+
+```python
+import abc
+
+class Drawable(abc.ABC):
+    @classmethod
+    def __subclasshook__(cls, C):
+        if cls is Drawable:
+            if any("draw" in B.__dict__ for B in C.__mro__):
+                return True
+        return NotImplemented
+
+class Circle:               # 不继承 Drawable
+    def draw(self): return "画圆"
+
+print(isinstance(Circle(), Drawable))  # True —— 有 draw 方法即为 Drawable
+```
+
+这让 `Drawable` 成为"结构化类型"：任何有 `draw` 方法的类都算 `Drawable`，无需继承。这是 Python"结构化类型"在运行时的体现（类型注解的 `Protocol` 是其在静态层的对应，见类型注解专题）。
+
+### 4.6 元类：定制类的创建（简述）
+
+三参 `type` 是默认元类，而**自定义元类**（metaclass）通过继承 `type` 并重写 `__new__`/`__init__`，可以介入"类的创建过程"，在类被定义时自动改造它。
+
+```python
+# 一个简单元类：自动给所有类加一个 created_by 属性
+class MyMeta(type):
+    def __new__(mcs, name, bases, namespace):
+        namespace["created_by"] = "MyMeta"      # 偷偷加属性
+        cls = super().__new__(mcs, name, bases, namespace)
+        return cls
+
+class Foo(metaclass=MyMeta):    # 指定元类
+    pass
+
+print(Foo.created_by)          # MyMeta —— 元类在创建 Foo 时加的
+print(type(Foo))               # <class 'MyMeta'> —— Foo 的类型是 MyMeta 不是 type
+print(isinstance(Foo, MyMeta)) # True
+```
+
+`class Foo(metaclass=MyMeta)` 时，Python 不用 `type` 而用 `MyMeta` 来造 `Foo` 类：`MyMeta.__new__` 被调用，可修改命名空间、加属性、甚至换基类。造出来的 `Foo` 的类型是 `MyMeta`（而非 `type`）——因为它是 `MyMeta` 的实例。
+
+元类的典型应用：ORM（根据类属性自动生成数据库表映射）、Django/SQLAlchemy 的模型类、自动注册插件、强制接口规范。日常业务极少写元类——它是最强大也最易过度使用的特性，多数"想在类创建时做点事"的需求用 `__init_subclass__` 或类装饰器更简单。元类的深度内容（执行顺序、`__prepare__`、元类冲突）在面向对象专题展开，本篇确立"元类继承 type、可定制类创建、类是元类的实例"的认知即可。
+
+理解元类后，回头再看 `type` 与 `object` 的关系就完整了：`type` 是默认元类，`object` 是默认根基类；自定义元类继承 `type`，自定义类继承 `object`；所有类都是某元类（默认 `type`）的实例，所有类都是 `object` 的子类。这就是"一切皆对象"在类型系统层面的完整图景。
 
 ---
 
 ## 5. 总结
 
-### 5.1 本文内容回顾
+本文围绕 Python 的类型判断与 type 系统展开，主要介绍了以下内容：
 
-- **字面量定义**:源码里表面形式直接决定值的固定量,与需求值的表达式、变量相对;是程序中值的源头。
-- **字面量与类型**:字面量形式同时决定值与类型(无小数点是 int、含 `.`/`e` 是 float、含 `j` 是 complex、引号是 str/bytes、`{}` 是 dict 等)。
-- **求值时机**:字面量在编译期求值为常量,受益于常量折叠(纯字面量表达式编译期算定)。
-- **整数字面量**:四种进制(0b/0o/0x/十进制,Python 3 八进制必须 `0o` 不能 `017`)、下划线分隔、进制只改写法不改值。
-- **浮点字面量**:含 `.`/`e` 即 float,科学计数法,`inf`/`nan` 需构造无字面量,有精度误差。
-- **虚数/complex**:含 `j` 后缀,纯虚数也是 complex。
-- **布尔与 None**:`True`/`False`/`None` 严格首字母大写(非 `true`/`null`),单例常量,不可赋值。
-- **字符串引号**:单双引号等价(选则减少转义)、三引号跨行、引号形式不影响值。
-- **字符串前缀**:`r` 原始(反斜杠不转义,不能以单反斜杠结尾)、`f` 插值(支持表达式与格式说明符)、`b` 字节串(仅 ASCII)、`u` 冗余、可组合 `rb`/`rf`。
-- **转义序列**:`\n`/`\t`/`\\` 等常量转义与 `\xHH`/`\uHHHH`/`\ooo` 数值转义;无效转义触发警告,宜用原始串。
-- **隐式拼接**:相邻字符串字面量自动拼接,零开销,只对字面量有效,适合长字符串换行。
-- **list 字面量**:`[]`,尾随逗号合法且推荐(多行布局)。
-- **tuple 字面量**:逗号是关键,括号可省;单元素必须 `(x,)`;`(x)` 是分组非元组;返回多值即元组。
-- **dict/set 字面量**:花括号靠冒号区分(dict 有冒号/set 无);`{}` 是空 dict 不是 set,空集合用 `set()`;重复键静默覆盖;frozenset 无字面量。
-- **Ellipsis/`...`**:特殊字面量单例,用于 NumPy 切片、类型注解占位/桩。
-- **原理**:常量折叠使纯字面量表达式编译期求值;字符串驻留复用同值对象(不可依赖 is 比 str);f-string 编译期展开为 FORMAT_VALUE/BUILD_STRING;隐式拼接解析期合并故零开销;True/False/None 是关键字常量(LOAD_CONST 非 LOAD_NAME,不可赋值);`{}` 为 dict 是 Python 2→3 兼容历史,八进制 `0o` 为消除歧义。
-- **最佳实践**:进制贴合用途、大数下划线分组、含反斜杠用原始串、格式化优先 f-string、单元素元组带逗号、空集合用 `set()`、多行容器尾随逗号、长字符串隐式拼接、区分 str/bytes、警惕重复键、True/None 大写、字节串仅 ASCII。
-
-### 5.2 读完本文你应能掌握
-
-- 说明字面量的定义,区分字面量与表达式、变量,指出"字面量形式决定值与类型"。
-- 用四种进制与下划线写出整数,说明进制只改写法不改值,指出 Python 3 八进制必须 `0o` 前缀。
-- 写出 float 的标准/省略/科学计数形式,说明含 `.`/`e` 即 float,说明精度误差来源。
-- 正确拼写 `True`/`False`/`None`(首字母大写、非 true/null),说明它们是单例常量、不可赋值。
-- 用单/双/三引号写字符串,按内容选用引号以减少转义。
-- 用 `r`/`f`/`b` 前缀及组合,说明各自语义与限制(原始串不能以单反斜杠结尾、字节串仅 ASCII、f-string 支持表达式与格式说明符)。
-- 用转义序列表示特殊字符,说明无效转义的警告与"含反斜杠用原始串"的实践。
-- 用隐式拼接书写长字符串,说明其零开销原理与"只对字面量有效"的限制。
-- 正确创建单元素元组 `(x,)`,说明逗号的关键作用与 `(x)` 的陷阱。
-- 区分 `{}`(dict)、`{k:v}`(dict)、`{a,b}`(set)、`set()`(空集合)、`frozenset()`,说明花括号靠冒号区分类型。
-- 用 `...`/Ellipsis 作为类型注解占位,说明其单例性质。
-- 阐述常量折叠、字符串驻留、f-string 编译期展开、隐式拼接零开销、True/None 为关键字常量、`{}` 为 dict 的历史成因等原理。
-
-### 5.3 延伸方向
-
-- **各类型深度的字面量细节**:《int 类型详解》(位运算中的进制)、《float 类型与精度问题》(Decimal 字面量替代)、《complex 复数类型》。
-- **字符串深水区**:字符串编码(str vs bytes 的完整关系、Unicode 码点)、格式化方式演进(`%`/`format`/f-string 的全部能力)、正则中的原始串,见《字符串深度剖析》大章节。
-- **类型注解里的字面量**:类型存根(`.pyi`)中 `...` 的标准用法、`Literal` 类型(用字面量本身做类型),见《类型注解基础》。
-- **容器字面量与推导式**:dict/set/list 推导式作为"动态生成容器字面量"的方式,见《列表深度剖析》《字典深度剖析》《集合与冻结集合》。
+- **类型判断的必要性**：动态类型下需运行时知对象类型，场景含多态输入、防御外部数据、序列化、调试、API 校验。
+- **Python 提供的类型判断方案**：`type()` 取精确类型、`isinstance()` 按继承链判断、`issubclass()` 判类间关系、`is` 判单例身份、`__class__` 取对象类对象、用 ABC 按行为类别判断。
+- **type() 用法**：单参取精确类型（返回类对象本身，可调用/取 `__name__`），三参 `type(name, bases, dict)` 动态建类；只看精确类型不看继承链是其核心限制。
+- **isinstance() 用法**：沿继承链查找，尊重继承关系（`isinstance(True, int)` 为 True）；支持元组多类型；bool 作 int 子类会"渗透"进 int 判断需短路排除；是判断"是否某类型"的首选。
+- **issubclass() 用法**：判类间继承关系，参数必须类（传实例报 TypeError）；判断实例类型用 isinstance 不用 `issubclass(type(x), C)`。
+- **is 用法**：比较对象身份（内存地址），用于判断 None/True/False 等单例对象，比 `==` 更可靠（不受 `__eq__` 影响）。
+- **__class__ 用法**：通常等价 `type()`，实用价值在多态构造 `self.__class__(...)`。
+- **ABC 判断**：用 `collections.abc` 的 ABC（`Iterable`/`Sequence`/`Mapping`/`Sized`/`Hashable`）按行为类别判断，比枚举具体类更通用。
+- **isinstance vs type() is**：前者看继承链（符合 OO 语义、首选），后者只精确类型（罕见用于排除子类）。
+- **type 与 object 自洽关系**：`type` 是元类（所有类的类型）、`object` 是根基类（所有类的祖先）；`type` 继承 `object`、`type` 类型是自身，二者自洽闭环。
+- **MRO 原理**：`__mro__` 是继承链元组，`isinstance`/`issubclass` 沿它线性查找；bool 的 MRO 含 int 解释其 isinstance 行为。
+- **type() 实现差异**：单参读 `ob_type` 指针（O(1)），三参是元类 `__call__` 造类（`class` 语句是其语法糖）。
+- **ABC 虚拟子类原理**：靠 `register` 与 `__subclasshook__` 实现行为判定，解释了 list 非继承 Iterable 却 `isinstance` 为 True。
+- **元类**：继承 `type` 可定制类创建，类是元类的实例。
+- **最佳实践**：判类型用 `isinstance`、判 None 用 `is`、多类型用元组、bool 先短路、行为判用 ABC、能 EAFP 就别预判、取类型名用 `__name__`、`issubclass` 只判类、`type() is` 仅限排除子类、动态建类用 `class`、自定义类要正确继承。

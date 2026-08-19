@@ -9,856 +9,1008 @@ nav:
   order: 1
 ---
 
+# bool类型与短路逻辑
+
 ## 1. 介绍
 
-### 1.1 什么是 float 类型
+### 1.1 什么是 bool 类型
 
-`float` 是 Python 中表示浮点数(小数)的内置类型,如 `3.14`、`-0.5`、`2.71828`、`1.0`。它用于表示一切"带小数的连续量"——温度、长度、比例、概率、科学测量、计算结果中的非整数部分。当你写下 `3.14` 这个字面量时,得到的就是一个 `float` 对象。
-
-```python
-print(3.14)         # 3.14
-print(type(3.14))   # <class 'float'>
-print(type(1.0))    # <class 'float'> —— 即便值是整数,写了小数点就是 float
-```
-
-`float` 与 `int` 最大的不同,在于它**不能精确表示大多数十进制小数**。这是 `float` 最重要的特性,也是它绝大多数"诡异行为"的根源:
+`bool` 是 Python 中表示真值(truth value)的内置类型——它只有两个实例:`True`(真)和 `False`(假)。`bool` 用于一切"非此即彼"的判断:开关是否打开、用户是否登录、列表是否为空、文件是否存在、密码是否正确。`if`/`while`/`and`/`or`/`not` 等所有条件逻辑,最终都归结为对 `bool` 值的求值。
 
 ```python
-print(0.1 + 0.2)           # 0.30000000000000004 —— 不是 0.3!
-print(0.1 + 0.2 == 0.3)    # False
+flag = True
+done = False
+print(type(flag))          # <class 'bool'>
+print(isinstance(True, int))  # True —— bool 是 int 的子类,见 1.4
 ```
 
-`0.1 + 0.2` 不等于 `0.3`,这并非 Python 的 bug,而是所有遵循 IEEE 754 浮点标准的语言(C、Java、JavaScript、Go 无一例外)的共同现象。`float` 内部用二进制存储数值,而 `0.1`、`0.2` 在二进制下是无限循环小数,存储时被截断,累加后误差暴露。本篇的核心任务之一,就是讲清这个误差从何而来、如何规避。
+`bool` 看似简单(只有两个值),但它承载着两个易被低估的特性,理解它们是写好 Python 条件逻辑的关键:
 
-`float` 的一些关键事实:
+**第一,真相值测试(truthiness)——任何对象都能被判真假。** 在 Python 里,`if`/`while` 的条件不要求是 `bool`,任何对象都能放进布尔语境被判真假。`if [1,2]:`(非空列表为真)、`if "name":`(非空字符串为真)、`if 0:`(0 为假)都合法。Python 定义了一套"什么算真、什么算假"的规则,这是 `bool` 类型向整个对象体系的延伸,使得条件判断极其灵活。
 
-- **底层是 IEEE 754 双精度(64 位)**:1 位符号 + 11 位指数 + 52 位尾数。这套标准由 CPU 硬件直接支持,运算极快。
-- **有范围限制**:`float` 能表示的最大值约 `1.8 × 10^308`,超出变 `inf`(无穷);最小正数约 `5e-324`,更小变 `0.0`。这是和 `int`(任意精度无上限)的本质区别。
-- **不可变(immutable)**:与 `int` 一样,`float` 不可变,运算返回新对象,可哈希能做 `dict` 键。
-- **特殊值**:`inf`(无穷)、`-inf`(负无穷)、`nan`(非数,Not a Number)。
+**第二,短路逻辑(short-circuit evaluation)——`and`/`or` 不一定返回 bool。** `a and b`、`a or b` 这两个运算符不仅在"决定真假的逻辑",还在"返回哪个操作数",且会按需短路(不评估多余的操作数)。`x or default`、`x and y` 返回的是 `x` 或 `y` 本身,不一定是 `True`/`False`。这是 Python 条件表达式最强大也最易踩坑的特性——`or` 常用于设默认值、`and` 用于链式调用前置条件。
+
+本篇要系统讲透 `bool`(作为类型)与布尔运算(短路、真值测试、比较)的全部内容:`True`/`False` 字面量、`bool()` 显式构造、真相值测试规则、`and`/`or`/`not` 的短路行为与返回值、比较运算符(含 `==` vs `is`、链式比较)、`bool` 是 `int` 子类的全部后果,以及实战中的惯用法与陷阱。这是写好 Python 条件逻辑的根基。
+
+### 1.2 真值测试:Python 条件逻辑的核心
+
+要理解 `bool`,首先要理解"真值测试"(truth value testing)——Python 在需要真值的地方(如 `if`/`while` 条件、`and`/`or`/`not` 操作数)如何把任意对象转成真/假。
+
+**核心规则**:以下值被判定为**假(falsy)**,其余全部为**真(truthy)**:
+
+- 常量:`False`、`None`。
+- 数值零:`0`(int)、`0.0`(float)、`0j`(complex)、`0`(其他数值类型)。
+- 空容器/序列:`''`(空字符串)、`[]`(空列表)、`{}`(空字典)、`()`(空元组)、`set()`(空集合)、`range(0)`。
 
 ```python
-print(1.0 / 0.0)          # ZeroDivisionError(Python 不允许浮点除零,与某些语言不同)
-print(float('inf'))       # inf
-print(float('nan'))       # nan
+# 这些为假(falsy)
+print(bool(False))      # False
+print(bool(None))       # False
+print(bool(0))          # False
+print(bool(0.0))        # False
+print(bool(0j))         # False
+print(bool(''))         # False —— 空字符串
+print(bool([]))         # False —— 空列表
+print(bool({}))         # False —— 空字典
+print(bool(()))         # False —— 空元组
+print(bool(set()))      # False —— 空集合
+
+# 这些为真(truthy)
+print(bool(True))       # True
+print(bool(1))          # True —— 非0
+print(bool(-1))         # True —— 负数也真(非0即真)
+print(bool(0.001))      # True
+print(bool('hello'))    # True —— 非空字符串
+print(bool([0]))        # True!非空列表,哪怕元素是0
+print(bool([False]))    # True!非空,哪怕元素是 False
+print(bool({'a': 0}))   # True —— 非空字典
 ```
 
-本篇要系统讲透 `float`:字面量写法、算术运算与精度误差、`round` 的银行家舍入、`inf`/`nan` 的行为、`float` 的方法、与 `int` 的转换与隐式提升、**精度问题的完整规避方案**(`int` 存最小单位、`Decimal`、`Fraction`、容差比较)、以及 IEEE 754 的内部原理。这是本大章节里最该认真对待的类型——因为它的精度陷阱在生产环境中引发过无数金额计算 bug。
+⚠️ **最重要的易错点**:容器只看"空/非空",不看元素内容。`bool([0])` 为 `True`(列表非空),`bool([False])` 也为 `True`(列表非空)——哪怕元素本身是假值。新手常误以为"`[0]` 含 0 应该为假",正确答案是:容器非空即真。同理 `bool('0')` 为 `True`(字符串 `'0'` 非空,字符 `'0'` 不是数字零)。
 
-### 1.2 int 与 float:何时用哪个
-
-`int` 与 `float` 的选择,取决于数据本质是"离散整数"还是"连续小数",以及是否需要精度:
-
-- **本质是离散计数**(个数、索引、ID、份数)→ `int`。精确无误差。
-- **本质是连续量/带小数**(温度、长度、比例)→ `float`。物理测量本就有误差,float 的精度通常足够。
-- **精度敏感的金额/利率** → 用 `int` 存最小单位(金额存"分"),或 `decimal.Decimal`。**绝不要用 `float` 存金额**。
+这条规则让条件判断极其简洁优雅:
 
 ```python
-# 金额:用 int 存"分",精确
-total_cents = 199 + 299 + 499    # 997 分,精确
-print(total_cents / 100)         # 9.97(仅展示时转元)
+# 判断列表是否非空,直接 if lst,不用 if len(lst) > 0
+def process(items):
+    if items:              # 非空才处理(比 if len(items) > 0 简洁)
+        ...
 
-# float 存金额会出问题
-print(0.1 + 0.2)                 # 0.30000000000000004 —— 这就是不能存金额的原因
-print(49.99 * 100)               # 4998.999999999999,不是 4999
+# 判断字符串非空
+if name:                   # name 非空字符串
+    print(name)
+
+# 判断是否为 None 或空,合二为一
+def greet(name=None):
+    if not name:           # name 是 None 或 '' 都为假
+        name = "陌生人"
 ```
 
-"金额用 int 存分"这条实践极其重要——它用 `int` 的精确性规避了 `float` 的精度误差,是工业级金额计算的标配(数据库的 `DECIMAL` 类型同理)。凡涉及钱的逻辑,第一反应应是"用整数最小单位"。
+`if items:`、`if name:`、`if not name:` 这种写法是 Python 的惯用法,比 `if len(items) > 0`、`if name != ''`、`if name is not None and name != ''` 简洁得多。但要注意 `if not name:` 会把 `None` 和 `''` 一起判假——若你只想判 `None` 不想判空串,要用 `if name is None:`(语义不同,见 §3)。
 
-何时该用 `float`?科学计算、物理量、比例、统计分析、图形坐标——这些场景数据本就来自测量(有固有误差),float 的 15~17 位有效数字精度通常远超需求,且 float 运算由 CPU 硬件加速,性能远高于 `Decimal`。NumPy 等科学计算库也基于 float。所以 `float` 不是"坏类型",只是在"精确十进制"场景(金额)用错了地方。
+### 1.3 布尔运算符:and、or、not
 
-### 1.3 float 的核心特性速览
+Python 有三个布尔运算符:`and`(与)、`or`(或)、`not`(非)。它们的基础逻辑符合直觉,但有两个关键特性:短路求值、返回操作数本身(非 bool)。
 
-| 特性 | 说明 |
-|------|------|
-| 底层 | IEEE 754 双精度(64 位),硬件加速 |
-| 精度 | 约 15~17 位有效十进制数字 |
-| 范围 | 约 ±1.8×10³⁰⁸,超出 → `inf`;最小正数约 5e-324 |
-| 可变性 | 不可变,运算返回新对象 |
-| 可哈希 | 是,可做 `dict` 键 / `set` 元素 |
-| 精度误差 | 二进制无法精确表示多数十进制小数 |
-| 特殊值 | `inf`、`-inf`、`nan` |
-| `int` 混合运算 | 隐式提升为 float,结果 float |
+```python
+print(True and False)    # False
+print(True and True)     # True
+print(True or False)     # True
+print(False or False)    # False
+print(not True)          # False
+print(not False)         # True
+print(not 0)             # True —— not 也接受任意对象,0 为假故 not 0 为真
+```
 
-理解这张表,就建立了 `float` 的全局认知。后续章节会逐一展开,重点是"精度误差"这条——它是 `float` 一切特殊行为的根源,也是本篇着墨最多的部分。
+**`not`**:一元运算符,返回**真正的 bool**(`True`/`False`),是唯一保证返回 bool 的布尔运算符。`not x` 等价于 `not bool(x)`——把 x 判真假后取反。`not` 优先级最高,低于比较运算符。
+
+**`and`/`or`**:二元运算符,**短路求值**且**返回操作数本身**(不一定是 bool)。这是它们最需要透彻理解的特性,§2 会详述。简言之:
+
+- `a and b`:若 `a` 为假,返回 `a`(短路,不评估 `b`);若 `a` 为真,返回 `b`。
+- `a or b`:若 `a` 为真,返回 `a`(短路,不评估 `b`);若 `a` 为假,返回 `b`。
+
+```python
+print(0 and 5)           # 0 —— 0 为假,短路返回 0,不评估 5
+print(3 and 5)           # 5 —— 3 为真,返回 5
+print(3 or 5)            # 3 —— 3 为真,短路返回 3,不评估 5
+print(0 or 5)            # 5 —— 0 为假,返回 5
+print('' or 'default')   # 'default' —— '' 为假,返回 'default'
+```
+
+`and`/`or` 返回操作数本身而非 bool,这一特性催生了 Python 最优雅的惯用法:`a or default`(设默认值)、`a and b`(链式前置条件)。§2.3 会展开这些惯用法。
+
+**优先级**:`not` > `and` > `or`,都低于比较运算符(`==`/`<`/`in` 等)。故 `a == b and c == d` 不需括号(比较优先于 and)。但复杂表达式仍建议括号明确:
+
+```python
+print(not True or False)     # False —— (not True) or False = False or False
+print(True and not False)    # True
+print(1 < 2 and 3 > 1)       # True —— 比较优先,and 最后算
+```
+
+### 1.4 bool 是 int 的子类
+
+`bool` 是 `int` 的子类,`True == 1`、`False == 0`。这是 Python 沿袭 C 语言"真值即整数(0/1)"约定的设计,理解它才能理解许多 bool 行为:
+
+```python
+print(True == 1)          # True
+print(False == 0)         # True
+print(isinstance(True, int))  # True —— bool 是 int 子类
+print(issubclass(bool, int))  # True
+print(True + True)        # 2 —— bool 当 int 参与算术
+print(True * 5)           # 5
+print(sum([True, True, False, True]))  # 3 —— 计数为真的项
+```
+
+这条继承关系的影响:
+
+- **bool 可参与 int 算术**:`True + 1 == 2`、`sum([True, False, True]) == 2`。这让"统计满足条件项数"极简洁:`sum(n > 0 for n in nums)`(详见 §2.7)。
+- **类型判断的陷阱**:`isinstance(True, int)` 为 `True`,故 `if isinstance(x, int)` 会把 `True`/`False` 也判为 int。需区分时要先判 bool(详见 §3、§4.4)。
+- **索引/切片可用 bool**:`lst[True]` 等价 `lst[1]`(因 True==1),虽合法但极不推荐——可读性差,易混淆。
+- **`True`/`False` 是单例**:全解释器只有一个 `True`、一个 `False`,可用 `is` 判(`x is True`)。
+
+这条"`bool` 即 `int`"的设计,是 Python 类型系统的一个有意选择,带来便利(True 可当 1 算)也带来陷阱(isinstance 渗透)。§4 会详述其内部实现与设计取舍。
+
+理解了真值测试、短路逻辑、bool 即 int 这三点,Python 的条件逻辑就掌握了。后续章节逐一展开每个 API 的细节与场景。
 
 ---
 
 ## 2. 核心内容
 
-本章详解 `float` 的全部用法与精度问题。每节遵循"规则 → demo → 陷阱 → 场景"展开。精度误差与 `round`、`inf`/`nan`、Decimal 规避方案是重点,因为它们最易在生产环境出问题。
+本章详解 `bool` 类型与布尔运算的全部用法。每节遵循"规则 → demo → 陷阱 → 场景"展开。短路逻辑与返回值、比较运算符、`bool` 即 int 的后果是重点,因为它们的细节最易踩坑。
 
-### 2.1 float 字面量
+### 2.1 True、False 字面量与 bool() 构造
 
-`float` 字面量有多种形式,核心规则:**必须含小数点 `.` 或指数 `e`/`E` 之一**(否则就是 `int`)。
-
-```python
-print(3.14)        # 3.14 —— 标准小数
-print(3.)          # 3.0 —— 小数点后数码可省略
-print(.5)          # 0.5 —— 小数点前数码可省略
-print(2e3)         # 2000.0 —— 科学计数法,2 × 10³
-print(2E3)         # 2000.0 —— E 大小写均可
-print(1.5e-3)      # 0.0015 —— 负指数
-print(3.14e2)      # 314.0
-```
-
-科学计数法 `eN` 表示"乘以 10 的 N 次方"。`2e3` = 2000.0。注意凡含 `e` 的字面量都是 `float`,哪怕结果看起来是整数(`2e3` 是 `2000.0` 不是 `2000`)。
-
-⚠️ `.5` 与 `3.` 这种省略形式合法但可读性见仁见智:`.5` 容易被一眼扫成 `5`。团队代码里写 `0.5` 更稳妥。省略形式在数学公式里常见,正式工程代码倾向写全。
-
-**下划线分隔**(3.6+):float 也支持,提升可读性:
+`True`/`False` 是两个特殊的常量字面量——它们看着像标识符,实则是语言保留的关键字常量,值与类型固定。
 
 ```python
-print(1_000.5)         # 1000.5
-print(6.022_140_76e23) # 阿伏伽德罗常数,分组清晰
+print(True)            # True
+print(type(True))      # <class 'bool'>
+print(False)           # False
+print(type(False))     # <class 'bool'>
 ```
 
-**特殊浮点值**:`float` 没有直接表示 `inf`/`nan` 的字面量语法,但可通过 `float()` 构造或 `math` 模块:
+⚠️ **大小写必须严格**:`True` 不能写 `true`/`TRUE`,`False` 不能写 `false`。C/Java/JavaScript 背景的人极易写 `true`/`false`,在 Python 里全部是 `NameError`(被当成未定义的变量名):
 
 ```python
-print(float('inf'))       # inf —— 正无穷
-print(float('-inf'))      # -inf
-print(float('nan'))       # nan
-import math
-print(math.inf)           # inf —— math 常量,更清晰
-print(math.nan)           # nan
+# print(true)        # NameError: name 'true' is not defined
+# print(false)       # NameError
+# print(NULL, null)  # NameError(None 是 Python 的,不是 null)
+print(True, False)    # ← 正确写法,首字母大写
 ```
 
-严格说 `float('inf')` 是构造函数调用而非字面量(需执行函数),但它是写出 `inf`/`nan` 的标准方式。`math.inf`/`math.nan` 是更清晰的替代。
-
-### 2.2 精度误差:float 最核心的问题
-
-这是 `float` 最重要的章节。`0.1 + 0.2 != 0.3` 不是 bug,而是 IEEE 754 浮点的本质。先看现象:
+`True`/`False` 是单例常量,不可被赋值覆盖(Python 3 中它们是关键字):
 
 ```python
-print(0.1 + 0.2)              # 0.30000000000000004
-print(0.1 + 0.2 == 0.3)       # False
-print(0.1 + 0.2 - 0.3)        # 5.551115123125783e-17 —— 极小残差
-print(1.1 + 2.2)              # 3.3000000000000003
-print(0.1 * 3)                # 0.30000000000000004
-print(0.7 - 0.1)              # 0.6(恰好干净的情况也有,看二进制表示)
+# True = 1           # SyntaxError: 不能给关键字赋值
+# False = 0          # SyntaxError
+print(True is True)   # True —— 单例,身份比较
 ```
 
-误差从何而来?`float` 用二进制存储数值,而 **`0.1` 在二进制下是无限循环小数**(`0.0001100110011...`),存储时被截断到 52 位尾数,实际存储值略偏离 0.1。两个"略偏"的数相加,误差暴露。用 `repr` 看真相:
+**`bool()` 构造函数**:把任意对象转为 `True`/`False`,等价于"对该对象做真值测试":
 
 ```python
-print(repr(0.1))              # 0.1 —— Python 的 repr 会"巧妙"显示成 0.1(repr 优化)
-print(f"{0.1:.20f}")          # 0.10000000000000000555 —— 实际存储值略大于 0.1
-print(f"{0.3:.20f}")          # 0.29999999999999998890 —— 实际存储值略小于 0.3
+print(bool(0))          # False —— 0 为假
+print(bool(42))         # True —— 非0为真
+print(bool(""))         # False —— 空字符串为假
+print(bool("hi"))       # True —— 非空为真
+print(bool([]))         # False —— 空列表为假
+print(bool([0]))        # True —— 非空为真
+print(bool(None))       # False
+print(bool(0.0))        # False
+print(bool(object()))   # True —— 任意自定义对象默认为真
 ```
 
-`repr(0.1)` 显示 `0.1` 是因为 Python 的浮点 repr 用了"最短表示"算法——找到与 0.1 实际存储值最接近的、能唯一回转到该存储值的短十进制串,显示成 `0.1`。但底层存储值是 `0.10000000000000000555...`。所以 `0.1 + 0.2` 加出来是 `0.30000000000000004`,它与 `0.3` 的存储值(`0.29999...`)不相等。
+`bool(x)` 就是把 x 按 §1.2 的规则判真假,返回 `True`/`False`。它常用于"显式"地把对象转 bool(如 `return bool(result)` 明确函数返回 bool),或在需要 bool 值的语境里强制转换。但多数场景下,Python 会**隐式**做真值测试(`if x:` 自动判 x 真假),你不必显式写 `bool(x)`——`if x:` 比 `if bool(x):` 更地道。
 
-**这影响的不仅是相等比较,还有累积误差**:
+**从其他类型构造 bool**:
 
 ```python
-total = 0.0
-for _ in range(10):
-    total += 0.1
-print(total)                  # 0.9999999999999999 —— 不是 1.0!
-print(total == 1.0)           # False
+print(bool(0))          # 从 int
+print(bool(0.0))        # 从 float
+print(bool(""))         # 从 str
+print(bool([]))         # 从 list
+print(bool(None))       # 从 None
+# 等价关系
+print(bool(x) == (x 的真值))  # bool() 即真值测试
 ```
 
-10 个 `0.1` 相加不等于 `1.0`——若这是金额累加,账就对不平了。这正是 float 不能用于金额的根本原因。
+注意 `bool(0)` 与 `bool(0.0)`、`bool('')` 都为 `False`——零值、空容器统一为假。这条统一性让"判空"逻辑跨类型一致:`if not container:` 对 list/dict/str/set/tuple 都生效。
 
-**误差的几个表现维度**:
+### 2.2 真值测试的完整规则与 __bool__/__len__
+
+§1.2 给出了真值测试的规则,这里讲清其**底层实现**——Python 如何决定一个对象为真为假。规则按优先级:
+
+1. 若对象定义了 `__bool__` 方法,真值 = `bool(obj.__bool__())`。这是最直接的"自定义真值"方式。
+2. 否则若定义了 `__len__` 方法,真值 = `len(obj) != 0`(长度非0即真,0 即假)。这覆盖所有内置容器(list/str/dict/set/tuple)——它们为空(长度0)即假。
+3. 否则,默认为真(任意对象若无 `__bool__`/`__len__`,恒为真)。
 
 ```python
-# 显示与实际不符
-print(0.1 + 0.2)              # 0.30000000000000004(显示)
-print(round(0.1 + 0.2, 17))   # 0.30000000000000004(无法靠 round 修好)
+# 内置容器靠 __len__:空(长度0)为假
+print(bool([]))          # False —— len([])==0
+print(bool([1]))         # True —— len==1
 
-# 比较失效
-print(0.1 + 0.2 == 0.3)       # False
+# 自定义对象默认为真(无 __bool__/__len__)
+class Empty: pass
+print(bool(Empty()))     # True —— 默认真
 
-# 累积
-total = sum([0.1] * 10)       # 0.9999999999999999
-print(total)
+# 定义 __bool__ 自定义真值
+class Box:
+    def __init__(self, items):
+        self.items = items
+    def __bool__(self):
+        return len(self.items) > 0   # 有内容才为真
 
-# 大数吞噬小数(精度丢失)
-big = 1e16
-print(big + 1.0)              # 1e+16 —— 1.0 被"吞掉"了!因 1e16 已用满 52 位尾数
-print(big + 1.0 == big)       # True
+print(bool(Box([])))     # False —— __bool__ 返回 False
+print(bool(Box([1])))    # True
 ```
 
-最后一条"大数吞噬小数"值得注意:当数值很大(接近精度上限)时,加上一个相对极小的数,小数会被舍入掉,因为 float 的 52 位尾数无法同时容纳大数的所有有效位和那个小增量。这解释了"`1e16 + 1 == 1e16`"这种看似荒谬的结果。
+定义 `__bool__` 让自定义类能精确控制"什么情况下算真/假"。常见用途:表示"集合/状态"的类(如 `Box`、`Buffer`、`Connection`)定义 `__bool__` 表"是否有内容/是否激活",这样 `if my_buffer:` 就能简洁判断。
 
-**核心结论**:`float` 是"近似值"而非"精确值"。任何依赖 float 精确相等的逻辑(比较、累加求和、金额)都会出问题。
-
-### 2.3 round() 的银行家舍入陷阱
-
-`round(x, n)` 把 `x` 四舍五入到 n 位小数。但它有个反直觉细节:**银行家舍入(round half to even)**——当待舍入位正好是 5 时,向**最近的偶数**舍入,而非总是向上。
+⚠️ **`__bool__` 必须返回 bool**,否则 `bool(obj)` 会抛 `TypeError`:
 
 ```python
-print(round(3.14159, 2))    # 3.14 —— 正常四舍五入
-print(round(2.5))           # 2!不是 3 —— .5 时向偶数舍入
-print(round(3.5))           # 4
-print(round(0.5))           # 0
-print(round(1.5))           # 2
-print(round(2.675, 2))      # 2.67(不是 2.68!)—— 见下方精度解释
+class Bad:
+    def __bool__(self):
+        return 1          # 错!必须返回 True/False(bool)
+# bool(Bad())            # TypeError: __bool__ should return bool, returned int
+class Good:
+    def __bool__(self):
+        return True       # 正确,返回 bool
 ```
 
-`round(2.5) → 2`、`round(3.5) → 4`:两者都向最近的偶数靠(2 是偶数,4 是偶数)。这与多数人"四舍五入逢 5 进 1"的直觉冲突。银行家舍入的目的是在大量数据上避免系统性偏差(若总向上,正误差累积;向偶数则长期正负抵消),金融领域常用。
+`__len__` 优先级低于 `__bool__`——若同时定义两者,`__bool__` 生效。这条规则解释了为何"空容器为假"——它们没定义 `__bool__`,但定义了 `__len__`,空时 len==0 故为假。
 
-⚠️ **`round(2.675, 2)` 为何是 `2.67` 而非 `2.68`?** 这又是 float 精度问题:`2.675` 的实际存储值略小于 2.675(`2.67499999...`),所以 `round` 在"比 5 略小"的位置,向 2.67 舍。也就是 `round` 的"银行家规则"只在数值**真的精确等于 5** 时才触发,而 float 几乎不可能精确等于 5,所以实际行为常被精度误差干扰,不可预测。
+理解 `__bool__`/`__len__` 的优先级,就理解了真值测试的底层,也能自定义类的真值行为。
+
+### 2.3 短路逻辑:and、or 的返回值与短路(重点)
+
+这是 `bool` 类型的核心难点,也是最强大的特性。`and`/`or` 两个运算符有两个关键行为:**短路求值**(按需评估)、**返回操作数本身**(不一定是 bool)。
+
+**`and`(与)**:
 
 ```python
-print(f"{2.675:.20f}")    # 2.67499999999999982236 —— 实际略小,故 round 到 2.67
+print(0 and 5)           # 0 —— 0 为假,短路返回 0,5 未被评估
+print(3 and 5)           # 5 —— 3 为真,返回 5(评估并返回右操作数)
+print(3 and 0)           # 0 —— 3 为真,返回 0
+print(3 and 5 and 7)     # 7 —— 多个 and,全真返回最后一个
+print(0 and 5 and 7)     # 0 —— 遇到第一个假(0)短路,返回 0
 ```
 
-**`round` 返回 float**(`round(3.14, 2)` 返回 `3.14` 这个 float,仍是近似值):
+`a and b` 规则:**若 `a` 为假,返回 `a`(短路,不评估 `b`);若 `a` 为真,返回 `b`**。逻辑是"and 要求全真,遇到假即可定结论,返回那个假值;都真则返回最后一个"。
+
+**`or`(或)**:
 
 ```python
-print(type(round(3.14, 2)))   # <class 'float'>
-print(round(2.675, 2))        # 2.67 —— 仍是 float,仍有精度问题
+print(3 or 5)            # 3 —— 3 为真,短路返回 3,5 未被评估
+print(0 or 5)            # 5 —— 0 为假,返回 5
+print(0 or '' or 7)      # 7 —— 多个 or,前两个为假,返回第一个真 7
+print(3 or 0 or 5)       # 3 —— 遇到第一个真(3)短路,返回 3
 ```
 
-⚠️ **round 不能"修好"精度问题**:`round(0.1 + 0.2, 1)` 得 `0.3`,看似好了,但 `round` 结果仍是 float,内部仍是近似值,后续运算误差会再冒出来。round 只能"限制显示位数",不能让 float 变精确。
+`a or b` 规则:**若 `a` 为真,返回 `a`(短路,不评估 `b`);若 `a` 为假,返回 `b`**。逻辑是"or 要求任一真,遇到真即可定结论,返回那个真值;都假则返回最后一个"。
+
+**返回操作数本身,而非 bool**——这是 `and`/`or` 与其他语言的最大差异:
 
 ```python
-x = round(0.1 + 0.2, 2)    # 0.3(显示)
-print(x == 0.3)             # True(恰好),但
-print(x * 3)                # 0.8999999999999999!round 后再算又冒误差
+print('' or 'default')   # 'default' —— '' 为假,返回 'default'(不是 True!)
+print('x' or 'default')  # 'x' —— 'x' 为真,返回 'x'
+print(0 or None)         # None —— 0 为假,返回 None
+print(1 and 'hello')     # 'hello' —— 1 为真,返回 'hello'
 ```
 
-**正确取整/舍入的多种方式**:
+`'' or 'default'` 返回 `'default'` 字符串本身,不是 `True`。这一特性是 Python 惯用法的基石:
+
+**惯用法一:`a or default`(设默认值)**——这是 `or` 最常见的用法,极其优雅:
 
 ```python
-import math
-# 截断
-print(math.trunc(3.7))      # 3(向零)
-print(int(3.7))             # 3(等同 trunc)
-# 向下/向上
-print(math.floor(3.7))      # 3
-print(math.ceil(3.7))       # 4
-# 四舍五入(传统,非银行家)
-print(math.floor(3.5 + 0.5)) # 4(传统四舍五入的实现:加0.5后向下取整,但负数要另处理)
+# 传统:if 判断设默认
+def greet(name):
+    if name is None:
+        name = "陌生人"
+    return f"Hello, {name}"
+
+# or 惯用法:一行搞定
+def greet(name):
+    name = name or "陌生人"   # name 为 None/'' 时,用默认值
+    return f"Hello, {name}"
+print(greet(None))            # Hello, 陌生人
+print(greet("Alice"))         # Hello, Alice
+print(greet(""))              # Hello, 陌生人('' 也为假,被替换)
 ```
 
-需要"传统四舍五入(逢5进1)"而非银行家舍入时,Python 内建没有直接函数,可用 `Decimal` 的 `ROUND_HALF_UP` 模式(见 §2.6)。round 的银行家规则要刻进认知,避免在金额/统计中误用产生系统性偏差。
+⚠️ 注意 `name or default` 会把 `None` 和 `''` 都判假替换——若你想"仅 None 替换、空串保留",要用 `if name is None:` 而非 `or`。语义不同,按需选。
 
-### 2.4 特殊浮点值:inf 与 nan
-
-`float` 有两个特殊值:`inf`(无穷)和 `nan`(Not a Number,非数)。它们遵循独特的运算规则,处理不当会引入隐蔽 bug。
-
-**inf(无穷)**:表示超出表示范围的值,有正负。
+**惯用法二:`a and b`(链式前置条件/安全访问)**——`and` 用于"前一个为真才取下一个",常做防御性链:
 
 ```python
-import math
-print(math.inf)          # inf
-print(-math.inf)         # -inf
-print(float('inf'))      # inf
-print(1e400)             # inf —— 超出最大值,变成 inf
-print(math.inf > 1e308)  # True
-print(math.inf + 1)      # inf —— 无穷加有限仍无穷
-print(math.inf * 2)      # inf
-print(1 / math.inf)      # 0.0
+# 链式安全访问(类似 && )——a 为真才评估 b
+obj = None
+result = obj and obj.method()    # None 为假短路,返回 None,不调 method(避免 AttributeError)
+print(result)                    # None —— 安全,没报错
+
+# 配置存在才用
+config = {}
+value = config and config.get("key")   # {} 为假?不,非空 dict 为真
+# 注意:空 dict {} 为假!故上面的 {} 会短路返回 {}
+empty_cfg = {}
+val = empty_cfg and empty_cfg.get("key")  # {} 为假,短路返回 {}
+print(val)                                 # {}
 ```
 
-**nan(非数)**:表示"无意义的运算结果"(如 `0/0`、`inf - inf`、负数开方等数学未定义运算)。nan 的核心特性:**nan 与任何值(含自身)都不相等**。
+⚠️ 上例揭示一个陷阱:**空容器 `{}`、`[]`、`''` 为假**,故 `config and config.get(...)` 在 config 为空容器时会短路返回空容器本身(而非进入 get)。`and` 安全访问只对"None 或 falsy 但非容器"的对象可靠;对可能为空容器的对象,更稳妥的是显式 `if config is not None:` 或用 `getattr`/`.get` 等无副作用访问。这条要警惕。
+
+**惯用法三:三目运算符 `a if cond else b`**——当 `or`/`and` 不够清晰时,用显式三目:
 
 ```python
-print(math.nan)               # nan
-print(float('nan'))           # nan
-nan = math.nan
-print(nan == nan)             # False! —— nan 不等于自己
-print(nan != nan)             # True
-print(nan > 0, nan < 0)       # (False, False) —— nan 与任何数比较都 False
-print(math.isnan(nan))        # True —— 判 nan 唯一可靠方式
+# 三目运算符(Python 的条件表达式)
+label = "成年" if age >= 18 else "未成年"
+# 比 or 链清晰,推荐用于"二选一"
 ```
 
-⚠️ **`nan != nan` 为 True** 是 nan 最反直觉的特性。它导致"用 `==` 判 nan 永远失败":
+`a if cond else b` 是 Python 的条件表达式(三目),比 `cond and a or b`(旧式技巧,有 cond 为假时 a 为假值的陷阱)更清晰可靠,**优先用三目而非 `and/or` 模拟三目**。
+
+**短路求值的副作用价值**——短路不只是"返回值",还"不评估多余操作数",这能避免副作用(如避免对 None 调方法、避免昂贵的计算):
 
 ```python
-x = math.nan
-# 错误:nan 永远不等于 nan,这个判断永远 False
-if x == math.nan:
-    print("是 nan")
-# 正确:用 math.isnan
-if math.isnan(x):
-    print("是 nan")   # ← 走这里
+# 短路避免副作用:None.method() 会报错,短路让 None 不被评估
+data = None
+if data is not None and data.ready():   # data 为 None 时短路,不调 ready()
+    process(data)
+
+# 短路避免昂贵计算
+def expensive_check():
+    print("昂贵检查执行了")
+    return True
+cheap = False
+if cheap and expensive_check():   # cheap 为 False 短路,expensive_check 不执行
+    ...
+# 不会打印"昂贵检查执行了" —— 短路省掉了开销
 ```
 
-判 nan **必须**用 `math.isnan(x)`,绝不能用 `x == float('nan')`(恒为 False)。这是 nan 处理的第一守则。
+把"廉价检查放前、昂贵检查放后"是利用短路的性能优化技巧。理解短路"不评估多余操作数",就能用它规避副作用与省性能。
 
-**inf 的运算规则**:
+### 2.4 not 运算符
+
+`not` 是一元布尔运算符,取反。它有两个与 `and`/`or` 不同的关键特性:**始终返回真正的 bool**、**优先级最高**。
 
 ```python
-inf = math.inf
-print(inf - inf)         # nan —— 无穷减无穷无意义
-print(inf / inf)         # nan
-print(0.0 * inf)         # nan
-print(inf + inf)         # inf
-print(inf * 0.0)         # nan
-print(1.0 / 0.0)         # ZeroDivisionError!Python 浮点除零会报错,不像某些语言返回 inf
+print(not True)          # False
+print(not False)         # True
+print(not 0)             # True —— 0 为假,not 0 为真
+print(not 1)             # False —— 1 为真,not 1 为假
+print(not []))           # False —— [] 非空为真,not 为假
+print(not "")            # True —— 空串为假,not 为真
 ```
 
-注意 Python 的 `1.0 / 0.0` 抛 `ZeroDivisionError`,而非返回 `inf`(与 JavaScript/IEEE 某些实现不同)。但 `1.0 / inf` 是 `0.0`,`inf - inf` 是 `nan`。
+`not x` 等价于 `not bool(x)`——先把 x 判真假,再取反,结果恒为 `True`/`False`(bool)。这与 `and`/`or` 返回操作数本身不同——`not` 是唯一保证返回 bool 的布尔运算符。
 
-**nan 在数据中的危害**:nan 一旦混入数据,会"污染"统计结果——任何与 nan 的算术都得 nan,且 nan 比较都 False,导致求和、平均值、排序混乱:
+**`not` 优先级高于 `and`/`or`**,但低于比较运算符:
 
 ```python
-data = [1.0, math.nan, 3.0]
-print(sum(data))         # nan —— 一个 nan 毒化整个求和
-print(max(data))         # nan —— 排序也乱
-# 数据清洗时必须先剔除 nan
-clean = [x for x in data if not math.isnan(x)]
-print(sum(clean))        # 4.0
+print(not True or False)      # False —— (not True) or False = False or False
+print(not (True or False))    # False —— 括号先算 or 得 True,not 得 False
+print(not 1 == 1)             # False —— 1==1 先算得 True,not 得 False(等价 not (1==1))
+print(True and not False)     # True —— not False 得 True,True and True
 ```
 
-处理含 nan 的数据时,务必先用 `math.isnan` 过滤,否则整个计算被毒化。NumPy 有 `np.nanmean`/`np.nansum` 等专门的 nan 安全函数。
+`not 1 == 1` 是 `not (1 == 1)`(比较优先),不是 `(not 1) == 1`。这条优先级让人偶尔困惑,复杂表达式建议加括号。
 
-### 2.5 float 的常用方法
-
-`float` 作为内置类型,方法不多,但有几个实用:
-
-**`as_integer_ratio()`**:把 float 表示为分数(分子/分母),精确揭示其内部值:
+**`not` 的常见用法**——判"为空/为假":
 
 ```python
-print((0.5).as_integer_ratio())    # (1, 2) —— 0.5 = 1/2,精确(2 的幂可精确表示)
-print((0.1).as_integer_ratio())    # (3602879701896397, 36028797018963968) —— 0.1 的近似分数
-print((0.1).as_integer_ratio())    # 0.1 实际 = 3602879701896397/36028797018963968
+# 判空:not items(等价 not bool(items))
+if not items:           # items 为空(None/[]/'' 等都触发)
+    print("无数据")
+
+# 判不存在
+if key not in d:        # not in 是组合运算符
+    d[key] = default
+
+# 取反布尔变量
+done = False
+if not done:            # 未完成
+    ...
 ```
 
-`0.5` 的 ratio 是干净的 `1/2`(因 0.5 是 2 的幂次,二进制精确),而 `0.1` 的 ratio 是个巨大分数——直观证明 `0.1` 无法精确表示。这是理解 float 误差的利器。
+⚠️ **避免 `if not x == y`** 这种写法,易读错(是 `not (x==y)` 还是 `(not x)==y`?)。要判"不等于"直接用 `if x != y:`,要判"取反比较"用括号 `if not (x == y):`。可读性优先,别让 `not` 与比较运算符混排。
 
-**`is_integer()`**:判断 float 是否为整数值(值层面,非类型层面):
+### 2.5 比较运算符与布尔结果
+
+比较运算符(`==`/`!=`/`<`/`>`/`<=`/`>=`/`is`/`in`)的求值结果是**真正的 `bool`**:`True`/`False`。它们是 `if` 条件最直接的来源。
 
 ```python
-print((3.0).is_integer())    # True —— 值是整数(但类型仍是 float)
-print((3.5).is_integer())    # False
-print((0.1).is_integer())    # False
+print(3 > 2)             # True
+print(3 == 3)            # True
+print(3 != 4)            # True
+print(3 <= 3)            # True
+print('a' in 'abc')      # True —— in 成员判断
+print('x' not in 'abc')  # True —— not in
+print([1,2] == [1,2])    # True —— 值相等
+print([1,2] is [1,2])    # False —— 不同对象(详见 2.6)
+print(None is None)      # True
 ```
 
-注意 `3.0` 类型是 `float`,但 `is_integer()` 为 `True`(它的值是整数)。常用于"判断浮点结果是否恰好整数"。
-
-**`hex()`**:float 的十六进制表示,直观看到其内部指数/尾数:
+**比较运算符的结果是 bool**,可放心用于条件:
 
 ```python
-print((1.0).hex())           # '0x1.0000000000000p+0'
-print((0.1).hex())           # '0x1.999999999999ap-4'
+if age >= 18:            # age>=18 求值为 True/False
+    print("成年")
 ```
 
-`p` 后是二进制指数。这个方法日常少用,但在深入分析 float 表示时有用。
-
-**`float()` 构造**:从其他类型创建 float:
+**链式比较**——Python 独有的优雅特性,多个比较可链式书写:
 
 ```python
-print(float(3))          # 3.0 —— int → float
-print(float("3.14"))     # 3.14 —— str → float
-print(float("1e5"))      # 100000.0 —— 含指数的字符串
-print(float("inf"))      # inf
-print(float(True))       # 1.0 —— bool → float(True 即 1)
-# float("abc")           # ValueError
-# float("3,14")          # ValueError —— 不认逗号(欧洲小数点写法)
+# 链式:等价 1 < x and x < 10,但只评估 x 一次
+x = 5
+print(1 < x < 10)        # True —— 1 < x 且 x < 10
+print(1 < x < 3)         # False
+# 等价的传统写法(评估 x 两次)
+print(1 < x and x < 10)  # True
+
+# 也可混用运算符
+print(0 <= x < 100)      # True
+print(1 < x != 5)        # True —— x>1 且 x!=5
+# 多个相等判断
+print(1 == 1 == 1)       # True
 ```
 
-⚠️ `float()` 转换失败抛 `ValueError`,处理外部输入需捕获。注意 `float("3,14")` 报错——欧洲用逗号作小数点,直接转失败,需先替换。
+链式比较 `1 < x < 10` 比 `1 < x and x < 10` 更简洁(且只评估 x 一次,避免 x 是有副作用的表达式时重复触发)。这是 Python 相对多数语言的语法优势,**判断区间优先用链式比较**。
 
-### 2.6 精度问题的规避方案(重点)
+⚠️ **链式比较的解析**:`a < b < c` 等价 `a < b and b < c`,**不是** `(a < b) < c`。这避免了"`(a<b)` 得 True(=1),再 `1 < c`"的荒谬链。Python 的链式比较是数学直觉的,符合理预期。
 
-这是 `float` 实战最关键的部分——既然 float 有精度问题,如何在需要精度的场景规避?有四条出路。
-
-**方案一:int 存最小单位(推荐用于金额)**
-
-把金额存成"分"等最小单位的整数,全程用 int 精确计算,仅在展示时除以 100 转元。彻底绕开浮点。
+**不同类型比较**:同类型比较规则清晰(数字按值、字符串按字典序),跨类型有些限制:
 
 ```python
-# 金额用 int 存"分"
-price_cents = 4999          # 49.99 元 = 4999 分
-qty = 3
-total_cents = price_cents * qty   # 14997 分,精确
-print(f"总计:{total_cents / 100:.2f} 元")  # 总计:149.97 元(仅展示转元)
-
-# 对比 float 的错误
-print(49.99 * 3)           # 149.97(显示),但
-print(49.99 * 100)         # 4998.999999999999 —— 内部不精确
+print(3 < 5)             # True —— 数字按值
+print('a' < 'b')         # True —— 字符串字典序
+print('abc' < 'abd')     # True
+print([1,2] < [1,3])     # True —— 列表逐元素比
+print((1,2) < (1,3))     # True —— 元组同理
+# print(3 < '5')         # TypeError(Python 3):数字与字符串不能直接比较
 ```
 
-这是最简单、最可靠、最高性能的金额方案,工业界广泛使用。缺点:需全程维护"分"的约定,且不适合有非整数比例(如利率 3.75%)直接参与运算的场景(那种用 Decimal)。
+⚠️ Python 3 禁止数字与字符串直接比较(`3 < '5'` 抛 `TypeError`),Python 2 则按类型名某种规则排序(混乱)。这是 Python 3 的改进——比较应在语义同类的对象间进行。跨类型比较要么显式转换(`str(3) < '5'`),要么用 key 函数。
 
-**方案二:decimal.Decimal(精确十进制)**
+### 2.6 == 与 is:值相等与身份相同
 
-`decimal` 模块提供十进制浮点运算,"存什么是什么",精确表示 `0.1`。它是为金融/财务场景设计的标准库。
+理解 `==` 与 `is` 的区别,是布尔比较的关键——它们常被混淆,导致隐蔽 bug。
+
+- **`==` (值相等)**:比较两个对象的**值**是否相等,调用 `__eq__` 方法。
+- **`is` (身份相同)**:比较两个对象是否是**同一个对象**(id 相同,即同一内存地址)。
 
 ```python
-from decimal import Decimal, getcontext
-
-a = Decimal('0.1')          # 注意:用字符串构造!用 float 构造会带入精度
-b = Decimal('0.2')
-print(a + b)                # 0.3 —— 精确!
-print(a + b == Decimal('0.3'))  # True
-
-# 对比 float
-print(0.1 + 0.2 == 0.3)     # False
+a = [1, 2]
+b = [1, 2]
+print(a == b)        # True —— 值相等(两个列表内容相同)
+print(a is b)        # False —— 不是同一对象(两个独立列表,id 不同)
+print(id(a), id(b))  # 不同地址
+c = a
+print(a is c)        # True —— c 和 a 指向同一对象
 ```
 
-⚠️ **Decimal 必须用字符串构造**:`Decimal(0.1)` 会把 float 0.1 的不精确值原样带进 Decimal(得到 `0.1000000000000000055...`),失去精度。必须 `Decimal('0.1')` 从字符串构造,才是精确的 0.1:
+`a == b` 看"内容是否一样",`a is b` 看"是不是同一个"。两个独立创建但内容相同的列表,`==` 为 True、`is` 为 False;赋值共享(`c = a`)则 `is` 也为 True。
+
+**`is` 的正当用法——判单例**:`is` 最可靠的用途是与单例比较,尤其 `None`:
 
 ```python
-print(Decimal(0.1))         # Decimal('0.1000000000000000055511151231257827021181583404541015625') —— 带 float 误差!
-print(Decimal('0.1'))       # Decimal('0.1') —— 精确
-# 所以:永远用字符串构造 Decimal
+x = None
+print(x is None)         # True —— 判 None 用 is,规范且可靠
+print(x is not None)     # True —— 判非 None
+# 也可判 True/False/... 单例(但通常 if x: / if not x: 更地道)
+print(x is True)         # False —— None 不是 True
+flag = True
+print(flag is True)      # True
 ```
 
-Decimal 的精度与舍入可控:
+⚠️ **判 `None` 必须用 `is`,不用 `==`**。原因:`None` 是单例,`is` 判身份最直接高效;`==` 会调 `__eq__`,某些自定义类可能把 `__eq__` 实现成"和任意值都相等"或抛异常,导致 `x == None` 行为不可控。`is None` 永远只判身份,可靠:
 
 ```python
-from decimal import Decimal, ROUND_HALF_UP, getcontext
-getcontext().prec = 6       # 全局精度:6 位有效数字
-# 传统四舍五入(逢5进1),用 ROUND_HALF_UP
-print(Decimal('2.675').quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))  # 2.68 —— 传统舍入!
-# 对比 round(2.675,2) = 2.67(银行家)
+# 推荐
+if x is None: ...
+if x is not None: ...
+# 不推荐
+if x == None: ...     # 可能被自定义 __eq__ 改写,不可靠
 ```
 
-Decimal 支持 `ROUND_HALF_UP`(传统四舍五入)、`ROUND_HALF_EVEN`(银行家,默认)、`ROUND_DOWN`、`ROUND_CEILING` 等多种舍入模式,金融计算可精确控制。代价:运算比 float 慢得多(软件实现的十进制运算,无 CPU 加速),性能敏感场景慎用。
-
-**方案三:fractions.Fraction(精确有理数)**
-
-`fractions.Fraction` 用分数(分子/分母)精确表示有理数,运算无任何误差,直到需要时才转 float。
+**`is` 与小整数缓存的陷阱**(见《int 类型详解》《变量赋值机制》):CPython 缓存 -5~256,导致 `is` 对小整数/短字符串常返回 True,产生"`is` 能比整数"的假象:
 
 ```python
-from fractions import Fraction
-a = Fraction(1, 10)         # 1/10
-b = Fraction(2, 10)         # 2/10
-print(a + b)                # 3/10 —— 精确
-print(a + b == Fraction(3, 10))  # True
-print(float(a + b))         # 0.3 —— 需要时转 float
+a = 256
+b = 256
+print(a is b)        # True —— 256 在缓存范围,同一对象
+a = 1000000
+b = 1000000
+print(a is b)        # 不保证 True(交互式常为 False)—— 大整数未必缓存
 ```
 
-Fraction 适合"精确有理数运算"(如分数计算、精确比例),自动约分(`Fraction(2,10)` = `Fraction(1,5)`)。缺点:无法表示无理数(π、√2),分母增长导致运算变慢,不适合大规模数值计算。
-
-**方案四:容差比较(epsilon)**
-
-当必须用 float 但要比较相等时,不用 `==`,改用"差值小于某容差"判断:
+⚠️ 这造成"`a is b` 对小整数总 True"的假象,但这是实现优化,不可依赖。**值相等永远用 `==`,不用 `is`**:
 
 ```python
-def almost_equal(a, b, eps=1e-9):
-    return abs(a - b) < eps
-
-print(almost_equal(0.1 + 0.2, 0.3))    # True —— 容差比较
-print(0.1 + 0.2 == 0.3)                # False —— 严格相等失败
-
-# 更稳妥:用相对容差(math.isclose,3.5+)
-import math
-print(math.isclose(0.1 + 0.2, 0.3))           # True
-print(math.isclose(1e9 + 1, 1e9))             # True(默认相对容差,大数也判近)
-print(math.isclose(1e-9, 1e-12))              # False(相对容差下不算近)
-print(math.isclose(1e-9, 0, abs_tol=1e-8))    # True(加绝对容差判接近0)
+# 危险:依赖缓存比整数,大数会失效
+# if a is b: ...    # 大整数可能 False!
+# 正确
+if a == b: ...      # 始终可靠
 ```
 
-`math.isclose(a, b, rel_tol=1e-9, abs_tol=0.0)` 是 Python 3.5+ 提供的容差比较,默认相对容差(适合大数),可加 `abs_tol` 绝对容差(适合接近 0 的小数)。比手写 `abs(a-b)<eps` 更稳健(处理了大数/小数两种情况)。**float 相等比较几乎总该用 `math.isclose`,而非 `==`**。
+**`==` 与 `is` 决策表**:
 
-**四方案选型**:
+| 需求 | 用 |
+|------|-----|
+| 判值相等 | `==` |
+| 判是否同一对象 | `is` |
+| 判 None | `is None` / `is not None` |
+| 判 True/False 单例(精确) | `is True` / `is False` |
+| 判真值/假值 | `if x:` / `if not x:` |
+| 比数字/字符串值 | `==`(绝不用 is) |
 
-| 场景 | 推荐方案 |
-|------|---------|
-| 金额(货币) | int 存最小单位,或 Decimal |
-| 利率/财务精确十进制 | Decimal(可控精度与舍入) |
-| 精确有理数/分数 | Fraction |
-| 科学计算/物理量 | float(精度足够,性能好) |
-| float 相等比较 | math.isclose(容差) |
-| float 显示固定小数位 | round 或格式化(仅显示,不解决精度) |
+记住口诀:**"值比用 `==`,单例判用 `is`"**。绝大多数场景用 `==`,`is` 专留给 `None` 等单例。判真值用 `if x:`/`if not x:`,不用 `if x == True:`(会把 1 也当 True,语义偏)。
 
-记住总原则:**精度敏感追求精确 → int/Decimal/Fraction;性能敏感可接受近似 → float;float 比较 → isclose**。
+### 2.7 bool 即 int 的算术与计数
 
-### 2.7 float 与 int 的转换与隐式提升
-
-`float` 与 `int` 互转是高频操作,且要注意"隐式提升"——int 与 float 混算时结果总变 float。
-
-**int ↔ float**:
+§1.4 提到 `bool` 是 `int` 子类,`True==1`/`False==0`。这让 bool 能参与 int 算术,催生优雅的计数惯用法。
 
 ```python
-print(float(5))         # 5.0 —— int → float
-print(int(3.9))         # 3 —— float → int(截断,向零)
-print(int(-3.9))        # -3(向零截断,不是 floor 的 -4)
-print(int(3.0))         # 3
+print(True + True)           # 2
+print(True + False)          # 1
+print(True * 5)              # 5
+print(False * 100)           # 0
+print(sum([True, True, False, True]))  # 3 —— sum 计数为 True 的项
 ```
 
-⚠️ `int(3.9)` 是**截断(向零)**不是四舍五入:`int(3.9)=3`、`int(-3.9)=-3`,直接丢小数部分。要四舍五入用 `round()`,要向下用 `math.floor()`:
+**惯用法:用 sum 统计满足条件的项数**——这是 bool 即 int 最实用的场景:
 
 ```python
-import math
-print(int(3.9))         # 3(截断)
-print(round(3.9))       # 4(四舍五入,但注意银行家规则)
-print(math.floor(3.9))  # 3(向下)
-print(math.ceil(3.9))   # 4(向上)
-print(math.trunc(3.9))  # 3(向零,等同 int)
+# 统计列表中偶数的个数
+nums = [1, 2, 3, 4, 5, 6]
+# 写法一:显式计数
+even_count = sum(1 for n in nums if n % 2 == 0)
+# 写法二:利用 bool 即 int(True 当 1 求和)
+even_count2 = sum(n % 2 == 0 for n in nums)
+print(even_count, even_count2)   # 3 3
+
+# 统计合格人数
+scores = [85, 90, 55, 78, 92]
+pass_count = sum(score >= 60 for score in scores)   # 4
 ```
 
-**除法的类型规则**(回顾,与《int 类型详解》呼应):
+`sum(score >= 60 for score in scores)` 中,`score >= 60` 求值为 `True`/`False`(bool),`sum` 把它们当 1/0 求和,得到满足条件的项数。这种写法极其简洁地道,Python 代码里常见。缺点是可读性略降(需知 bool 即 int),团队不熟时 `sum(1 for ... if 条件)` 更显式。
+
+**bool 索引(不推荐)**:因 True==1/False==0,bool 可当索引,但极不推荐:
 
 ```python
-print(8 / 2)            # 4.0 —— / 真除,永远 float(即便整除)
-print(8 // 2)           # 4 —— // 地板除,操作数全 int 返回 int
-print(8.0 // 2)         # 4.0 —— 有 float 参与,// 返回 float
-print(7 / 2)            # 3.5
-print(7 // 2)           # 3
-print(7.0 // 2)         # 3.0
+lst = ['a', 'b', 'c']
+print(lst[True])        # 'b' —— True 当 1,极易出错,别这么写
+print(lst[False])       # 'a'
 ```
 
-`//` 的返回类型取决于操作数:全 int 返回 int,有 float 返回 float。但 `//` 在有 float 时仍是地板除(向负无穷),只是结果类型是 float:
+`lst[True]` 等价 `lst[1]`,看似能用实则混淆——真要表达"索引1"就写 `1`,别用 `True`。这条"能用≠该用",可读性优先。
+
+**bool 与 int 的整体算术提升**:bool 参与 int 算术时被当 0/1,结果 int:
 
 ```python
-print(-7.0 // 2)        # -4.0 —— float 地板除,向负无穷
+print(True + 1)         # 2 —— bool 提升为 int
+print(type(True + 1))   # <class 'int'> —— 结果是 int 不是 bool
+print(True + 1.0)       # 2.0 —— 进一步提升为 float
 ```
 
-**隐式提升(int → float)**:int 与 float 混合运算时,int 自动提升为 float,结果 float。这是"向更宽的类型看齐"的规则:
+`True + 1` 结果是 `int`(2),不是 `bool`——算术运算把 bool 提升为更宽的 int/float。bool 仅在纯粹的布尔运算(`and`/`or`/`not`/比较)里保持 bool 性质。
+
+### 2.8 综合示例:bool 与短路逻辑实战
+
+下面这个片段综合演示真值测试、短路逻辑、bool 即 int 在实战中的协作:
 
 ```python
-print(3 + 0.5)          # 3.5 —— int 3 提升为 3.0 再加 float
-print(type(3 + 0.5))    # <class 'float'>
-print(2 * 3.0)          # 6.0 —— 结果 float
-print(10 - 2.5)         # 7.5
-print(4 ** 0.5)         # 2.0 —— 0.5 是 float,结果 float(开平方)
+# 1. 真值测试:简洁的判空
+def first_or_default(items, default=None):
+    # items 非空返回第一个,否则返回 default
+    if items:                       # 真值测试:非空即真
+        return items[0]
+    return default
+print(first_or_default([1, 2, 3]))  # 1
+print(first_or_default([]))         # None
+print(first_or_default([], "空"))   # 空
+
+# 2. or 设默认值
+def greet(name):
+    name = name or "陌生人"          # None/'' 都用默认
+    return f"Hello, {name}"
+print(greet(None), greet(""), greet("Alice"))
+
+# 3. and 短路避免副作用
+config = None
+version = config and config.get("version")   # config 为 None 短路,不调 get
+print(version)                               # None,安全
+# 注意:若 config 可能是空 dict(为假),会短路返回空 dict,需警惕
+
+# 4. 短路省性能:廉价检查在前
+def is_valid_user(user):
+    # user 不为 None 才查 .active(避免 None.active 报错)+ active 才查昂贵权限
+    return user is not None and user.get("active") and check_expensive_permission(user)
+def check_expensive_permission(u):
+    print("昂贵权限检查执行")
+    return True
+class U(dict):
+    def __getattr__(self, k): return self.get(k)
+print(is_valid_user(None))          # False,短路,未执行昂贵检查
+
+# 5. 链式比较:区间判断
+age = 25
+if 18 <= age < 60:                  # 链式,比 18<=age and age<60 简洁
+    print("适龄劳动力")
+
+# 6. 三目运算符(优先于 and/or 模拟)
+status = "成年" if age >= 18 else "未成年"
+print(status)
+
+# 7. == vs is
+a = [1,2]; b = [1,2]
+print(a == b, a is b)              # True False
+n = None
+print(n is None)                    # True(判 None 用 is)
+
+# 8. bool 即 int:计数
+nums = [1, 2, 3, 4, 5, 6, 7, 8]
+print("偶数个数:", sum(n % 2 == 0 for n in nums))   # 4
+print("大于5的个数:", sum(n > 5 for n in nums))      # 3
 ```
 
-只要运算中有 float,结果就是 float。这条规则决定了"何时结果从 int 变 float",理解它就不会对 `8/2=4.0`、`4**0.5=2.0` 感到意外。详见《隐式类型转换》。
-
-**float → str**(显示与解析):
-
-```python
-print(str(3.14))        # '3.14'
-print(repr(3.14))       # '3.14'(最短表示)
-print(f"{3.14159:.2f}") # '3.14' —— 格式化两位小数
-print(f"{0.1+0.2:.2f}") # '0.30' —— 格式化能"掩盖"显示误差(但内部仍不精确)
-print(f"{1234567.89:,}")# '1,234,567.89' —— 千分位
-```
-
-⚠️ 格式化(`:.2f`)能控制显示位数,看起来"修好了"误差,但内部 float 值不变,后续运算误差会再冒出。格式化只是"显示层",不是"精度解决方案"。
-
-### 2.8 综合示例:float 精度问题的完整诊断与规避
-
-下面这个片段集中演示 float 的精度现象与规避方案,阅读时对照每种现象的成因与解法:
-
-```python
-import math
-from decimal import Decimal, ROUND_HALF_UP
-
-# 1. 精度误差现象
-print("=== 精度误差 ===")
-print(f"0.1 + 0.2 = {0.1 + 0.2}, == 0.3? {0.1 + 0.2 == 0.3}")
-print(f"0.1 实际值: {0.1:.20f}")
-print(f"10 次 0.1 累加: {sum([0.1]*10)}, == 1.0? {sum([0.1]*10) == 1.0}")
-
-# 2. isclose 容差比较(正确比较方式)
-print("=== 容差比较 ===")
-print(f"isclose(0.1+0.2, 0.3) = {math.isclose(0.1 + 0.2, 0.3)}")
-print(f"isclose(1e16+1, 1e16) = {math.isclose(1e16 + 1, 1e16)}")
-
-# 3. round 银行家舍入
-print("=== round 银行家舍入 ===")
-print(f"round(2.5) = {round(2.5)}, round(3.5) = {round(3.5)}")
-print(f"round(2.675, 2) = {round(2.675, 2)}(精度干扰,非 2.68)")
-
-# 4. Decimal 精确十进制(金额方案)
-print("=== Decimal 精确 ===")
-price = Decimal('49.99')           # 字符串构造,精确
-total = price * 3                  # Decimal 乘法,精确
-print(f"49.99 × 3 = {total}")
-# 传统四舍五入
-print(f"2.675 传统舍入到2位: {Decimal('2.675').quantize(Decimal('0.01'), ROUND_HALF_UP)}")
-
-# 5. int 存最小单位(金额另一方案)
-print("=== int 存分 ===")
-total_cents = 4999 * 3            # 4999 分 × 3
-print(f"总计 {total_cents} 分 = {total_cents/100:.2f} 元")
-
-# 6. 大数吞噬小数
-print("=== 大数吞噬 ===")
-big = 1e16
-print(f"1e16 + 1 == 1e16? {big + 1.0 == big}(1 被精度吞掉)")
-
-# 7. inf 与 nan
-print("=== inf / nan ===")
-print(f"inf - inf = {math.inf - math.inf}(nan)")
-print(f"nan == nan? {math.nan == math.nan}(False), isnan? {math.isnan(math.nan)}(True)")
-```
-
-跑一遍这段示例,对照输出:float 的误差现象、isclose 的正确比较、round 的银行家规则、Decimal/int 的精确规避、大数吞噬、inf/nan 行为——float 的完整图景与应对就清晰了。核心结论:**精度敏感场景必须绕开 float(int/Decimal),float 比较用 isclose,round 不能修精度**。
+跑一遍这段示例,对照输出:真值测试判空、or 设默认、and 短路防副作用、链式比较、三目、`==`/`is` 区分、bool 计数——bool 类型与短路逻辑的实战全貌就清晰了。核心:**真值测试让条件简洁、短路逻辑既返回值又省副作用、bool 即 int 让计数优雅**。
 
 ---
 
 ## 3. 最佳实践
 
-### 3.1 金额等精度敏感数据绝不用 float
+### 3.1 判空用真值测试,不用 len()>0 或 != ''
 
 ```python
-# 推荐:int 存分,或 Decimal
-total = 4999 * 3                      # int 存分
-total = Decimal('49.99') * 3          # Decimal 精确
-# 绝不推荐:float 存金额
-total_bad = 49.99 * 3                 # 内部 4998.999...,账对不平
+# 推荐(Python 惯用法)
+if items:           # 非空
+    ...
+if not items:       # 为空
+    ...
+if name:            # 非空字符串
+    ...
+# 不推荐(啰嗦)
+if len(items) > 0: ...
+if items != []: ...
+if name != '': ...
 ```
 
-货币、利率、税率、手续费等精度敏感计算,禁用 float。用 int 存最小单位(分)最简高效,需复杂十进制运算或可控舍入用 Decimal。这是 float 实践的头号红线。
+`if items:` / `if not items:` 是 Python 判空的惯用法,对所有容器/字符串统一适用,比 `len()>0`/`!= []` 简洁得多。养成 `if items:` 的习惯。
 
-### 3.2 float 相等比较用 math.isclose,不用 ==
+### 3.2 判 None 用 is None,不用 == None 也不用 if not x
 
 ```python
 # 推荐
-if math.isclose(a, b): ...
-if math.isclose(a, b, abs_tol=1e-9): ...   # 接近 0 时加绝对容差
+if x is None: ...
+if x is not None: ...
 # 不推荐
-if a == b: ...    # 0.1+0.2 == 0.3 会 False
+if x == None: ...          # 可能被 __eq__ 改写
+if not x: ...              # 会把 0/[]/'' 也判为"空",语义错位
 ```
 
-float 是近似值,`==` 几乎总会因误差失败。`math.isclose` 用相对容差(默认 1e-9,适合大数)加可选绝对容差(适合小数),是 float 比较的标准方式。
+`None` 是单例,`is None` 判身份最可靠。注意 `if not x:` 与 `if x is None:` 语义不同——前者判"假值"(含 0/空),后者仅判 None。要"是否为 None"用 is,要"是否为假值"用 not。别混用。
 
-### 3.3 round 是银行家舍入,且不能"修好"精度
+### 3.3 判布尔值用 if x:,不用 if x == True:
 
 ```python
-# 记住:round(2.5) == 2(向偶数),非 3
-# round 结果仍是 float,后续运算误差会再冒出
-# 需传统四舍五入用 Decimal + ROUND_HALF_UP
-from decimal import Decimal, ROUND_HALF_UP
-Decimal('2.675').quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)  # 2.68
+# 推荐
+if active:          # active 为真(True 或真值)
+    ...
+# 不推荐
+if active == True:  # 会把 1 也判为 True(1==True),语义偏
+    ...
+if active is True:  # 仅当 active 恰为 True 单例,过严(若 active 可能是 1 会漏)
 ```
 
-不要指望 round 解决精度问题,它只控显示位数、且是银行家舍入(逢 5 向偶数)。金额/统计需传统四舍五入时用 Decimal 的 ROUND_HALF_UP。
+判"是否为真"用 `if x:`(真值测试);仅当需精确判"是不是 True 这个单例"才用 `is True`(罕见)。`== True` 既不可靠(1==True)又啰嗦,避免。
 
-### 3.4 Decimal 必须用字符串构造
+### 3.4 or 设默认值,但注意 falsy 的覆盖范围
 
 ```python
-# 正确
-Decimal('0.1')      # 精确 0.1
-# 错误
-Decimal(0.1)        # 带 float 误差,= 0.1000000000000000055...
+# 推荐:None 或空都用默认
+name = name or "匿名"
+# 注意:若想"仅 None 替换、空串保留",or 不合适
+name = name if name is not None else "匿名"   # 仅 None 替换
 ```
 
-`Decimal(float)` 会把 float 的不精确值原样带入,失去意义。从字符串、int 构造才精确。从 float 转时先 `str(float)` 也行但不如直接用字符串源。
+`x or default` 简洁,但会把所有 falsy(None/0/''/[]/)都替换。若你的语义是"仅 None 替换",要用 `x if x is not None else default` 或 `if x is None:`。明确 falsy 范围再选用。
 
-### 3.5 累加大量 float 用更稳的算法
+### 3.5 优先用三目 a if cond else b,而非 and/or 模拟
 
 ```python
-# naive 累加有误差累积
-total = 0.0
-for x in data:
-    total += x          # 误差累积
-# 更稳:fsum(数学库的高精度求和)
-math.fsum(data)         # 用更高内部精度求和,误差小得多
-# 或 Kahan 求和算法(手动补偿误差)
+# 推荐(清晰可靠)
+label = "成年" if age >= 18 else "未成年"
+# 不推荐(旧式 and/or 模拟,有陷阱)
+# label = (age >= 18) and "成年" or "未成年"   # cond 为真时若 "成年" 本身为假值会出错
 ```
 
-大量 float 累加时误差会累积。`math.fsum` 用扩展精度内部累加,显著降低误差,比循环 `+=` 稳。精度敏感的求和优先 `math.fsum`。
+三目 `a if cond else b` 是 Python 条件表达式的标准写法,清晰且无 `and/or` 模拟的陷阱(cond 为假但 a 为假值时,`cond and a or b` 会错误返回 b)。二选一用三目。
 
-### 3.6 数据中混入 nan 会毒化计算,先清洗
+### 3.6 区间判断用链式比较
 
 ```python
-# nan 会毒化求和/排序
-clean = [x for x in data if not math.isnan(x)]
-total = sum(clean)
-# 判 nan 用 math.isnan,不用 ==
-if math.isnan(x): ...
+# 推荐(链式,简洁且只评估一次)
+if 18 <= age < 60: ...
+# 不推荐
+if age >= 18 and age < 60: ...   # 评估 age 两次,啰嗦
 ```
 
-一个 nan 让整个 sum/max/min 变 nan。处理含 nan 数据(缺失值、未定义运算结果)前必须用 `math.isnan` 过滤。判 nan 永远用 isnan,不用 `==`(nan != nan)。
+链式比较 `a < x < b` 是 Python 的优雅特性,符合数学习惯。区间判断、范围校验优先链式。
 
-### 3.7 大数运算注意精度吞噬
+### 3.7 and 链把廉价检查放前、昂贵检查放后
 
 ```python
-# 1e16 后加 1 会被吞
-big = 1e16
-big + 1 == big     # True!精度丢失
-# 需要大数精度用 int(任意精度)或 Decimal
+# 推荐:短路省开销
+if cheap_check() and expensive_check(): ...
+# 不推荐:昂贵检查总执行
+if expensive_check() and cheap_check(): ...
 ```
 
-float 只有 ~15~17 位有效数字,大数后加小增量会被舍入丢失。需要大整数精度用 int(任意精度无上限),需大十进制精度用 Decimal。
+`and` 短路——前为假则不评估后。把"大概率失败/廉价的检查"放前面,昂贵检查放后面,能省下大量计算。同理 `or` 把"大概率成功"的放前面。利用短路优化条件顺序。
 
-### 3.8 取整明确语义:int 是截断非四舍五入
+### 3.8 避免空容器被 and 短路误用
 
 ```python
-# 截断(向零)
-int(3.9)          # 3
-# 四舍五入
-round(3.9)        # 4(但注意银行家)
-# 向下/向上
-math.floor(3.9)   # 3
-math.ceil(3.9)    # 4
+# 危险:空 dict/[]/'' 为假,and 会短路返回它们本身
+cfg = {}
+val = cfg and cfg.get("key")   # {} 为假,短路返回 {}(不是 None,不是 get 结果)
+# 稳妥:显式判 None 或直接用 get
+val = cfg.get("key") if cfg is not None else None
+val = cfg.get("key")           # 若 cfg 一定非 None,直接 get(空 dict 也不报错)
 ```
 
-`int()` 向零截断,新手常误以为是四舍五入。明确你需要截断、四舍五入、向下、向上哪种,选对应函数,负数下差异更明显(`int(-3.9)=-3` vs `floor(-3.9)=-4`)。
+`and` 安全访问(`obj and obj.method`)只对 None/falsy-非容器对象可靠。对可能为空容器的对象,空容器会短路返回自身而非进入方法。空 dict 调 `.get` 本就不报错,直接用更稳。警惕这条陷阱。
 
-### 3.9 除法:要整数用 //,要小数用 /
+### 3.9 not 与比较运算符别混排,用 != 或括号
 
 ```python
-# 要整数商
-avg_int = total // count
-# 要小数精确商
-avg = total / count
+# 推荐
+if x != y: ...
+if not (x == y): ...
+# 不推荐(易读错)
+if not x == y: ...
 ```
 
-`/` 永远 float(即便整除 `8/2=4.0`),`//` 返回整数类型(全 int 时)。需要 int 结果用 `//`,需要小数用 `/`。
+`not x == y` 是 `not (x==y)`(比较优先),但易读成 `(not x) == y`。要"不等于"用 `!=`,要"取反比较"加括号。可读性优先,别让 `not` 与 `==` 紧挨。
 
-### 3.10 科学计算用 float,追求性能合理
+### 3.10 利用 bool 即 int 计数,但团队不熟用显式写法
 
 ```python
-# 科学计算、NumPy:用 float,硬件加速,精度通常足够
-import numpy as np
-arr = np.array([0.1, 0.2, 0.3], dtype=np.float64)
+# 简洁(地道,利用 bool 即 int)
+count = sum(score >= 60 for score in scores)
+# 显式(可读性更好)
+count = sum(1 for score in scores if score >= 60)
 ```
 
-float 不是"坏类型"——物理量、统计分析、图形、机器学习里 float 的 15 位精度远超需求,且 CPU 硬件加速、NumPy 向量化,性能远高于 Decimal。错的是"在金额等精确十进制场景用 float",而非 float 本身。
+`sum(条件 for ...)` 简洁,但需知 bool 即 int。团队/读者不熟时,`sum(1 for ... if 条件)` 更直白。按团队习惯与可读性权衡,两者都对。
 
-### 3.11 float 转换外部输入需捕获 ValueError
+### 3.11 bool 索引、bool 算术细节避免歧义
 
 ```python
-try:
-    x = float(user_input)
-except ValueError:
-    print("请输入有效数字")
+# 避免:bool 当索引
+# lst[True]   # 虽合法(=lst[1]),但极易出错,直接写 1
+# 适度:bool 计数(sum)是地道的,True+1 算术则少见
 ```
 
-`float("abc")`、`float("3,14")` 会抛 ValueError。处理用户输入/配置/JSON 解析的字符串转 float 时,务必 try/except 或预校验,别假设输入合法。
+bool 即 int 的"计数"用法(sum)值得推广;但 bool 当索引、bool 参与复杂算术会引人困惑。用于计数 OK,其他场景用明确的 int/bool,避免歧义。
 
-### 3.12 显示固定小数位用格式化,但记住它不解决精度
+### 3.12 True/False/None 严格大写,别用其他语言写法
 
 ```python
-# 显示控制(仅显示层)
-f"{0.1+0.2:.2f}"    # '0.30',显示干净
-# 但内部仍不精确,后续运算误差会再出
-# 真正解决精度要用 int/Decimal,不是格式化
+# Python 正确
+flag = True
+value = None
+# 错误(C/Java/JS 习惯)
+# flag = true    # NameError
+# value = null   # NameError
 ```
 
-格式化(`:.2f`)、`round` 控制 float 显示位数,适合"展示给用户",但绝不能当作"精度解决方案"。内部 float 值不变,精度问题依旧潜伏。
+`True`/`False`/`None` 首字母大写,不是 `true`/`false`/`null`。建立 Python 拼写习惯。判这些单例用 `is`。
 
 ---
 
 ## 4. 原理
 
-本章讲清 `float` 背后的 IEEE 754 机制:二进制浮点为何无法精确表示十进制小数、64 位的结构(符号/指数/尾数)、精度与范围的来源、特殊值 inf/nan 的编码、误差累积与大数吞噬的成因。这些是"float 为何如此"的根基,也是规避方案的依据。
+本章讲清 `bool` 与布尔运算的底层机制:`bool` 为何是 `int` 子类及其内部实现、真值测试的 `__bool__`/`__len__` 优先级、`and`/`or` 短路与返回值的字节码本质、链式比较的求值方式、`True`/`False` 单例与关键字常量。这些是"bool 为何如此"的根基。
 
-### 4.1 IEEE 754 双精度结构(需理解,详述)
+### 4.1 bool 为何是 int 的子类:继承与内部表示(需理解,详述)
 
-`float` 底层是 IEEE 754 双精度浮点数(double),共 64 位,分三段:
-
-```
-| 1 位符号 | 11 位指数 | 52 位尾数 |
-```
-
-- **符号位(sign)**:1 位,0 正 1 负。
-- **指数(exponent)**:11 位,偏置值 1023,表示 2 的幂次。范围约 -1022 ~ +1023,决定了 float 的数值范围(约 ±1.8×10³⁰⁸)。
-- **尾数(mantissa/significand)**:52 位,存有效数字。因规格化数隐含最高位 1,实际精度 53 位,约 15~17 位十进制有效数字。
-
-一个 float 值 = `(-1)^符号 × 1.尾数 × 2^指数`(规格化形式)。例如 `0.5` = `1.0 × 2⁻¹`,`3.0` = `1.5 × 2¹`。
+`bool` 继承自 `int`,这不是偶然——是 Python 沿袭 C 语言"真值即整数(0/1)"约定的设计选择。在 CPython 源码层(`boolobject.c`),`bool` 大致是:
 
 ```python
-# 用 as_integer_ratio 和 hex 窥探内部
-print((0.5).as_integer_ratio())   # (1, 2) = 1/2 = 1.0 × 2⁻¹
-print((0.5).hex())                # '0x1.0000000000000p-1' = 1.0 × 2⁻¹
-print((3.0).hex())                # '0x1.8000000000000p+1' = 1.5 × 2¹
+# 概念性伪代码
+class bool(int):
+    """bool 是 int 的子类,值固定 0 或 1,仅重写了字符串表示。"""
+    def __repr__(self):
+        return 'True' if self else 'False'
+    def __str__(self):
+        return 'True' if self else 'False'
+    # 算术行为完全继承 int:True 当 1,False 当 0
+
+True = bool(1)    # 单例
+False = bool(0)   # 单例
 ```
 
-`0x1.8p+1` 解读:`1.8`(十六进制,即 1.5 十进制)× `2¹` = 3.0。这套表示直观对应 IEEE 754 的"1.尾数 × 2^指数"结构。
+`bool` 内部就是一个 int——`True` 的 int 值是 1、`False` 是 0,只是:
 
-**这套结构的核心限制**:尾数 52 位(53 位有效)决定了**精度上限 ~15~17 位十进制**。超过这个位数的数字无法精确存储,会被截断。这就是 §2.2"大数吞噬小数"的根源——`1e16` 用满了 53 位有效位,再加 1 进不到有效位,被舍掉。
+- **固定取值范围**:只能是 0 或 1。构造 `bool(x)` 时,把 x 判真假,真则 True(=1)、假则 False(=0)。
+- **重写显示**:`repr`/`str` 显示为 `True`/`False` 而非 `1`/`0`,让调试输出可读。
+- **算术完全继承 int**:`True + True` 走 int 加法(1+1=2),`True * 5` 走 int 乘法。bool 没重写任何算术方法。
+
+`bool.__mro__` 揭示继承链:
 
 ```python
-print(f"{1e16:.0f}")      # 10000000000000000(17 位,接近精度上限)
-print(1e16 + 1)           # 1e+16 —— 1 被舍掉
-print(f"{1e15 + 1:.0f}")  # 1000000000000001 —— 1e15 还能容纳 +1
+print(bool.__mro__)
+# (<class 'bool'>, <class 'int'>, <class 'object'>)
 ```
 
-`1e15 + 1` 能精确(15 位有效,未超限),`1e16 + 1` 不能(16 位有效,接近上限,1 被舍)。理解 53 位有效数字的精度上限,就能预判何时会发生精度丢失。
+`bool → int → object`,故 `isinstance(True, int)` 为 True(True 沿 MRO 是 int)、`type(True) is int` 为 False(精确类型是 bool)。这解释了 §1.4 的所有现象。
 
-### 4.2 为何 0.1 无法精确表示(需理解,详述)
+**为何如此设计?** 兼容性与简洁。Python 早期(bool 在 2.3 才引入,之前真值直接用 0/1 int)许多代码用 0/1 当布尔、与整数混算。让 bool 成为 int 子类,旧代码 `if x:`、`x + 1`、`sum([1,0,1])` 等混合用法都能无缝工作,True/False 与 1/0 互通。代价是"`isinstance(x, int)` 会吃掉 bool"这一需注意的陷阱(实践中先判 bool 短路)。这是"兼容性优先"的典型设计取舍。
 
-float 用**二进制**表示数值,而二进制只能精确表示"分母是 2 的幂"的小数(0.5、0.25、0.125、0.0625...),其余十进制小数(0.1、0.2、0.3、0.7...)在二进制下是**无限循环小数**,存储时被截断到 52 位尾数,产生舍入误差。
+**`__bool__` vs 父类 int**:有趣的是,`True`/`False` 的 `__bool__` 返回自身——`bool(True)` 是 `True`。而 `int.__bool__`(其实 int 没定义 `__bool__`,靠 §4.2 的默认规则:0 为假、非 0 为真)让 `bool(0)=False`、`bool(5)=True`。bool 子类继承这套规则,但因 bool 值只能是 0/1,结果稳定。理解 bool 内部是 int,就理解了它所有算术与类型行为。
 
-以 `0.1` 为例,转成二进制:`0.1 = 0.0001100110011001100...`(0011 无限循环)。这就像十进制下 `1/3 = 0.3333...` 无法精确表示一样——0.1 在二进制下是无限循环的。52 位尾数只存有限位,必然截断:
+### 4.2 真值测试的 __bool__/__len__ 机制(需理解,详述)
+
+§2.2 讲了真值测试的 `__bool__`/`__len__` 优先级规则,这里讲清其底层调用链。当 Python 在布尔语境(`if`/`while`/`and`/`or`/`not`/`bool(x)`)需要对象的真值时,内部步骤:
+
+1. 调用 `type(obj).__bool__(obj)`(若定义),用其返回值(必须是 bool)。
+2. 否则调用 `type(obj).__len__(obj)`(若定义),真值 = `(len != 0)`。
+3. 否则真值 = `True`(默认,任意对象为真)。
 
 ```python
-# 0.1 的真实存储值
-print(f"{0.1:.20f}")    # 0.10000000000000000555 —— 略大于 0.1
-# 用 as_integer_ratio 看精确分数
-print((0.1).as_integer_ratio())
-# (3602879701896397, 36028797018963968) —— 0.1 实际 = 3602879701896397 / 2^55
-```
+# 验证调用链:定义带日志的 __bool__/__len__
+class Tracer:
+    def __bool__(self):
+        print("__bool__ called")
+        return False
+    def __len__(self):
+        print("__len__ called")
+        return 0
 
-`0.1` 的实际存储值是 `3602879701896397 / 2^55 = 0.100000000000000005551...`,略大于 0.1。同理 `0.2` 略偏差。两个略偏的数相加,误差暴露为 `0.30000000000000004`:
+t = Tracer()
+print(bool(t))   # __bool__ called / False —— __bool__ 优先
+```
 
 ```python
-print(f"{0.1:.20f}")    # 0.10000000000000000555(略大)
-print(f"{0.2:.20f}")    # 0.20000000000000001110(略大)
-print(f"{0.3:.20f}")    # 0.29999999999999998890(略小)
-# 0.1+0.2 的实际值 ≈ 0.30000000000000004,与 0.3 的存储值(略小)不等
+class LenOnly:
+    def __len__(self):
+        print("__len__ called")
+        return 0    # 长度0 → 假
+print(bool(LenOnly()))   # __len__ called / False
+class LenNonZero:
+    def __len__(self):
+        return 5
+print(bool(LenNonZero()))   # True —— len≠0 即真
 ```
 
-这与 C/Java/JavaScript 完全一致——所有 IEEE 754 实现的 0.1 都是同一个不精确值,**这不是任何语言的 bug,而是二进制浮点的固有特性**。十进制小数(人习惯的)与二进制浮点(计算机存储的)之间的不可通约,是问题的数学本质。
+内置容器(list/dict/str/set/tuple)都定义了 `__len__` 但没 `__bool__`,故走 `__len__`:空(长度0)为假,非空为真。这就是 `if not []:`、`if "hi":` 的底层依据。
 
-**哪些小数能精确表示**?分母是 2 的幂的:`0.5`、`0.25`、`0.125`、`0.0625`、`0.75`(3/4)、`0.375`(3/8)等。这些 `as_integer_ratio` 给出干净的小分母:
+**`__bool__` 必须返回 bool**:
 
 ```python
-print((0.5).as_integer_ratio())    # (1, 2)    —— 干净,2 的幂分母
-print((0.25).as_integer_ratio())   # (1, 4)
-print((0.75).as_integer_ratio())   # (3, 4)
-print((0.1).as_integer_ratio())    # (3602879701896397, 36028797018963968) —— 巨大,不精确
+class Broken:
+    def __bool__(self):
+        return 1    # 不是 bool
+# bool(Broken())   # TypeError: __bool__ should return bool
 ```
 
-`0.5` 干净(`1/2`)、`0.1` 不干净(巨大分母)。这解释了"为什么有些小数运算恰好干净、有些出现长串误差"——取决于参与运算的数是否恰好是 2 的幂分母。
+CPython 严格检查 `__bool__` 返回类型为 bool,否则 `TypeError`。这条约束保证真值测试结果确定(True/False),不会因自定义类返回奇怪值破坏布尔逻辑。
 
-**解决之道**:既然二进制浮点无法精确表示十进制小数,需要精确十进制时改用**十进制存储**——`decimal.Decimal`(十进制浮点,存 0.1 就是 0.1)或 `int` 存最小单位(分母=1,纯整数)。这就是 §2.6 规避方案的原理依据:换一种"能精确表示所需数值"的存储方式。
+**`__bool__` 优先于 `__len__`** 的原因:`__bool__` 是更明确、更直接的"我说是真是假",`__len__` 是间接的(靠长度推断,适合"集合类"语义)。若类同时定义两者,`__bool__` 更精确的表达应胜出。这条优先级让你能精确控制真值:集合类用 `__len__`(自动空即假),状态类用 `__bool__`(显式条件)。
 
-### 4.3 精度范围与 inf/nan 的编码
+理解这套 `__bool__`→`__len__`→默认真的链,就理解了真值测试对所有对象的统一处理,也能自定义类的真值语义(如让 `if my_buffer:` 表"是否非空")。
 
-**范围**:指数 11 位(偏置 1023)给出约 ±1.8×10³⁰⁸ 的范围。超出上限 → `inf`,低于下限(下溢)→ 0。最小正正规数约 2.2×10⁻³⁰⁸,次正规数下到约 5×10⁻³²⁴。
+### 4.3 and/or 短路与返回值的字节码本质(需理解,详述)
+
+`and`/`or` 的"短路求值"与"返回操作数本身"这两个特性,从字节码看最清楚。`and` 的本质是"条件跳转":
 
 ```python
-import sys
-print(sys.float_info.max)     # 1.7976931348623157e+308 —— 最大有限值
-print(sys.float_info.min)     # 2.2250738585072014e-308 —— 最小正规正数
-print(sys.float_info.epsilon) # 2.220446049250313e-16 —— 1.0 与下一个可表示值的差(机器epsilon)
-print(1e400)                  # inf —— 超出上限变 inf
-print(1e-400)                 # 0.0 —— 下溢变 0
+import dis
+dis.dis(compile("a and b", "", "eval"))
+# LOAD_NAME a
+# JUMP_IF_FALSE_OR_POP label    —— 若 a 为假,跳到 label(且不弹出 a,直接作为结果)
+# LOAD_NAME b                   —— a 为真才加载 b
+# label:
+# RETURN_VALUE
 ```
 
-`sys.float_info` 暴露 float 的各种界限。`epsilon`(2.22e-16)是"1.0 与最近可区分值的差",代表 float 的相对精度极限——这就是 `math.isclose` 默认 `rel_tol=1e-9` 的参照(远大于 epsilon,留足容差)。
+`JUMP_IF_FALSE_OR_POP` 是关键:**若栈顶(a)为假,保留 a 在栈上,跳过 b 的加载,直接返回 a**(短路,返回操作数本身);若 a 为真,弹出 a(POP),继续加载 b,b 成为结果。这正是 `a and b` 的"假则返回 a、真则返回 b"逻辑。
 
-**inf 与 nan 的编码**:IEEE 754 用"指数全 1"的特殊编码表示这两个特殊值:
-
-- 指数全 1、尾数全 0 → `inf`(符号位定正负)。
-- 指数全 1、尾数非 0 → `nan`。
-
-这解释了 inf/nan 为何不遵循普通算术规则——它们是"特殊编码"而非普通数值。nan 的"不等于自身"特性是 IEEE 754 标准有意规定的:为了让"`x != x` 检测 nan"成为可能(即 `math.isnan` 的底层依据,虽然 Python 用专门指令实现)。inf 参与运算的规则(如 `inf - inf = nan`、`inf + 1 = inf`)也是 IEEE 754 明确定义的,反映"无穷与有限数的数学关系"。
+`or` 类似,用 `JUMP_IF_TRUE_OR_POP`:
 
 ```python
-import math
-print(math.inf - math.inf)   # nan —— 无穷减无穷未定义
-print(math.inf / math.inf)   # nan
-print(math.inf + 1)          # inf —— 无穷吞有限
-print(1 / math.inf)          # 0.0
+dis.dis(compile("a or b", "", "eval"))
+# LOAD_NAME a
+# JUMP_IF_TRUE_OR_POP label     —— 若 a 为真,保留 a,跳过 b,返回 a
+# LOAD_NAME b                   —— a 为假才加载 b
+# label:
+# RETURN_VALUE
 ```
 
-理解 inf/nan 是"特殊编码"而非普通数,就理解了它们的奇特算术行为,也理解了为何要用 `math.isinf`/`math.isnan` 专门检测(而非 `==`)。
+`JUMP_IF_TRUE_OR_POP`:**a 为真则保留 a 跳过 b 返回 a;为假则弹出 a 加载 b 返回 b**。即 `a or b` 的"真则返回 a、假则返回 b"。
 
-### 4.4 误差累积与大数吞噬的成因
+**这两条字节码揭示了两个特性的源头**:
 
-**误差累积**:单次运算误差极小(约 1e-17 量级),但反复累加会放大。10 次 `0.1` 累加误差累积到 `1e-16`,导致 `sum([0.1]*10) != 1.0`:
+- **短路**:`JUMP_IF_*_OR_POP` 在判定第一个操作数即可定结论时,跳过第二个操作数的 `LOAD`(及其所有副作用)。所以 `0 and expensive()` 中 `expensive()` 完全不执行。
+- **返回操作数本身**:跳转时"保留栈顶(第一个操作数)作为结果",而非转成 bool。所以 `'' or 'x'` 返回 `'x'`、`3 and 5` 返回 `5`——返回的是操作数对象,不是 True/False。
+
+这也解释了为何 `and`/`or` 不返回 bool——它们在字节码层就是"选择保留哪个操作数",没有 `bool(...)` 转换步骤。而 `not x` 不同,它有显式的取真值 + 反转,故返回 bool:
 
 ```python
-print(sum([0.1]*10))         # 0.9999999999999999 —— 误差累积
-print(sum([0.1]*10) - 1.0)   # -1.1102230246251565e-16 —— 累积残差
+dis.dis(compile("not x", "", "eval"))
+# LOAD_NAME x
+# UNARY_NOT                     —— 取反(内部:取真值后反转)
+# RETURN_VALUE
 ```
 
-每次 `+= 0.1` 都引入一次舍入误差,累积 N 次后误差约 N × epsilon。`math.fsum` 用更高内部精度(80 位扩展或精确求和算法)累加,避免中间舍入,显著降低累积误差:
+`UNARY_NOT` 把 x 判真假后反转,结果恒为 bool。这就是 `not` 总返回 bool 而 `and`/`or` 不返回 bool 的字节码根源。
+
+**短路的语义保证**:由于短路在字节码层是确切的跳转,`a and b` 中 `b` 仅在 `a` 为真时求值——这是语言保证,而非优化。因此 `x is not None and x.method()` 这种"靠短路保证安全"的写法是可靠的(只要 a 为假,b 必不评估,不会触发 b 的副作用/错误)。
+
+### 4.4 链式比较的求值方式
+
+链式比较 `a < b < c` 的求值,与直觉的"逐个比较"不同——它等价 `a < b and b < c`,且**每个操作数只求值一次**(b 不会算两次),但有短路:
 
 ```python
-import math
-print(math.fsum([0.1]*10))   # 1.0 —— 高精度求和,无累积误差
+dis.dis(compile("a < b < c", "", "eval"))
+# LOAD_NAME a
+# LOAD_NAME b
+# DUP_TOP            —— 复制 b(供第二个比较用,避免重新求值)
+# ROT_THREE
+# COMPARE_OP <       —— a < b
+# JUMP_IF_FALSE_OR_POP label   —— 短路:a<b 为假则跳过后续
+# LOAD_NAME c
+# COMPARE_OP <       —— b < c(用之前复制的 b)
+# label:
+# RETURN_VALUE
 ```
 
-`math.fsum` 维护一个"部分和"列表,用精确的整数运算跟踪舍入,最终给出最接近真值的结果。这是处理大量 float 求和的标准做法。
+`DUP_TOP` 复制 b 的值,让两次比较(b 在 `a<b` 和 `b<c` 中)用同一个 b 值——若 b 是有副作用的表达式(如函数调用),只执行一次。且 `a < b` 为假时短路,不评估 c。这保证了 `1 < x() < expensive()` 中 x() 只调一次、expensive() 在 1<x() 为假时不调。
 
-**大数吞噬**:当数值大到用满 53 位有效数字时,加上一个相对极小的增量,该增量落不到有效位,被舍掉:
+**关键:链式比较是 `and` 语义,不是数学意义上的传递**。`a < b < c` 是 `a < b and b < c`,要求两个都真。它**不是**"a<b 且 b<c 推出 a<c"的逻辑传递——那是不需要的,因为若前两个真,传递性自动保证 a<c,但代码只检查前两个。理解这点就理解链式比较的精确语义。
+
+**链式比较的陷阱**:与 `==`/`is` 混用时需注意解析:
 
 ```python
-print(1e16 + 1.0)            # 1e+16 —— 1 落不到有效位,被舍
-print(1e16 + 1.0 == 1e16)    # True
+print(1 == 1 == 1)    # True —— 1==1 and 1==1
+print(1 == 1 == 2)    # False
+# 但 is 不能这样链(语义怪异):
+a = b = c = [1]
+print(a is b is c)    # True —— a is b and b is c(都同一对象)
+# 链式比较主要用于 < > <= >= ==,is/in 链式少见且易混淆,慎用
 ```
 
-`1e16` 的二进制表示已占满 53 位有效位,`+1` 的增量小于"该量级下可分辨的最小步"(ULP,unit in the last place),被舍入丢失。ULP 随数值变大而变大——`1e16` 的 ULP 是 2,`1e0` 的 ULP 是 2⁻⁵²。这是浮点"绝对精度固定(53 位)、相对精度固定(epsilon)、绝对分辨率随量级变化"的特性。需要大数精度时,改用 `int`(任意精度)或 `Decimal`(可控精度)。
+链式比较主要用于数值区间的 `<`/`>`/`<=`/`>=` 与 `==`,`is`/`in` 链式虽语法合法但易读混,实战避免。
 
-理解误差累积与大数吞噬的成因,就理解了"为何 float 累加会偏、大数运算会丢增量",从而在精度敏感场景主动选用更稳的算法或类型。
+### 4.5 True/False 单例与关键字常量
+
+`True`/`False` 在 Python 3 是**关键字常量**(keyword constants),不是普通标识符。两个含义:
+
+- **不可赋值**:`True = 1` 是 `SyntaxError`(编译期拒绝),不是运行时错误。
+- **值在编译期固定**:字节码里 `LOAD_CONST` 加载常量,不是 `LOAD_NAME` 查名字空间。
+
+```python
+import dis
+dis.dis(compile("x = True", "", "exec"))
+# LOAD_CONST 0 (True)   —— 直接加载常量对象 True
+# STORE_NAME 0 (x)
+```
+
+若是普通标识符,会是 `LOAD_NAME True` 去名字空间查;而 `True` 是 `LOAD_CONST`,加载解释器内置的单例常量。这与"无法赋值覆盖"一体两面:True/False/None 不是名字空间条目,是固定常量。
+
+**单例**:全解释器只有一个 `True`、一个 `False`、一个 `None` 对象。所有写 `True` 的地方都引用同一对象,故 `True is True` 恒为真:
+
+```python
+a = True
+b = (1 == 1)        # 比较结果也是那同一个 True 单例
+print(a is b)       # True —— 都是单例 True
+```
+
+`True`/`False` 的单例性让 `is` 判身份可靠(`x is True` 精确判"是不是 True 单例")。但注意 `1 is True` 为 `False`(1 和 True 是不同对象,虽 `1 == True`);`is True` 比"是否为真值"严格(仅判 True 单例)。
+
+**历史**:Python 2 早期,`True`/`False` 是内置名字空间的标识符(可被赋值覆盖,造成灾难,如 `True = False`)。Python 3 把它们升格为关键字常量,杜绝覆盖。`None` 在 2.4 也成为关键字。这是 Python 进化中"防止误用"的改进。理解这些是关键字常量、单例,就理解了为何用 `is` 判它们可靠、为何赋值报错。
 
 ---
 
@@ -866,34 +1018,29 @@ print(1e16 + 1.0 == 1e16)    # True
 
 ### 5.1 本文内容回顾
 
-- **float 定义**:Python 浮点数类型,底层 IEEE 754 双精度(64 位),不可变,可哈希;有范围限制(±1.8×10³⁰⁸)与精度限制(~15~17 位有效数字)。
-- **int vs float**:离散计数用 int、连续量用 float、金额等精度敏感用 int 存最小单位或 Decimal,绝不用 float 存金额。
-- **字面量**:含 `.`/`e` 即 float,科学计数法,下划线分隔;inf/nan 用 `float()`/`math` 构造无字面量。
-- **精度误差(核心)**:二进制无法精确表示多数十进制小数(0.1 是无限循环二进制),`0.1+0.2!=0.3`,累加有累积误差,大数吞噬小数;误差是 IEEE 754 共性非 Python bug。
-- **round 银行家舍入**:逢 5 向偶数舍入(`round(2.5)=2`),且受精度干扰(`round(2.675,2)=2.67`),不能"修好"精度;传统四舍五入用 Decimal ROUND_HALF_UP。
-- **inf/nan**:inf 超范围值,nan 表无意义运算结果;nan 不等于自身,判 nan 用 `math.isnan`,混入数据毒化计算需先清洗。
-- **float 方法**:`as_integer_ratio`(看精确分数,揭示 0.1 不精确)、`is_integer`(判整数值)、`hex`(看内部表示)、`float()` 构造(失败抛 ValueError)。
-- **精度规避方案**:int 存最小单位(金额)、Decimal(精确十进制,须字符串构造、可控舍入)、Fraction(精确分数)、math.isclose(容差比较);四方案按场景选型。
-- **转换与隐式提升**:`int(3.9)` 截断(向零)非四舍五入;`/` 永远 float、`//` 地板除(有 float 返回 float);int 与 float 混算隐式提升为 float。
-- **原理**:IEEE 754 双精度结构(1 符号 + 11 指数 + 52 尾数,53 位有效决定 ~15~17 位精度);0.1 在二进制下无限循环被截断(分母非 2 的幂的小数都不精确);inf/nan 用指数全 1 的特殊编码;误差累积源于每次运算的舍入放大、math.fsum 用高精度求和规避;大数吞噬因 53 位有效位用满后小增量落不到有效位。
-- **最佳实践**:金额不用 float、float 比较用 isclose、round 是银行家且不能修精度、Decimal 用字符串构造、累加用 fsum、清洗 nan、大数用 int/Decimal、取整明语义、除法 // vs /、科学计算用 float、转换捕获 ValueError、格式化仅显示层不解决精度。
+- **bool 定义**:Python 真值类型,两实例 `True`/`False`(首字母大写,非 true/false),用于一切条件逻辑。
+- **真值测试**:任何对象在布尔语境被判真假;假值=`False`/`None`/数值零/空容器,其余为真;容器只看空非空不看元素(`[0]` 为真);`if items:` 是判空惯用法。
+- **真值测试底层**:`__bool__` 优先(须返回 bool)→ `__len__`(len≠0 为真)→ 默认真;自定义类可定义 `__bool__` 控制真值。
+- **布尔运算符**:`and`/`or` 短路求值且返回操作数本身(非 bool);`not` 一元、总返回 bool、优先级最高。
+- **短路逻辑**:`a and b` 假则返回 a 短路、真则返回 b;`a or b` 真则返回 a 短路、假则返回 b;短路省副作用与开销(廉价检查放前)。
+- **and/or 惯用法**:`a or default` 设默认值(注意 falsy 覆盖范围)、`a and b` 链式前置条件(`None and None.method` 防错,但空容器会误短路);三目 `a if cond else b` 优先于 and/or 模拟。
+- **not**:取反,总返回 bool,优先级低于比较;避免 `not x == y` 混排。
+- **比较运算符**:`==`/`!=`/`</>`/`is`/`in` 结果为 bool;链式比较 `a < x < b` 等价 `a<x and x<b` 且只评估 x 一次;跨类型比较 Python 3 限制(数字与字符串不可比)。
+- **== vs is**:`==` 比值(调 `__eq__`),`is` 比身份(同一对象);判 None 用 `is None`,判值用 `==`(勿用 is 比值,小整数缓存陷阱)。
+- **bool 即 int**:True==1/False==0,isinstance(True,int) 为 True(需先判 bool 短路);`sum(条件)` 计数;bool 参与算术提升为 int。
+- **原理**:bool 继承 int(值 0/1、重写显示、算术继承,MRO bool→int→object);真值测试 `__bool__`→`__len__`→默认真链;and/or 用 `JUMP_IF_*_OR_POP` 字节码实现短路与返回操作数(故不返回 bool),not 用 UNARY_NOT 故返回 bool;链式比较 `DUP_TOP` 复制操作数只求值一次且有短路;True/False/None 是关键字常量+单例(LOAD_CONST 非 LOAD_NAME,不可赋值)。
+- **最佳实践**:判空用真值测试、判 None 用 is、判布尔用 if x:、or 设默认注意 falsy、三目优先、链式比较区间、and 廉价在前、防空容器误短路、not 不与比较混排、bool 计数权衡可读性、True/None 大写。
 
 ### 5.2 读完本文你应能掌握
 
-- 说明 `float` 的 IEEE 754 双精度结构(符号/指数/尾数)与精度(~15~17 位)、范围限制。
-- 解释 `0.1 + 0.2 != 0.3` 的根本原因(二进制无法精确表示 0.1),指出这是所有 IEEE 754 实现的共性而非 Python bug。
-- 选用正确方案规避精度问题:金额用 int 存分、精确十进制用 Decimal(字符串构造)、分数用 Fraction、float 比较用 math.isclose。
-- 说明 `round` 的银行家舍入规则及其受精度干扰的现象,用 Decimal 实现传统四舍五入。
-- 说明 inf/nan 的行为(nan 不等于自身、毒化计算),用 `math.isnan`/`math.isinf` 检测,清洗含 nan 数据。
-- 用 `as_integer_ratio`/`is_integer`/`hex` 观察 float 内部,解读结果。
-- 说明 `int(3.9)` 是截断非四舍五入,区分 int/round/floor/ceil/trunc 的取整语义。
-- 说明 `/`(真除 float)与 `//`(地板除)的返回类型规则,以及 int 与 float 混算的隐式提升。
-- 阐述 IEEE 754 结构、0.1 不精确的数学本质、inf/nan 编码、误差累积与大数吞噬的成因。
-
-### 5.3 延伸方向
-
-- **int 类型详解**:int 的任意精度、`int` 存最小单位规避浮点的完整用法,见《int 类型详解》。
-- **bool 类型与短路逻辑**:bool 作为 int 子类、真值测试,见《bool 类型与短路逻辑》。
-- **类型转换机制**:显式转换(`int()`/`float()` 构造规则)与隐式转换(int→float 提升),见《显式类型转换》《隐式类型转换》。
-- **Decimal 与 Fraction 深度**:`decimal` 模块的上下文精度、舍入模式、`Context`、`fractions` 的有理数运算,见标准库专题。
-- **科学计算中的浮点**:NumPy 的 float32/float64、向量化浮点运算、`np.isclose`/`np.isnan` 数组级精度处理,见《NumPy 数值计算》专题。
+- 说明 `bool` 的定义与 `True`/`False`(首字母大写,非 true/false),指出它们是单例关键字常量。
+- 复述真相值测试规则(假值集合),指出容器只看空非空(`[0]` 为真),用 `if items:` 惯用法判空。
+- 阐述真值测试的 `__bool__`/`__len__` 优先级链,用 `__bool__` 自定义类的真值。
+- 说明 `and`/`or` 的短路求值与返回操作数本身的特性,预判 `0 and 5`、`'' or 'x'` 的返回值。
+- 用 `a or default` 设默认值、`a and b` 链式前置条件,指出前者 falsy 覆盖范围、后者空容器误短路陷阱。
+- 用三目 `a if cond else b`,说明为何优先于 and/or 模拟。
+- 说明 `not` 总返回 bool、优先级,避免 `not x == y` 混排。
+- 用链式比较判断区间,说明其等价 `and` 语义与"只求值一次"特性。
+- 区分 `==`(值)与 `is`(身份),用 `is None` 判 None,避免用 `is` 比值(缓存陷阱)。
+- 说明 bool 是 int 子类的后果(True+True==2、isinstance 渗透),用 `sum(条件)` 计数。
+- 阐述 bool 继承 int、真值测试链、and/or 字节码短路本质、链式比较求值、True/False 单例等原理。
