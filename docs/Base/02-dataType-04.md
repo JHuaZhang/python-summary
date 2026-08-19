@@ -3,7 +3,7 @@ group:
   title: 【02】基础数据类型和类型系统
   order: 2
 order: 4
-title: int类型详解
+title: float类型与精度问题
 nav:
   title: Python基础
   order: 1

@@ -3,7 +3,7 @@ group:
   title: 【02】基础数据类型和类型系统
   order: 2
 order: 5
-title: float类型与精度问题
+title: bool类型与短路逻辑
 nav:
   title: Python基础
   order: 1

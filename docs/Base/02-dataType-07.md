@@ -3,7 +3,7 @@ group:
   title: 【02】基础数据类型和类型系统
   order: 2
 order: 7
-title: None类型详解
+title: complex复数类型
 nav:
   title: Python基础
   order: 1

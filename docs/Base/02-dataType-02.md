@@ -3,7 +3,7 @@ group:
   title: 【02】基础数据类型和类型系统
   order: 2
 order: 2
-title: 字面量详解
+title: 类型判断与type系统
 nav:
   title: Python基础
   order: 1

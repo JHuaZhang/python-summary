@@ -3,7 +3,7 @@ group:
   title: 【02】基础数据类型和类型系统
   order: 2
 order: 3
-title: 类型判断与type系统
+title: int类型详解
 nav:
   title: Python基础
   order: 1
