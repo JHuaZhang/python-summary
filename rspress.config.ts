@@ -115,6 +115,64 @@ export default defineConfig({
                     "link": "/Base/02-dataType-07"
                 }
             ]
+        },
+        {
+            "text": "【03】字符串深度剖析",
+            "collapsible": true,
+            "items": [
+                {
+                    "text": "字符串创建与驻留机制",
+                    "link": "/Base/03-string-01"
+                },
+                {
+                    "text": "字符串索引与切片",
+                    "link": "/Base/03-string-02"
+                },
+                {
+                    "text": "转义字符与跨平台换行",
+                    "link": "/Base/03-string-03"
+                },
+                {
+                    "text": "原始字符串",
+                    "link": "/Base/03-string-04"
+                },
+                {
+                    "text": "字符串拼接性能对比",
+                    "link": "/Base/03-string-05"
+                },
+                {
+                    "text": "字符串查询与判断方法",
+                    "link": "/Base/03-string-06"
+                },
+                {
+                    "text": "字符串变形与清洗方法",
+                    "link": "/Base/03-string-07"
+                },
+                {
+                    "text": "字符串分割方法",
+                    "link": "/Base/03-string-08"
+                },
+                {
+                    "text": "字符串替换方法",
+                    "link": "/Base/03-string-09"
+                },
+                {
+                    "text": "字符串与类型转换",
+                    "link": "/Base/03-string-10"
+                },
+                {
+                    "text": "f-string 与字符串格式化",
+                    "link": "/Base/03-string-11"
+                },
+                {
+                    "text": "字符串与字符编码",
+                    "link": "/Base/03-string-12"
+                },
+                {
+                    "text": "字符串与正则表达式",
+                    "link": "/Base/03-string-13"
+                }
+            ]
         }
     ]
 },
