@@ -3,1129 +3,1054 @@ group:
   title: 【03】字符串深度剖析
   order: 3
 order: 6
-title: 字符串查询与判断方法
+title: 字符串与类型转换
 nav:
   title: Python基础
   order: 1
 ---
 
-# 字符串查询与判断方法
+# 字符串与类型转换
 
 ## 1. 介绍
 
-### 1.1 什么是字符串查询与判断方法
+### 1.1 什么是字符串与类型转换
 
-字符串查询与判断方法是 Python `str` 类中用于"检查字符串特征"的一组内置方法。它们不修改字符串内容，而是返回关于字符串的某种信息——查询方法返回位置或数量，判断方法返回布尔值。这些方法是日常开发中最常使用的字符串工具，从输入校验到日志分析，随处可见。
+字符串与类型转换是 Python 中字符串（`str`）与其他数据类型之间的双向转换操作。在实际开发中，数据在输入、处理、输出各环节经常以字符串形式存在（用户输入、文件读取、网络请求），而计算时需要数字、列表等类型。掌握字符串与其他类型的互转方法，是数据处理的基础能力。
 
-```python
-# 查询方法：返回位置或数量
-text = "Hello Python World"
-print(text.find("Python"))    # 6（位置）
-print(text.count("o"))        # 3（次数）
+Python 提供了一整套类型转换工具，覆盖了日常开发的各个方向：
 
-# 判断方法：返回布尔值
-print("123".isdigit())        # True
-print("hello".isalpha())      # True
-```
-
-查询与判断方法可以分成两大族：
-
-| 族 | 方法 | 返回值 | 典型用途 |
-|----|------|--------|---------|
-| 查询族 | `len`、`in`、`find`、`rfind`、`index`、`rindex`、`count` | int / bool | 定位子串、统计次数 |
-| 判断族 | `isalpha`、`isdigit`、`isalnum`、`isspace`、`isupper`、`islower`、`istitle`、`isidentifier`、`isprintable`、`isascii` | bool | 校验字符串类型 |
+| 转换方向 | 主要函数/方法 | 典型场景 |
+|---------|-------------|---------|
+| 其他类型 → 字符串 | `str()` | 输出展示、字符串拼接 |
+| 字符串 → 整数 | `int()` | 解析用户输入、配置读取 |
+| 字符串 → 浮点数 | `float()` | 解析价格、分数、坐标 |
+| 字符串 ↔ 字符列表 | `list()` / `str.join()` | 逐字符处理、字符串拼接 |
+| 字符 ↔ 码点 | `chr()` / `ord()` | 编码处理、字符运算 |
+| 对象 → 字符串 | `str()` / `repr()` | 显示 vs 调试 |
 
 ### 1.2 最简示例
 
 ```python
-# 查询族：用 in 判断子串是否存在
-sentence = "Python is powerful"
-print("powerful" in sentence)  # True
-print("Java" in sentence)       # False
+# 其他类型 → 字符串
+print(str(42))        # '42'
+print(str(3.14))       # '3.14'
+print(str(True))       # 'True'
 
-# 查询族：用 find 定位子串位置
-pos = sentence.find("is")
-print(pos)  # 7
+# 字符串 → 数字
+print(int("42"))       # 42
+print(float("3.14"))   # 3.14
 
-# 判断族：用 isalpha 判断是否纯字母
-print("hello".isalpha())    # True
-print("hello123".isalpha()) # False
+# 字符串 ↔ 列表
+chars = list("hello")
+print(chars)           # ['h', 'e', 'l', 'l', 'o']
+print("".join(chars))  # hello
+
+# 字符 ↔ 码点
+print(ord('A'))       # 65
+print(chr(65))         # 'A'
+
+# str() vs repr()
+s = "Hello\nWorld"
+print(str(s))          # 原样显示（含换行）
+print(repr(s))         # 'Hello\nWorld'（带转义符）
 ```
 
-这两个方法族覆盖了开发中最常见的字符串检查需求——"这段文字中包含某段子串吗？""这段文字是纯数字吗？""这段文字以特定前缀开头吗？"理解每种方法的行为细节和适用场景，能让你在数据校验、文本处理、日志分析等任务中游刃有余。
+这些转换函数构成了 Python 数据处理的"核心工具箱"——从用户输入解析到文件读取、从数据序列化到调试输出，都离不开它们。
 
 ## 2. 核心内容
 
-### 2.1 `len()` 与成员运算符 `in`
+### 2.1 `str()` 将各种类型转为字符串
 
-#### 2.1.1 `len()` 获取字符串长度
+#### 2.1.1 基本类型转字符串
 
-`len()` 是 Python 内置函数，返回字符串中的 Unicode 字符个数。
+`str()` 是最通用的"转字符串"函数——它可以接收任何 Python 对象，返回其字符串表示。对于基本类型，转换行为直观明了：
 
 ```python
-name = "Python编程"
-print(len(name))  # 8（6 个 ASCII + 2 个中文 = 8 个字符）
+# 整数 → 字符串
+n = 42
+s = str(n)
+print(type(s), s)  # <class 'str'> 42
+
+# 浮点数 → 字符串
+f = 3.14159
+s = str(f)
+print(s)  # 3.14159
+
+# 布尔 → 字符串
+print(str(True))   # True
+print(str(False))  # False
+
+# None → 字符串
+print(str(None))   # None
 ```
 
-`len()` 计算的是 Unicode 字符数，而不是字节数。对于包含中文、emoji 等多字节字符的字符串，`len()` 返回的是"人类感知到的字符个数"。
+#### 2.1.2 容器类型转字符串
+
+容器类型（列表、字典、元组等）的 `str()` 返回的是它们的"字面量表示"——和 `print()` 直接打印它们的效果一致：
 
 ```python
-# 中文字符
-s = "你好"
-print(len(s))                       # 2
-print(len(s.encode('utf-8')))        # 6（UTF-8 编码后的字节数）
+# 列表 → 字符串
+lst = [1, 2, 3]
+print(str(lst))  # [1, 2, 3]
 
-# 包含转义字符：按实际字符计算
-text = "hello\nworld"
-print(len(text))  # 11（\n 是单个字符，不是两个）
+# 字典 → 字符串
+d = {"name": "Alice", "age": 30}
+print(str(d))  # {'name': 'Alice', 'age': 30}
+
+# 元组 → 字符串
+t = (1, "hello", True)
+print(str(t))  # (1, 'hello', True)
 ```
 
-**空字符串的长度为 0**：
+注意 `str()` 转换容器类型得到的是一个完整的字符串（如 `"[1, 2, 3]"`），而不是把列表元素拼接在一起。如果需要拼接列表元素为字符串，应该用 `join()`。
+
+#### 2.1.3 `str()` 与 `print()` 的关系
+
+`print()` 内部会自动调用 `str()` 将参数转为字符串后再输出。因此 `str(x)` 返回的内容就是 `print(x)` 打印出来的文本：
 
 ```python
-print(len(""))  # 0
+print(42)         # print 内部执行 str(42)，输出: 42
+print(str(42))    # 显式调用 str(42)，输出: 42
+
+# 两者输出相同，因为 print 本质就是 print(str(x))
 ```
 
-#### 2.1.2 `in` / `not in` 成员判断
+#### 2.1.4 实际应用——字符串拼接
 
-`in` 运算符判断子串是否存在于字符串中，返回布尔值。`not in` 判断子串不存在。
+`str()` 最常见的用途之一是将非字符串数据拼接进字符串。在 f-string 出现之前，这是唯一的拼接方式：
 
 ```python
-sentence = "Python is a powerful programming language"
+# 用 str() 手动拼接
+count = 5
+price = 9.99
+total = count * price
+msg = "买了 " + str(count) + " 件商品，总价 " + str(total) + " 元"
+print(msg)
+# 买了 5 件商品，总价 49.95 元
 
-# 子串存在判断
-print("Python" in sentence)      # True
-print("Java" in sentence)        # False
-print("power" in sentence)       # True（部分匹配也算）
-
-# not in 判断不存在
-print("Ruby" not in sentence)    # True
-
-# in 是大小写敏感的
-print("python" in sentence)      # False（大小写不同）
+# f-string 内部自动调用 __format__ 方法，效果相同但更简洁
+msg2 = f"买了 {count} 件商品，总价 {total} 元"
+print(msg2)
+# 买了 5 件商品，总价 49.95 元
 ```
 
-`in` 判断的是**子串**，不是单词——"power" 能匹配到 "powerful" 中的部分，这是一种"包含"关系：
+在现代 Python 代码中，f-string 已基本替代了 `str()` 拼接场景。但 `str()` 在需要显式类型转换的场景仍然不可替代——比如将表单数据统一转为字符串存储：
 
 ```python
-text = "hello world"
-print("lo wo" in text)  # True（"lo wo" 是 "hello world" 的子串）
-```
+def normalize_form(data):
+    """将表单字段的值统一转为字符串"""
+    result = {}
+    for key, value in data.items():
+        if value is None:
+            result[key] = ""
+        else:
+            result[key] = str(value).strip()
+    return result
 
-这与列表的 `in` 判断有本质区别——列表的 `in` 判断的是完整元素：
-
-```python
-words = ["hello", "world"]
-print("hello" in words)   # True（完整元素匹配）
-print("lo wo" in words)   # False（"lo wo" 不是列表中的任何元素）
-```
-
-**实际应用——敏感词过滤**：
-
-```python
-content = "这里有一些不适当的内容"
-sensitive_words = ["暴力", "色情", "不适当"]
-found = [w for w in sensitive_words if w in content]
-if found:
-    print(f"检测到敏感词: {found}")  # 检测到敏感词: ['不适当']
-else:
-    print("内容安全")
-```
-
-### 2.2 前缀与后缀判断：`startswith()` 与 `endswith()`
-
-#### 2.2.1 `startswith()` 基本用法
-
-`startswith(prefix)` 判断字符串是否以指定前缀开头，返回布尔值。
-
-```python
-filename = "report_2024.csv"
-print(filename.startswith("report"))  # True
-print(filename.startswith("csv"))     # False
-```
-
-`startswith()` 支持 `start` 和 `end` 参数，用于限定检查范围：
-
-```python
-url = "https://www.example.com/api/v1"
-
-# 检查前 5 个字符是否为 "https"
-print(url.startswith("https", 0, 5))  # True
-
-# 从索引 8 开始检查是否为 "www"
-print(url.startswith("www", 8))       # True
-```
-
-#### 2.2.2 `startswith()` 支持元组多值匹配
-
-`startswith()` 的参数可以是元组——只要匹配其中任意一个前缀就返回 `True`。这是批量判断多个前缀的简洁写法：
-
-```python
-url = "ftp://files.example.com/data"
-protocols = ("http://", "https://", "ftp://", "file://")
-
-if url.startswith(protocols):
-    print(f"支持的协议: {url.split('://')[0]}")  # 支持的协议: ftp
-else:
-    print("不支持的协议")
-```
-
-不用写多个 `or` 条件，一行代码就能完成多前缀判断。
-
-#### 2.2.3 `endswith()` 基本用法
-
-`endswith(suffix)` 判断字符串是否以指定后缀结尾，返回布尔值。同样支持元组多值匹配和 `start`/`end` 参数。
-
-```python
-filename = "report_2024.csv"
-print(filename.endswith(".csv"))  # True
-print(filename.endswith(".txt")) # False
-```
-
-**典型应用——文件类型判断**：
-
-```python
-def get_file_type(filename):
-    if filename.endswith((".jpg", ".jpeg", ".png", ".gif", ".bmp")):
-        return "图片"
-    elif filename.endswith((".mp4", ".avi", ".mov", ".mkv")):
-        return "视频"
-    elif filename.endswith((".mp3", ".wav", ".flac", ".aac")):
-        return "音频"
-    elif filename.endswith((".py", ".java", ".c", ".go", ".rs")):
-        return "代码"
-    else:
-        return "其他"
-
-files = ["photo.jpg", "movie.mp4", "song.mp3", "main.py", "data.bin"]
-for f in files:
-    print(f"  {f:15s} -> {get_file_type(f)}")
+form = {"name": "Alice", "age": 30, "vip": True, "memo": None}
+clean = normalize_form(form)
+for k, v in clean.items():
+    print(f"  {k}: {v!r}")
 
 # 输出:
-#   photo.jpg       -> 图片
-#   movie.mp4       -> 视频
-#   song.mp3        -> 音频
-#   main.py         -> 代码
-#   data.bin        -> 其他
+#   name: 'Alice'
+#   age: '30'
+#   vip: 'True'
+#   memo: ''
 ```
 
-#### 2.2.4 空字符串的边界行为
+### 2.2 `int()` / `float()` 将字符串解析为数字
 
-空字符串作为前缀或后缀时，总是返回 `True`——因为任何字符串都可以视为"以空串开头"或"以空串结尾"。
+#### 2.2.1 `int()` 基本用法
+
+`int()` 将字符串解析为整数。要求字符串内容是合法的整数表示（可带正负号和两端空白）：
 
 ```python
-print("hello".startswith(""))  # True
-print("hello".endswith(""))    # True
+# 纯数字字符串 → 整数
+print(int("42"))     # 42
 
-# 空字符串只有以空串开头/结尾时才返回 True
-print("".startswith("hello"))  # False
-print("".startswith(""))       # True
+# 负数字符串
+print(int("-100"))   # -100
+
+# 自动去除两端空白
+print(int("  42  "))  # 42
 ```
 
-### 2.3 子串位置查找：`find()` / `rfind()` / `index()` / `rindex()`
+#### 2.2.2 `int()` 的进制参数
 
-#### 2.3.1 `find()` 查找子串位置
-
-`find(sub)` 返回子串**第一次出现**的索引位置。找不到时返回 `-1`。它支持 `start` 和 `end` 参数限定查找范围。
+`int(string, base)` 可以将指定进制的字符串转为整数。`base` 范围是 2~36：
 
 ```python
-text = "Hello, welcome to Python world!"
-pos = text.find("welcome")
-print(pos)  # 7
+# 二进制
+print(int("1010", 2))  # 10
 
-pos = text.find("Java")
-print(pos)  # -1（未找到）
+# 八进制
+print(int("17", 8))    # 15
+
+# 十六进制
+print(int("FF", 16))   # 255
 ```
 
-**带 `start`/`end` 参数的查找**：
+`base=0` 是一个特殊值——它会让 `int()` 根据字符串前缀自动判断进制：`0x` 开头是十六进制，`0b` 开头是二进制，`0o` 开头是八进制，否则是十进制：
 
 ```python
-text = "apple, banana, apple, cherry"
-pos1 = text.find("apple")              # 0（第一次出现）
-pos2 = text.find("apple", pos1 + 1)    # 15（第二次出现，从上次位置+1继续）
+print(int("0xFF", 0))   # 255  ← 十六进制
+print(int("0b1010", 0)) # 10   ← 二进制
+print(int("0o17", 0))   # 15   ← 八进制
+print(int("42", 0))     # 42   ← 十进制
 ```
 
-这个模式可以用来循环查找子串的所有出现位置：
+#### 2.2.3 `int()` 解析失败的异常处理
+
+`int()` 对字符串格式有严格要求——含有非整数字符（小数点、字母等）的字符串会抛出 `ValueError`：
 
 ```python
-def find_all(text, sub):
-    """用 find 循环找到子串的所有出现位置"""
-    positions = []
-    start = 0
-    while True:
-        pos = text.find(sub, start)
-        if pos == -1:
-            break
-        positions.append(pos)
-        start = pos + 1  # +1 可以找到重叠的子串
-    return positions
+def safe_int(s):
+    """安全转换字符串为整数，失败返回 None"""
+    try:
+        return int(s)
+    except ValueError:
+        return None
 
-print(find_all("ababa", "aba"))  # [0, 2]（+1 步进会找到重叠的）
+test_values = ["42", "3.14", "hello", "12abc", "", "  100  "]
+for v in test_values:
+    result = safe_int(v)
+    print(f"  int({v!r:<12}) → {result}")
+
+# 输出:
+#   int('42'         ) → 42
+#   int('3.14'       ) → None  ← 浮点字符串不能直接转 int
+#   int('hello'      ) → None
+#   int('12abc'      ) → None
+#   int(''           ) → None
+#   int('  100  '    ) → 100
 ```
 
-#### 2.3.2 `rfind()` 从右向左查找
+注意 `"3.14"` 不能直接用 `int()` 转换——它是一个浮点字符串，需要先经过 `float()` 再转 `int()`。
 
-`rfind(sub)` 返回子串**最后一次出现**的索引位置，找不到返回 `-1`。同样支持 `start`/`end` 参数。
+#### 2.2.4 `float()` 基本用法
+
+`float()` 将字符串解析为浮点数，支持小数点和科学记数法：
 
 ```python
-text = "apple, banana, apple, cherry"
-last_pos = text.rfind("apple")
-print(last_pos)  # 15（最后一个 "apple"）
+# 普通浮点数
+print(float("3.14"))  # 3.14
 
-# find 和 rfind 的区别
-text = "ABCABC"
-print(text.find("B"))    # 1（从左数第一个）
-print(text.rfind("B"))   # 4（从右数第一个）
+# 整数字符串也能转 float
+print(float("42"))    # 42.0
+
+# 科学记数法
+print(float("1.5e3"))  # 1500.0
+print(float("2.5E-2")) # 0.025
+
+# 特殊浮点值
+print(float("inf"))   # inf
+print(float("-inf"))  # -inf
+print(float("nan"))   # nan
+
+# 自动去除两端空白
+print(float("  3.14  "))  # 3.14
 ```
 
-#### 2.3.3 `index()` 与 `find()` 的区别
+#### 2.2.5 `float()` 解析失败处理
 
-`index()` 和 `find()` 功能完全相同，区别在于**找不到子串时的行为**：
+```python
+def safe_float(s):
+    """安全转换字符串为浮点数，失败返回 None"""
+    try:
+        return float(s)
+    except ValueError:
+        return None
 
-| 方法 | 找到时 | 找不到时 |
-|------|--------|---------|
-| `find()` | 返回索引 | 返回 `-1` |
-| `index()` | 返回索引 | 抛出 `ValueError` 异常 |
+float_tests = ["3.14", "42", "1e5", "hello", "3.14.15", ""]
+for v in float_tests:
+    result = safe_float(v)
+    print(f"  float({v!r:<12}) → {result}")
+
+# 输出:
+#   float('3.14'      ) → 3.14
+#   float('42'        ) → 42.0
+#   float('1e5'       ) → 100000.0
+#   float('hello'     ) → None
+#   float('3.14.15'   ) → None  ← 两个小数点
+#   float(''          ) → None
+```
+
+#### 2.2.6 字符串 → float → int 的链式转换
+
+浮点字符串不能直接用 `int()` 转换，需要先经过 `float()`：
+
+```python
+price_str = "29.99"
+# int(price_str)  # ValueError!
+price_cents = int(float(price_str) * 100)
+print(f"价格 {price_str} → {price_cents} 分")
+# 价格 29.99 → 2999 分
+```
+
+#### 2.2.7 `int()` 与 `float()` 的关键差异
+
+| 维度 | `int()` | `float()` |
+|------|---------|-----------|
+| 接受的小数点 | 不接受 | 接受 |
+| 接受科学记数法 | 不接受 | 接受 |
+| 整数字符串 | 可以 | 可以（返回 `.0`） |
+| 浮点字符串 | 不行（报错） | 可以 |
+| 进制参数 | 支持 `base` | 不支持 |
+| 特殊值 | 无 | `inf`/`nan` |
+
+**记住**：`int()` 要求字符串是纯整数表示，`float()` 要求字符串是合法的浮点表示。浮点字符串要转整数，必须先 `float()` 再 `int()`。
+
+#### 2.2.8 实际应用——表单数据类型转换
+
+```python
+def parse_form_numbers(form_data):
+    """将表单中的数值字段从字符串转为数字"""
+    parsed = {}
+    for key, value in form_data.items():
+        parsed[key] = value  # 保留原值
+
+        # 先尝试转整数
+        try:
+            parsed[key] = int(value)
+            continue
+        except (ValueError, TypeError):
+            pass
+
+        # 再尝试转浮点数
+        try:
+            parsed[key] = float(value)
+            continue
+        except (ValueError, TypeError):
+            pass
+
+    return parsed
+
+form = {"name": "Alice", "age": "25", "score": "95.5", "count": "3"}
+result = parse_form_numbers(form)
+for k, v in result.items():
+    print(f"  {k}: {v!r} (type={type(v).__name__})")
+
+# 输出:
+#   name: 'Alice' (type=str)
+#   age: 25 (type=int)
+#   score: 95.5 (type=float)
+#   count: 3 (type=int)
+```
+
+### 2.3 字符串与列表互转：`list()` / `join()`
+
+#### 2.3.1 `list()` 将字符串转为字符列表
+
+`list()` 将字符串拆解为字符列表——每个字符变成列表的一个独立元素：
+
+```python
+# 英文字符串
+chars = list("hello")
+print(chars)
+# ['h', 'e', 'l', 'l', 'o']
+
+# 中文字符串（也是逐字符拆分）
+cn = list("你好世界")
+print(cn)
+# ['你', '好', '世', '界']
+
+# 空字符串 → 空列表
+print(list(""))
+# []
+```
+
+#### 2.3.2 `str.join()` 将列表拼回字符串
+
+`join()` 是 `list()` 的逆操作——将字符串列表用指定的分隔符连接成一个字符串：
+
+```python
+# 用 "-" 连接
+words = ["Python", "is", "awesome"]
+print("-".join(words))
+# Python-is-awesome
+
+# 无分隔符拼接
+print("".join(["H", "e", "l", "l", "o"]))
+# Hello
+
+# 空格拼接
+print(" ".join(["2024", "01", "15"]))
+# 2024 01 15
+```
+
+#### 2.3.3 `list()` → `join()` 往返转换
+
+`list()` 拆字符后修改，再用 `join()` 拼回来——这是字符串"可变操作"的惯用模式：
+
+```python
+text = "hello"
+chars = list(text)
+# 修改第 0 个字符
+chars[0] = "H"
+# 拼回字符串
+new_text = "".join(chars)
+print(f"原: {text} → 改: {new_text}")
+# 原: hello → 改: Hello
+```
+
+经典应用——反转字符串：
 
 ```python
 text = "Hello Python"
-
-print(text.find("Python"))    # 6
-print(text.index("Python"))  # 6
-
-# 找不到时
-print(text.find("Java"))     # -1（静默返回 -1）
-
-try:
-    text.index("Java")
-except ValueError as e:
-    print(f"index 抛出异常: {e}")  # index 抛出异常: substring not found
+reversed_text = "".join(reversed(list(text)))
+print(f"反转: {reversed_text}")
+# 反转: nohtyP olleH
 ```
 
-**选择原则**：当你确定子串一定存在，或者希望在不存在时得到异常提示（而非静默忽略），用 `index()`；当你不确定子串是否存在，且不想处理异常，用 `find()`。
+#### 2.3.4 `join()` 只能拼接字符串元素
 
-`rindex()` 是 `rfind()` 的异常版——从右向左查找，找不到时抛出 `ValueError`。
+`join()` 要求列表中的每个元素都是字符串类型。如果列表含非字符串元素（如整数），需要先转换：
 
 ```python
-text = "ABCABC"
-print(text.rindex("B"))  # 4
+# 列表含整数时直接 join 会报错
+numbers = [1, 2, 3]
+# "-".join(numbers)  # TypeError!
 
-try:
-    text.rindex("XYZ")
-except ValueError as e:
-    print(f"rindex 抛出异常: {e}")  # rindex 抛出异常: substring not found
+# 需要先转为字符串
+result = "-".join(str(n) for n in numbers)
+print(result)
+# 1-2-3
 ```
 
-#### 2.3.4 四种查找方法对比
+#### 2.3.5 `split()` 与 `join()` 的互逆关系
 
-```text
-方法        方向    找不到时的行为
-────────────────────────────────────
-find()      从左    返回 -1
-rfind()     从右    返回 -1
-index()     从左    抛出 ValueError
-rindex()    从右    抛出 ValueError
-```
-
-#### 2.3.5 实际应用——用 `find` 提取子串
-
-`find` 定位后配合切片可以提取字符串中的特定内容：
+`split()` 将字符串按分隔符拆成列表，`join()` 将列表按分隔符拼成字符串——两者互为逆操作：
 
 ```python
-# 从日志中提取时间戳
-log_line = '[2024-01-15 10:30:45] ERROR: Database connection failed'
-start = log_line.find('[')
-end = log_line.find(']')
-if start != -1 and end != -1:
-    timestamp = log_line[start+1:end]
-    print(f"提取的时间戳: {timestamp}")  # 2024-01-15 10:30:45
+csv_line = "apple,banana,cherry"
 
-# 提取邮箱域名
-email = "user@example.com"
-at_pos = email.find("@")
-if at_pos != -1:
-    domain = email[at_pos+1:]
-    print(f"邮箱域名: {domain}")  # example.com
+# split 拆
+parts = csv_line.split(",")
+print(f"拆分: {parts}")
+# 拆分: ['apple', 'banana', 'cherry']
+
+# join 拼
+restored = ",".join(parts)
+print(f"还原: {restored}")
+# 还原: apple,banana,cherry
+
+# 往返一致性
+print(f"往返一致: {restored == csv_line}")
+# 往返一致: True
 ```
 
-### 2.4 计数方法：`count()`
+#### 2.3.6 `join()` 的性能优势
 
-#### 2.4.1 基本用法
-
-`count(sub)` 返回子串在字符串中出现的**非重叠**次数，找不到返回 `0`。支持 `start`/`end` 参数。
-
-```python
-text = "Python is great. Python is powerful. Python is fun."
-print(text.count("Python"))  # 3
-
-# 非重叠计数
-text2 = "aaaa"
-print(text2.count("aa"))  # 2（索引 0-1 和 2-3，不重叠）
-```
-
-**带 `start`/`end` 参数**：
-
-```python
-text = "apple, banana, apple, cherry, apple"
-print(text.count("apple"))              # 3（全文）
-print(text.count("apple", 10))          # 2（索引 10 之后）
-print(text.count("apple", 0, 15))       # 1（索引 0~15 之间）
-```
-
-#### 2.4.2 `count()` 的性能优势
-
-`count()` 是 CPython 的内置方法，底层用 C 实现。和用 `find()` 循环计数相比，性能优势可达上百倍——在处理大文本时差异显著。
+`join()` 在拼接大量字符串时性能远优于 `+` 拼接——`join()` 一次性分配所需内存并填充，而 `+` 每次拼接都创建新的字符串对象：
 
 ```python
 import time
 
-text = "ab" * 500000  # 100 万字符
+parts = [str(i) for i in range(10000)]
 
-# count() 方式
+# + 拼接（每次创建新对象）
 start = time.perf_counter()
-c1 = text.count("ab")
-time_count = time.perf_counter() - start
+result_plus = ""
+for p in parts:
+    result_plus += p + ","
+result_plus = result_plus.rstrip(",")
+plus_time = time.perf_counter() - start
 
-# find 循环方式
+# join 拼接（一次创建）
 start = time.perf_counter()
-c2 = 0
-pos = 0
-while True:
-    pos = text.find("ab", pos)
-    if pos == -1:
-        break
-    c2 += 1
-    pos += 1
-time_find = time.perf_counter() - start
+result_join = ",".join(parts)
+join_time = time.perf_counter() - start
 
-print(f"count() 计数: {c1}, 耗时: {time_count:.6f}s")
-print(f"find循环 计数: {c2}, 耗时: {time_find:.6f}s")
-print(f"count 比 find 快: {time_find / time_count:.1f} 倍")
-
-# 运行结果:
-# count() 计数: 500000, 耗时: 0.000533s
-# find循环 计数: 500000, 耗时: 0.062277s
-# count 比 find 快: 116.9 倍
-```
-
-#### 2.4.3 空子串的特殊行为
-
-`count("")` 返回 `len(str) + 1`——因为空串可以匹配字符串每个间隙位置。
-
-```python
-text = "abc"
-print(text.count(""))  # 4（位置 0, 1, 2, 3 各有一个空串）
-print(len(text) + 1)    # 4
-```
-
-#### 2.4.4 实际应用
-
-```python
-# 统计文件内容中的换行数
-content = "line1\nline2\nline3\nline4\n"
-print(content.count("\n"))  # 4
-
-# 统计单词频率
-article = "Python Python Java Go Python Rust Java"
-word_count = {}
-for w in article.split():
-    word_count[w] = article.count(w)
-print(word_count)  # {'Python': 3, 'Java': 2, 'Go': 1, 'Rust': 1}
-```
-
-### 2.5 字符类型判断方法
-
-字符类型判断方法是判断族中数量最多、用法最丰富的一组。它们判断字符串中字符的类型构成，大多以 `is` 开头，返回布尔值。
-
-#### 2.5.1 `isalpha()` 判断全为字母
-
-判断字符串是否只包含字母（含中文等 Unicode 字母），且至少有一个字符。
-
-```python
-print("hello".isalpha())     # True
-print("Hello".isalpha())     # True
-print("hello123".isalpha())  # False（含数字）
-print("你好".isalpha())      # True（中文也是 Unicode 字母）
-print("".isalpha())          # False（空串不满足"至少一个字符"）
-print("hello world".isalpha())  # False（含空格）
-```
-
-#### 2.5.2 `isdigit()` 判断全为数字
-
-判断字符串是否只包含数字字符（0-9 及部分 Unicode 数字），至少一个字符。
-
-```python
-print("123".isdigit())       # True
-print("123abc".isdigit())   # False
-print("12.5".isdigit())      # False（含小数点）
-print("-5".isdigit())        # False（含负号）
-print("".isdigit())          # False
-```
-
-#### 2.5.3 `isdecimal()` vs `isdigit()` vs `isnumeric()` 的区别
-
-这三个方法有细微但重要的递进关系——从严格到宽泛：
-
-```python
-test_cases = [
-    ("123", "ASCII数字"),          # 三个都 True
-    ("\u00b2", "上标2 (²)"),       # isdigit 和 isnumeric True
-    ("\u00bc", "分数1/4 (¼)"),     # 只有 isnumeric True
-    ("\u2460", "圆圈数字 (①)"),     # isdigit 和 isnumeric True
-    ("\uff11", "全角数字 (１)"),    # 三个都 True
-    ("一二三", "中文数字"),          # 只有 isnumeric True
-    ("Ⅳ", "罗马数字"),              # 只有 isnumeric True
-]
-
-print(f"{'字符串':<12} {'描述':<16} {'isdecimal':>10} {'isdigit':>10} {'isnumeric':>10}")
-print("-" * 62)
-for s, desc in test_cases:
-    print(f"{repr(s):<12} {desc:<16} {str(s.isdecimal()):>10} {str(s.isdigit()):>10} {str(s.isnumeric()):>10}")
+print(f"+ 拼接 10000 个元素: {plus_time:.6f}s")
+print(f"join 拼接 10000 个元素: {join_time:.6f}s")
+print(f"join 快了约 {plus_time / join_time:.0f} 倍")
 ```
 
 **运行结果**：
 
 ```text
-字符串        描述              isdecimal    isdigit  isnumeric
---------------------------------------------------------------
-'123'       ASCII数字            True       True       True
-'²'         上标2 (²)           False       True       True
-'¼'         分数1/4 (¼)          False      False       True
-'①'         圆圈数字 (①)          False       True       True
-'１'         全角数字 (１)          True       True       True
-'一二三'     中文数字              False      False       True
-'Ⅳ'         罗马数字             False      False       True
++ 拼接 10000 个元素: 0.004216s
+join 拼接 10000 个元素: 0.000068s
+join 快了约 62 倍
 ```
 
-**规律总结**：
-
-| 方法 | 判断范围 | 严格程度 | 典型适用 |
-|------|---------|---------|---------|
-| `isdecimal()` | 十进制数字字符 | 最严格 | 数值转换前校验（`int()` 只接受 decimal） |
-| `isdigit()` | 数字形式字符 | 中等 | 显示用数字校验（接受上标、全角等） |
-| `isnumeric()` | 数值字符 | 最宽泛 | 泛数字校验（接受分数、中文数字、罗马数字等） |
-
-**实用建议**：需要将其转为 `int` 进行计算时用 `isdecimal()`；仅校验"看起来像数字"用 `isdigit()`；校验"表示一个数值"用 `isnumeric()`。
-
-#### 2.5.4 `isalnum()` 判断字母或数字
-
-判断字符串是否只包含字母或数字，至少一个字符。等价于 `isalpha()` 或 `isdigit()` 的组合。
+#### 2.3.7 实际应用——CSV 行生成
 
 ```python
-print("hello".isalnum())      # True
-print("123".isalnum())        # True
-print("hello123".isalnum())   # True
-print("hello 123".isalnum())  # False（含空格）
-print("12.5".isalnum())       # False（含小数点）
-print("你好123".isalnum())     # True
-```
+def list_to_csv_row(fields, delimiter=","):
+    """将字段列表转为 CSV 行，自动处理含分隔符的字段"""
+    escaped = []
+    for field in fields:
+        field = str(field)
+        # 字段包含分隔符或引号时，用引号包裹并转义内部引号
+        if delimiter in field or '"' in field:
+            field = '"' + field.replace('"', '""') + '"'
+        escaped.append(field)
+    return delimiter.join(escaped)
 
-#### 2.5.5 `isspace()` 判断全为空白
-
-判断字符串是否只包含空白字符（空格、制表符 `\t`、换行符 `\n`、回车 `\r` 等），至少一个字符。
-
-```python
-print(" ".isspace())          # True
-print("\t".isspace())         # True
-print("\n".isspace())         # True
-print("\r\n".isspace())       # True
-print("  \t\n ".isspace())   # True（混合空白）
-print("".isspace())           # False（空串）
-print(" a ".isspace())        # False（含非空白字符）
-```
-
-### 2.6 大小写与格式判断方法
-
-#### 2.6.1 `isupper()` 判断大写
-
-`isupper()` 判断是否"所有具有大小写属性的字母都是大写，且至少有一个具有大小写属性的字母"。数字和标点不受影响——它们没有大小写属性，不参与判断。
-
-```python
-print("HELLO".isupper())      # True
-print("HELLO123".isupper())   # True（数字不影响判断）
-print("Hello".isupper())      # False（有小写字母）
-print("123".isupper())        # False（没有大小写属性的字母 → 不满足"至少一个"）
-print("".isupper())           # False
-print("ABC!@#".isupper())     # True（标点不影响判断）
-```
-
-**关键理解**：`isupper()` 不是"所有字符都是大写"，而是"所有有大小写的字符都是大写，且至少有一个"。所以 `"123".isupper()` 返回 `False`——因为数字没有大小写属性，而 `"至少一个有大小写的字符"这个条件不满足。
-
-#### 2.6.2 `islower()` 判断小写
-
-与 `isupper()` 对称，判断"所有有大小写属性的字母都是小写，且至少一个"。
-
-```python
-print("hello".islower())      # True
-print("hello123".islower())   # True
-print("Hello".islower())      # False
-print("123".islower())        # False
-print("hello!@#".islower())   # True
-```
-
-**对比表**：
-
-```python
-test_cases = ["ABC", "abc", "ABC123", "abc123", "123", "!@#$%", "AbC"]
-
-print(f"{'字符串':<12} {'isupper':>8} {'islower':>8}")
-print("-" * 30)
-for s in test_cases:
-    print(f"{repr(s):<12} {str(s.isupper()):>8} {str(s.islower()):>8}")
-
-# 输出:
-# 'ABC'            True    False
-# 'abc'           False     True
-# 'ABC123'         True    False
-# 'abc123'        False     True
-# '123'           False    False  ← 无大小写字符
-# '!@#$%'         False    False  ← 无大小写字符
-# 'AbC'           False    False  ← 大小写混合
-```
-
-#### 2.6.3 `istitle()` 判断标题格式
-
-`istitle()` 判断字符串是否为"标题格式"——每个单词的首字母大写，其余字母小写。
-
-```python
-print("Hello World".istitle())    # True
-print("Hello world".istitle())    # False（"world" 的 w 未大写）
-print("HELLO WORLD".istitle())    # False（全大写不是标题格式）
-print("Hello".istitle())          # True
-print("".istitle())               # False
-```
-
-`istitle()` 有一些微妙的判断规则——每个"单词"中，紧跟在非字母字符后的第一个字母必须大写，其余字母必须小写：
-
-```python
-tricky = ["Hello World", "Hello123 World", "Hello_World", "Hello-World", "hello world", "HELLO WORLD"]
-
-for s in tricky:
-    print(f"  {repr(s):<20} istitle={s.istitle()}")
-
-# 输出:
-#   'Hello World'         istitle=True
-#   'Hello123 World'      istitle=True
-#   'Hello_World'         istitle=True   ← 下划线后的 W 大写
-#   'Hello-World'         istitle=True   ← 连字符后的 W 大写
-#   'hello world'         istitle=False
-#   'HELLO WORLD'         istitle=False
-```
-
-### 2.7 标识符与其他判断方法
-
-#### 2.7.1 `isidentifier()` 判断合法标识符
-
-`isidentifier()` 判断字符串是否是 Python 中合法的标识符——可以用作变量名、函数名等的命名。
-
-```python
-print("my_var".isidentifier())    # True
-print("_private".isidentifier())  # True
-print("myVar2".isidentifier())    # True
-print("2var".isidentifier())      # False（数字开头）
-print("my-var".isidentifier())    # False（含连字符）
-print("my var".isidentifier())    # False（含空格）
-print("".isidentifier())         # False（空串）
-```
-
-**注意**：Python 关键字（如 `class`、`if`、`for`）在格式上是合法标识符，但不能用作变量名：
-
-```python
-import keyword
-print("class".isidentifier())          # True（格式合法）
-print(keyword.iskeyword("class"))      # True（但是关键字）
-print(keyword.iskeyword("my_var"))     # False
-```
-
-Python 3 支持中文等 Unicode 标识符：
-
-```python
-print("变量名".isidentifier())   # True
-print("计数2".isidentifier())    # True
-```
-
-**实际应用——动态属性名校验**：
-
-```python
-def safe_getattr(obj, attr_name):
-    if not attr_name.isidentifier():
-        raise ValueError(f"'{attr_name}' 不是合法的标识符")
-    if keyword.iskeyword(attr_name):
-        raise ValueError(f"'{attr_name}' 是 Python 关键字")
-    return getattr(obj, attr_name)
-
-class Config:
-    host = "localhost"
-    port = 8080
-
-config = Config()
-print(safe_getattr(config, "host"))  # localhost
-print(safe_getattr(config, "port"))  # 8080
-# safe_getattr(config, "168")   → ValueError: '168' 不是合法的标识符
-# safe_getattr(config, "class") → ValueError: 'class' 是 Python 关键字
-```
-
-#### 2.7.2 `isprintable()` 判断全为可打印字符
-
-`isprintable()` 判断字符串是否只包含可打印字符。空格是可打印的，但制表符 `\t`、换行符 `\n` 等控制字符不可打印。
-
-```python
-print("Hello World".isprintable())   # True
-print("Hello\tWorld".isprintable())  # False（\t 不可打印）
-print("Hello\nWorld".isprintable())  # False（\n 不可打印）
-print("123!@#".isprintable())       # True
-print("".isprintable())              # True（空串是可打印的）
-```
-
-**注意**：与 `isalpha`、`isdigit` 等不同，空字符串的 `isprintable()` 返回 `True`。
-
-#### 2.7.3 `isascii()` 判断全为 ASCII 字符
-
-`isascii()`（Python 3.7+）判断字符串是否只包含 ASCII 字符（U+0000~U+007F）。
-
-```python
-print("Hello".isascii())       # True
-print("123".isascii())         # True
-print("Hello!@#".isascii())   # True
-print("你好".isascii())        # False（中文非 ASCII）
-print("café".isascii())       # False（é 非 ASCII）
-print("".isascii())            # True（空串也被视为 ASCII）
-```
-
-#### 2.7.4 判断方法综合对比
-
-以下是所有 `is*` 判断方法在不同字符串上的行为对比：
-
-```python
-test_strings = [
-    ("hello", "纯小写字母"),
-    ("WORLD", "纯大写字母"),
-    ("Hello World", "标题格式"),
-    ("12345", "纯数字"),
-    ("你好", "中文"),
-    ("\t\n", "空白字符"),
-    ("abc123", "字母+数字"),
-    ("", "空字符串"),
+rows = [
+    ["Alice", "30", "alice@test.com"],
+    ["Bob, Jr.", "25", "bob@test.com"],
+    ['Charlie "Chuck"', "35", "charlie@test.com"],
 ]
 
-methods = ["isalpha", "isdigit", "isalnum", "isspace", "isupper", "islower", "istitle", "isascii"]
-
-print(f"{'字符串':<14} {'描述':<12}", end="")
-for m in methods:
-    print(f" {m:>10}", end="")
-print()
-print("-" * 112)
-for s, desc in test_strings:
-    print(f"{repr(s):<14} {desc:<12}", end="")
-    for m in methods:
-        result = getattr(s, m)()
-        print(f" {str(result):>10}", end="")
-    print()
-```
-
-**运行结果**：
-
-```text
-字符串        描述          isalpha    isdigit    isalnum    isspace    isupper    islower    istitle    isascii
-----------------------------------------------------------------------------------------------------------------
-'hello'       纯小写字母      True      False       True      False      False       True      False       True
-'WORLD'       纯大写字母      True      False       True      False       True      False      False       True
-'Hello World' 标题格式       False      False      False      False      False      False       True       True
-'12345'       纯数字         False       True       True      False      False      False      False       True
-'你好'         中文           True      False       True      False      False      False      False      False
-'\t\n'        空白字符       False      False      False       True      False      False      False       True
-'abc123'      字母+数字      False      False       True      False      False       True      False       True
-''            空字符串       False      False      False      False      False      False      False       True
-```
-
-### 2.8 综合实战
-
-#### 2.8.1 日志分析器
-
-综合使用 `find`、`count`、`startswith` 等方法解析日志，统计各类日志数量并提取关键信息。
-
-```python
-log_content = """[2024-01-15 08:30:00] INFO: System started
-[2024-01-15 08:32:45] WARN: Cache hit rate below 60%
-[2024-01-15 08:33:10] ERROR: Database connection timeout
-[2024-01-15 08:35:20] ERROR: Authentication failed for user guest
-[2024-01-15 08:36:00] INFO: Database connection restored"""
-
-def analyze_log(log_text):
-    lines = log_text.strip().split("\n")
-    stats = {"INFO": 0, "WARN": 0, "ERROR": 0}
-    errors = []
-
-    for line in lines:
-        for level in stats:
-            if f"] {level}:" in line:
-                stats[level] += 1
-                if level == "ERROR":
-                    ts_start = line.find("[") + 1
-                    ts_end = line.find("]")
-                    timestamp = line[ts_start:ts_end]
-                    msg_start = line.find("ERROR:") + 6
-                    error_msg = line[msg_start:].strip()
-                    errors.append((timestamp, error_msg))
-                break
-
-    return stats, errors
-
-stats, errors = analyze_log(log_content)
-print(f"日志级别统计: {stats}")
-print("错误详情:")
-for ts, msg in errors:
-    print(f"  [{ts}] {msg}")
+for row in rows:
+    print(list_to_csv_row(row))
 
 # 输出:
-# 日志级别统计: {'INFO': 2, 'WARN': 1, 'ERROR': 2}
-# 错误详情:
-#   [2024-01-15 08:33:10] Database connection timeout
-#   [2024-01-15 08:35:20] Authentication failed for user guest
+# Alice,30,alice@test.com
+# "Bob, Jr.",25,bob@test.com
+# "Charlie ""Chuck""",35,charlie@test.com
 ```
 
-#### 2.8.2 表单验证器
+### 2.4 `chr()` / `ord()` 字符与码点互转
 
-综合使用 `isalnum`、`isdigit`、`isupper`、`islower`、`len`、`count`、`startswith`、`endswith` 等方法进行表单字段校验。
+#### 2.4.1 `ord()` 字符 → 码点
+
+`ord()` 返回单个字符的 Unicode 码点（一个整数）：
 
 ```python
-def validate_form(form_data):
-    results = {}
+print(ord('A'))   # 65
+print(ord('a'))    # 97
+print(ord('0'))    # 48
+print(ord(' '))    # 32
 
-    # 用户名: 字母数字，3~20 字符
-    username = form_data.get("username", "")
-    if not username:
-        results["username"] = "不能为空"
-    elif not username.isalnum():
-        results["username"] = "只能包含字母和数字"
-    elif len(username) < 3 or len(username) > 20:
-        results["username"] = "长度必须3~20字符"
-    else:
-        results["username"] = "有效"
-
-    # 密码: 至少8位，包含大小写字母和数字
-    password = form_data.get("password", "")
-    if not password:
-        results["password"] = "不能为空"
-    elif len(password) < 8:
-        results["password"] = "至少8位"
-    elif not (any(c.isupper() for c in password) and
-             any(c.islower() for c in password) and
-             any(c.isdigit() for c in password)):
-        results["password"] = "必须包含大小写字母和数字"
-    else:
-        results["password"] = "有效"
-
-    # 手机号: 纯数字，11位，以1开头
-    phone = form_data.get("phone", "")
-    if not phone:
-        results["phone"] = "不能为空"
-    elif not phone.isdigit():
-        results["phone"] = "只能包含数字"
-    elif len(phone) != 11:
-        results["phone"] = "必须是11位"
-    elif not phone.startswith("1"):
-        results["phone"] = "必须以1开头"
-    else:
-        results["phone"] = "有效"
-
-    return results
-
-form = {"username": "alice", "password": "Pass1234", "phone": "13812345678"}
-results = validate_form(form)
-for field, result in results.items():
-    print(f"  {field:10s}: {result}")
-
-# 输出:
-#   username  : 有效
-#   password  : 有效
-#   phone     : 有效
+# 中文字符
+print(ord('中'))   # 20013
+print(ord('文'))    # 25991
 ```
 
-#### 2.8.3 文本分析工具
+#### 2.4.2 `chr()` 码点 → 字符
 
-综合使用 `len`、`isalpha`、`isdigit`、`isspace`、`isupper`、`islower` 等方法分析文本特征。
+`chr()` 是 `ord()` 的逆函数——将 Unicode 码点转为对应的字符：
 
 ```python
-def analyze_text(text):
-    total = len(text)
-    letters = sum(1 for c in text if c.isalpha())
-    digits = sum(1 for c in text if c.isdigit())
-    spaces = sum(1 for c in text if c.isspace())
-    upper = sum(1 for c in text if c.isupper())
-    lower = sum(1 for c in text if c.islower())
-    other = total - letters - digits - spaces
-    words = len(text.split())
+print(chr(65))       # 'A'
+print(chr(97))        # 'a'
+print(chr(48))        # '0'
 
-    return {
-        "总字符数": total, "字母数": letters, "数字数": digits,
-        "空格数": spaces, "大写字母": upper, "小写字母": lower,
-        "其他字符": other, "单词数": words,
-    }
+# 中文
+print(chr(20013))    # '中'
+print(chr(25991))     # '文'
+```
 
-sample = "Python 3.12 was released on Oct 25, 2023."
-analysis = analyze_text(sample)
-for key, value in analysis.items():
-    print(f"  {key}: {value}")
+#### 2.4.3 `chr()` / `ord()` 的互逆关系
+
+```python
+# ord 然后 chr 可还原
+print(chr(ord('A')))   # 'A'
+print(ord(chr(65)))     # 65
+```
+
+#### 2.4.4 ASCII 码值速查
+
+ASCII 字符的码点范围非常有用，是许多字符操作的基础：
+
+```python
+# 常用 ASCII 码值范围
+print(f"数字 '0'-'9':  码点 {ord('0')}~{ord('9')}，共 {ord('9') - ord('0') + 1} 个")
+print(f"大写 'A'-'Z':  码点 {ord('A')}~{ord('Z')}，共 {ord('Z') - ord('A') + 1} 个")
+print(f"小写 'a'-'z':  码点 {ord('a')}~{ord('z')}，共 {ord('z') - ord('a') + 1} 个")
+# 数字 '0'-'9':  码点 48~57，共 10 个
+# 大写 'A'-'Z':  码点 65~90，共 26 个
+# 小写 'a'-'z':  码点 97~122，共 26 个
+```
+
+大小写字母的码点差值固定为 32——大写字母码点 + 32 = 对应小写字母码点。这就是 Python 内置 `upper()`/`lower()` 方法的底层原理：
+
+```python
+def to_upper_manual(s):
+    """手动将小写字母转大写"""
+    result = []
+    for ch in s:
+        code = ord(ch)
+        # 小写 a~z (97~122) → 大写 A~Z (65~90)，差值 32
+        if 97 <= code <= 122:
+            result.append(chr(code - 32))
+        else:
+            result.append(ch)
+    return "".join(result)
+
+print(to_upper_manual("Hello World"))
+# HELLO WORLD
+```
+
+#### 2.4.5 凯撒密码
+
+`chr()` 和 `ord()` 是实现各种字符级加密算法的基础。凯撒密码是最简单的加密方式——每个字母在字母表中位移固定位数：
+
+```python
+def caesar_encrypt(text, shift=3):
+    """凯撒加密：每个字母位移 shift 位"""
+    result = []
+    for ch in text:
+        if ch.isalpha():
+            base = ord('A') if ch.isupper() else ord('a')
+            # 位移后在 26 个字母内循环
+            shifted = (ord(ch) - base + shift) % 26 + base
+            result.append(chr(shifted))
+        else:
+            result.append(ch)
+    return "".join(result)
+
+def caesar_decrypt(text, shift=3):
+    """凯撒解密：反向位移"""
+    return caesar_encrypt(text, -shift)
+
+message = "Hello Python 2024"
+encrypted = caesar_encrypt(message)
+decrypted = caesar_decrypt(encrypted)
+
+print(f"原文:   {message}")
+print(f"加密后: {encrypted}")
+print(f"解密后: {decrypted}")
+# 原文:   Hello Python 2024
+# 加密后: Khoor Sbwkrq 2024
+# 解密后: Hello Python 2024
+```
+
+#### 2.4.6 生成连续字符序列
+
+`chr()` 配合 `range()` 可以生成字母表等连续字符序列：
+
+```python
+uppercase = [chr(i) for i in range(65, 91)]
+lowercase = [chr(i) for i in range(97, 123)]
+digits = [chr(i) for i in range(48, 58)]
+
+print("".join(uppercase))  # ABCDEFGHIJKLMNOPQRSTUVWXYZ
+print("".join(lowercase))  # abcdefghijklmnopqrstuvwxyz
+print("".join(digits))     # 0123456789
+```
+
+#### 2.4.7 Unicode 表探索
+
+`chr()` 和 `ord()` 不限于 ASCII——它们覆盖整个 Unicode 范围：
+
+```python
+# CJK 统一汉字（常用区: U+4E00 ~ U+9FFF）
+for code in range(0x4E00, 0x4E05):
+    print(f"  U+{code:04X} → {chr(code)}")
 
 # 输出:
-#   总字符数: 46
-#   字母数: 27
-#   数字数: 7
-#   空格数: 8
-#   大写字母: 2
-#   小写字母: 25
-#   其他字符: 4
-#   单词数: 9
+#   U+4E00 → 一
+#   U+4E01 → 丁
+#   U+4E02 → 丂
+#   U+4E03 → 七
+#   U+4E04 → 丄
+
+# Emoji 表情符号（U+1F600 ~ U+1F64F）
+for code in range(0x1F600, 0x1F605):
+    print(f"  U+{code:04X} → {chr(code)}")
+
+# 输出:
+#   U+1F600 → 😀
+#   U+1F601 → 😁
+#   U+1F602 → 😂
+#   U+1F603 → 😃
+#   U+1F604 → 😄
 ```
+
+### 2.5 `repr()` vs `str()`
+
+#### 2.5.1 两者的设计目标差异
+
+`str()` 和 `repr()` 都返回对象的字符串表示，但设计目标截然不同：
+
+- **`str()`**：给**人**看——返回人类可读的字符串，关注"看起来怎么样"
+- **`repr()`**：给**程序**看——返回可重新构造对象的合法 Python 表达式，关注"准确还原"
+
+```python
+s = "Hello\nWorld"
+
+print(f"str(s):  {str(s)}")
+print(f"repr(s): {repr(s)}")
+
+# str(s):  Hello
+# World        ← 多行显示，人看到的文本
+# repr(s): 'Hello\nWorld'  ← 单行带转义符，可 eval 还原
+```
+
+#### 2.5.2 内置类型的 `str` vs `repr`
+
+```python
+# 字符串：repr 带引号，str 不带
+text = "It's a test"
+print(str(text))   # It's a test
+print(repr(text))  # "It's a test"
+
+# 浮点数：repr 保留完整精度
+pi = 3.141592653589793
+print(str(pi))    # 3.141592653589793
+print(repr(pi))   # 3.141592653589793  ← 大部分情况一致
+
+# 列表：str 和 repr 基本相同
+lst = [1, "hello", True]
+print(str(lst))   # [1, 'hello', True]
+print(repr(lst))  # [1, 'hello', True]
+```
+
+#### 2.5.3 `repr()` 的可求值特性
+
+`repr()` 的核心设计目标之一是：对于内置类型，`eval(repr(x))` 应该能还原 `x`：
+
+```python
+s = "Hello 'World'"
+r = repr(s)
+
+print(f"repr(s) = {r}")
+print(f"eval(repr(s)) = {eval(r)!r}")
+print(f"eval(repr(s)) == s: {eval(r) == s}")
+
+# repr(s) = "Hello 'World'"
+# eval(repr(s)) = "Hello 'World'"
+# eval(repr(s)) == s: True
+```
+
+这意味着 `repr()` 可以用作简单对象的序列化方式——将对象转为字符串存储，之后用 `eval()` 还原。
+
+#### 2.5.4 自定义类的 `__str__` 和 `__repr__`
+
+自定义类可以通过 `__str__` 和 `__repr__` 魔术方法分别控制 `str()` 和 `repr()` 的行为：
+
+```python
+class Temperature:
+    def __init__(self, celsius):
+        self.celsius = celsius
+
+    def __str__(self):
+        """给用户看：友好的显示"""
+        return f"{self.celsius}°C"
+
+    def __repr__(self):
+        """给开发者看：可重新构造的表达式"""
+        return f"Temperature(celsius={self.celsius})"
+
+t = Temperature(25.5)
+
+print(f"str(t):   {str(t)}")     # 25.5°C
+print(f"repr(t):  {repr(t)}")    # Temperature(celsius=25.5)
+print(f"print(t): {t}")          # print 默认调用 __str__
+print(f"[t]:      {[t]}")        # 容器中显示用 __repr__
+```
+
+**关键规则**：当对象被放入列表、字典等容器中时，容器会使用 `__repr__` 来显示元素——即使你 `print` 一个列表，列表中的元素也会用 `repr` 而非 `str` 显示。
+
+#### 2.5.5 `repr()` 在调试中的作用
+
+`repr()` 在调试时极有价值——它能区分看起来相同的不同类型值，并显示字符串中的转义字符：
+
+```python
+mixed_list = ["hello", 42, "world\n", True, None]
+print(f"调试信息: {mixed_list!r}")
+# ['hello', 42, 'world\n', True, None]
+# ↑ 可以看到 'world\n' 中的 \n 是转义符，而非真正的换行
+# ↑ 还能区分 'hello'(字符串) 和 hello(变量名)
+```
+
+f-string 中的 `!r` 后缀可以直接在格式化中调用 `repr()`：
+
+```python
+name = "Alice"
+age = 30
+print(f"name={name!r}, age={age!r}")
+# name='Alice', age=30
+```
+
+f-string 支持 `!s` 和 `!r` 两个后缀，分别强制使用 `str()` 和 `repr()`：
+
+```python
+text = "Hello\nWorld"
+
+print(f"默认:  {text}")     # 使用 __format__
+print(f"!s:    {text!s}")   # 使用 __str__
+print(f"!r:    {text!r}")   # 使用 __repr__
+
+# 默认:  Hello
+# World
+# !s:    Hello
+# World
+# !r:    'Hello\nWorld'
+```
+
+#### 2.5.6 `str()` vs `repr()` 对比总结
+
+| 维度 | `str()` | `repr()` |
+|------|---------|---------|
+| 设计目标 | 给人看（人类可读） | 给程序看（可重新构造） |
+| 字符串 | 原样显示 | 带引号和转义符 |
+| 浮点数 | 截断或简化 | 保留完整精度 |
+| 自定义对象 | 调用 `__str__` | 调用 `__repr__` |
+| `print()` | 默认使用 | 需显式使用 |
+| 容器内 | 不使用 | 列表/字典中显示用 `repr` |
+| 可 `eval()` | 不一定 | 通常 `eval(repr(x)) == x` |
+
+#### 2.5.7 实际应用——数据序列化
+
+`repr()` 和 `eval()` 配合，可以实现简单对象的序列化和反序列化：
+
+```python
+# 序列化
+data = [1, "hello", 3.14, True, None]
+serialized = repr(data)
+print(f"序列化: {serialized}")
+
+# 反序列化
+restored = eval(serialized)
+print(f"还原:   {restored}")
+print(f"一致:   {restored == data}")
+
+# 序列化: [1, 'hello', 3.14, True, None]
+# 还原:   [1, 'hello', 3.14, True, None]
+# 一致:   True
+```
+
+注意：`eval()` 会执行任意代码，存在安全风险——仅用于可信数据。生产环境应使用 `json` 或 `pickle` 等专用序列化库。
 
 ## 3. 最佳实践
 
-### 3.1 选择正确的查找方法
+### 3.1 选择正确的转换方法
 
 | 需求 | 推荐方法 | 原因 |
 |------|---------|------|
-| 只需知道子串是否存在 | `in` 运算符 | 最简洁，返回布尔值 |
-| 需要知道子串位置 | `find()` | 返回索引，找不到返回 -1 |
-| 确定子串一定存在 | `index()` | 找不到时异常提示有助调试 |
-| 需要子串出现次数 | `count()` | C 实现，比循环 find 快百倍 |
-| 判断前缀 | `startswith()` | 支持元组多值匹配 |
-| 判断后缀 | `endswith()` | 支持元组多值匹配，文件类型判断利器 |
+| 数字 → 字符串 | `str()` / f-string | f-string 更简洁 |
+| 字符串 → 整数 | `int()` | 注意异常处理 |
+| 字符串 → 浮点数 | `float()` | 支持小数和科学记数法 |
+| 浮点字符串 → 整数 | `int(float(s))` | 需两步转换 |
+| 字符串 → 字符列表 | `list(s)` | 逐字符拆分 |
+| 字符列表 → 字符串 | `"".join(list)` | 无分隔符拼接 |
+| 字符 → 码点 | `ord(c)` | 单字符的 Unicode 码 |
+| 码点 → 字符 | `chr(n)` | 码点转字符 |
+| 对象 → 显示字符串 | `str()` | 给用户看 |
+| 对象 → 调试字符串 | `repr()` | 给开发者看 |
 
 ### 3.2 推荐 vs 不推荐写法
 
 ```python
-# ---- 判断子串是否存在 ----
+# ---- 数字转字符串 ----
 
-# 推荐：in 运算符，简洁直观
-if "error" in log_line:
-    handle_error(log_line)
+# 推荐：f-string
+result = f"用户 {user_id} 下单成功"
 
-# 不推荐：用 find 比较 -1，啰嗦
-if log_line.find("error") != -1:
-    handle_error(log_line)
+# 不推荐：手动 str() 拼接（啰嗦）
+result = "用户 " + str(user_id) + " 下单成功"
 
-# ---- 查找子串位置 ----
+# ---- 字符串转数字 ----
 
-# 推荐：find + -1 检查（不确定是否存在时）
-pos = text.find("target")
-if pos != -1:
-    result = text[pos:]
-
-# 推荐：index + try/except（确定应该存在时）
+# 推荐：try-except 安全转换
 try:
-    pos = text.index("target")
-    result = text[pos:]
+    value = int(user_input)
 except ValueError:
-    result = None
+    value = 0
 
-# 不推荐：find 后不检查 -1 就使用
-pos = text.find("target")
-# pos 可能是 -1，text[-1:] 是最后一个字符，不是期望行为！
-result = text[pos:]
+# 不推荐：直接转换不处理异常（可能崩溃）
+value = int(user_input)  # 如果 user_input 不是数字就报错
 
-# ---- 判断纯数字 ----
+# ---- 列表拼字符串 ----
 
-# 推荐：isdigit() 或 isdecimal()
-if phone.isdigit():
-    process_phone(phone)
+# 推荐：join
+result = ", ".join(items)
 
-# 不推荐：手动遍历检查每个字符
-if all(c in "0123456789" for c in phone):
-    process_phone(phone)
+# 不推荐：循环 += 拼接（性能差）
+result = ""
+for i, item in enumerate(items):
+    if i > 0:
+        result += ", "
+    result += item
 
-# ---- 判断多种文件后缀 ----
+# ---- 调试输出 ----
 
-# 推荐：元组多值匹配，简洁
-if filename.endswith((".jpg", ".png", ".gif")):
-    process_image(filename)
+# 推荐：用 !r 显示原始值
+print(f"数据: {data!r}")
 
-# 不推荐：多个 or 条件，啰嗦
-if filename.endswith(".jpg") or filename.endswith(".png") or filename.endswith(".gif"):
-    process_image(filename)
+# 不推荐：直接打印（看不到转义符和类型差异）
+print(f"数据: {data}")
 
-# ---- 数值转换前校验 ----
+# ---- 凯撒密码等字符操作 ----
 
-# 推荐：先校验再转换，避免异常
-if s.isdecimal():
-    num = int(s)
-else:
-    print("不是有效数字")
+# 推荐：用 chr/ord 在字符层面操作
+def caesar(text, shift):
+    result = []
+    for ch in text:
+        if ch.isalpha():
+            base = ord('A') if ch.isupper() else ord('a')
+            result.append(chr((ord(ch) - base + shift) % 26 + base))
+        else:
+            result.append(ch)
+    return "".join(result)
 
-# 不推荐：直接 try int 而不校验类型
-try:
-    num = int(s)
-except ValueError:
-    print("不是有效数字")
-# 虽然也能工作，但用 isdecimal 前置校验更清晰
-# 而且能区分"消极负号""小数点"等不同情况
+# 不推荐：用字符串查找+索引（易错且低效）
+ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+def caesar_bad(text, shift):
+    result = []
+    for ch in text:
+        if ch in ALPHABET:
+            idx = ALPHABET.index(ch)
+            result.append(ALPHABET[(idx + shift) % 26])
+        elif ch in ALPHABET.lower():
+            idx = ALPHABET.lower().index(ch)
+            result.append(ALPHABET.lower()[(idx + shift) % 26])
+        else:
+            result.append(ch)
+    return "".join(result)
 ```
 
 ### 3.3 综合推荐 vs 不推荐对照表
 
 | 场景 | 推荐写法 | 不推荐写法 | 原因 |
 |------|---------|-----------|------|
-| 判断子串存在 | `"abc" in text` | `text.find("abc") != -1` | `in` 更简洁 |
-| 查找位置 | `text.find("abc")` | 用 `in` 后再 `index` | 一步到位 |
-| 找所有位置 | `find` 循环 + -1 检查 | `index` 循环 + try/except | 避免异常开销 |
-| 统计次数 | `text.count("abc")` | 循环 find 逐个计数 | count 快百倍 |
-| 判断后缀 | `endswith((".jpg", ".png"))` | 多个 `or endswith` | 元组更简洁 |
-| 验证整数 | `s.isdecimal()` | `try int(s)` | 前置校验更清晰 |
-| 验证字母 | `s.isalpha()` | `all(c.isalpha() for c in s)` | 方法直接判断整串 |
-| 密码强度 | `any(c.isupper() for c in pwd)` | 手动遍历字符码范围 | 语义清晰 |
+| 数字转字符串 | `f"{n}"` 或 `str(n)` | `"n = " + `n`` | 类型不匹配 |
+| 字符串转整数 | `try: int(s) except: 0` | `int(s)` 不处理 | 可能崩溃 |
+| 浮点字符串转整数 | `int(float(s))` | `int(s)` | 报 ValueError |
+| 列表拼字符串 | `", ".join(items)` | `for + +=` 拼接 | join 快几十倍 |
+| 反转字符串 | `"".join(reversed(s))` | `s[::-1]` 可用但 `reversed` 更清晰 | 两者都可 |
+| 调试输出 | `print(f"{x!r}")` | `print(x)` | repr 显示类型和转义 |
+| 进制转换 | `int("FF", 16)` | 手动计算 | int 内置进制参数 |
 
-### 3.4 空字符串的边界行为总结
+### 3.4 常见错误与注意事项
 
-所有判断方法对空字符串的返回值不一致，值得特别记忆：
-
-| 方法 | 空串返回值 | 原因 |
-|------|-----------|------|
-| `isalpha()` | `False` | 要求至少一个字母 |
-| `isdigit()` | `False` | 要求至少一个数字 |
-| `isalnum()` | `False` | 要求至少一个字母或数字 |
-| `isspace()` | `False` | 要求至少一个空白字符 |
-| `isupper()` | `False` | 要求至少一个有大小写的字母 |
-| `islower()` | `False` | 要求至少一个有大小写的字母 |
-| `istitle()` | `False` | 要求至少一个字符 |
-| `isidentifier()` | `False` | 空串不是合法标识符 |
-| `isprintable()` | `True` | 空串中没有不可打印字符 |
-| `isascii()` | `True` | 空串中没有非 ASCII 字符 |
-| `startswith("")` | `True` | 任何串都"以空串开头" |
-| `endswith("")` | `True` | 任何串都"以空串结尾" |
-| `count("")` | `len + 1` | 空串匹配每个间隙 |
-
-### 3.5 常见注意事项
-
-**`isupper`/`islower` 不是"所有字符都是大写/小写"**
+**`int()` 不能直接转浮点字符串**
 
 ```python
-# "123" 不含字母，isupper 和 islower 都返回 False
-print("123".isupper())  # False
-print("123".islower())  # False
-# 原因：没有大小写属性的字符不参与判断，但"至少一个"的条件不满足
+# 错误：浮点字符串直接转 int
+# int("3.14")  # ValueError!
+
+# 正确：先 float 再 int
+value = int(float("3.14"))  # 3
 ```
 
-**`isdigit` vs `isdecimal`——数值转换的陷阱**
+**`join()` 不能拼接非字符串列表**
 
 ```python
-s = "123"
-print(s.isdigit())    # True
-print(s.isdecimal())   # True
-print(int(s))          # 123（正常）
+# 错误：列表含整数
+# ",".join([1, 2, 3])  # TypeError!
 
-s2 = "\u00b2"  # 上标 ²
-print(s2.isdigit())    # True
-print(s2.isdecimal())  # False
-# int(s2) 会抛出 ValueError！
-# 所以转换前应该用 isdecimal() 而非 isdigit()
+# 正确：先转为字符串
+result = ",".join(str(n) for n in [1, 2, 3])
 ```
 
-**`istitle` 对非字母字符的处理**
+**`ord()` 只接受单个字符**
 
 ```python
-# "123abc" 的 istitle 是 False
-# 因为 "abc" 紧跟数字（非字母），首字母 a 应该大写才算 title
-print("123abc".istitle())  # False
-print("123Abc".istitle())  # True
+# 错误：传入多字符字符串
+# ord("AB")  # TypeError!
+
+# 正确：单个字符
+print(ord("A"))  # 65
+```
+
+**容器中使用 `repr` 而非 `str`**
+
+```python
+class Item:
+    def __str__(self):
+        return "商品"
+    def __repr__(self):
+        return "Item()"
+
+item = Item()
+print(item)       # 商品 ← 用 __str__
+print([item])     # [Item()] ← 用 __repr__
+
+# 如果只在容器中看到 <__main__.Item object at 0x...>，
+# 说明没有定义 __repr__，调试时不友好
 ```
 
 ## 4. 原理
 
-### 4.1 判断方法的 Unicode 分类机制
+### 4.1 `str()` 与 `__str__` / `__repr__` 协议
 
-Python 的 `is*` 判断方法在底层是通过查阅 Unicode 字符属性数据库来实现的。每个 Unicode 字符都有若干属性标记，Python 根据这些标记来判断字符类型。
-
-```text
-Unicode 字符属性与 Python 判断方法的映射：
-
-字符 'A' (U+0041):
-  ├─ General_Category = Lu (Letter, uppercase) → isalpha=True, isupper=True
-  ├─ Numeric_Type = None                       → isdigit=False
-  └─ ASCII = True                              → isascii=True
-
-字符 '5' (U+0035):
-  ├─ General_Category = Nd (Number, decimal)   → isdigit=True, isdecimal=True
-  ├─ Numeric_Type = Decimal                    → isnumeric=True
-  └─ ASCII = True                              → isascii=True
-
-字符 '²' (U+00B2, 上标2):
-  ├─ General_Category = No (Number, other)    → isdigit=True (数字形式), isdecimal=False
-  ├─ Numeric_Type = Digit                      → isnumeric=True
-  └─ ASCII = True                              → isascii=True
-
-字符 '一二三' (U+4E00 等, 中文数字):
-  ├─ General_Category = Lo (Letter, other)    → isalpha=True
-  ├─ Numeric_Type = Numeric                    → isnumeric=True, isdigit=False
-  └─ ASCII = False                             → isascii=False
-```
-
-这就解释了为什么 `isdecimal` < `isdigit` < `isnumeric` 在严格程度上递减——它们检查的 Unicode 属性范围依次扩大。
-
-```python
-# 验证 Unicode 属性差异
-chars = ['5', '\u00b2', '\u00bc', '\u2460']
-
-for c in chars:
-    print(f"{repr(c):>8} decimal={c.isdecimal():<6} digit={c.isdigit():<6} numeric={c.isnumeric()}")
-
-# 输出:
-#      '5'  decimal=True    digit=True    numeric=True
-#      '²'  decimal=False   digit=True    numeric=True   ← 上标: 是 digit 不是 decimal
-#      '¼'  decimal=False   digit=False   numeric=True   ← 分数: 只能 numeric
-#      '①'  decimal=False   digit=True    numeric=True   ← 圆圈: 是 digit 不是 decimal
-```
-
-### 4.2 `find` 与 `index` 的底层实现
-
-`find` 和 `index` 在 CPython 中都由 C 层面的字符串搜索算法实现。对于短字符串，使用简单的逐字节比较；对于较长字符串，CPython 会使用更高效的字符串搜索算法（如 Two-Way 算法）。
-
-两者的核心逻辑完全相同——搜索子串并返回位置索引。区别仅在搜索失败时的处理：
-
-```python
-# CPython 层面的伪逻辑（简化版）
-
-def find(self, sub, start=0, end=-1):
-    # 搜索 sub 在 self[start:end] 中的位置
-    pos = _string_search(self, sub, start, end)
-    if pos == NOT_FOUND:
-        return -1       # find: 返回 -1
-    return pos
-
-def index(self, sub, start=0, end=-1):
-    # 搜索 sub 在 self[start:end] 中的位置
-    pos = _string_search(self, sub, start, end)
-    if pos == NOT_FOUND:
-        raise ValueError("substring not found")  # index: 抛出异常
-    return pos
-```
-
-`count` 的底层实现也是一个 C 层面的搜索算法，但它在一次扫描中完成所有计数，不需要 Python 层面的循环，所以比 `find` 循环快百倍。
-
-### 4.3 `startswith`/`endswith` 元组匹配的内部机制
-
-`startswith` 和 `endswith` 在收到元组参数时，会逐个尝试元组中的每个前缀/后缀。只要任何一个匹配成功就立即返回 `True`，无需全部检查。
+Python 的 `str()` 和 `repr()` 内置函数背后是特殊方法协议。当调用 `str(obj)` 时，Python 解释器会按以下顺序查找方法：
 
 ```text
-text.startswith(("http://", "https://", "ftp://"))
+str(obj) 的调用链：
+  1. 检查 obj.__str__() 是否存在 → 存在则调用
+  2. 不存在 → 检查 obj.__repr__() 是否存在 → 存在则调用
+  3. 都不存在 → 返回默认的 "<ClassName object at 0x...>"
 
-内部执行流程:
-  1. 尝试匹配 "http://" → 不匹配 → 继续
-  2. 尝试匹配 "https://" → 不匹配 → 继续
-  3. 尝试匹配 "ftp://" → 匹配成功 → 立即返回 True
+repr(obj) 的调用链：
+  1. 检查 obj.__repr__() 是否存在 → 存在则调用
+  2. 不存在 → 返回默认的 "<ClassName object at 0x...>"
+```
+
+关键设计：`str()` 会回退到 `__repr__`——这意味着如果你的类只定义了 `__repr__`，`str()` 和 `repr()` 都会使用它。但反过来不成立：只定义 `__str__` 时，`repr()` 不会使用 `__str__`，而是返回默认的对象描述。
+
+这是 Python 的惯例："`__repr__` 是基础，`__str__` 是增强"。定义类时建议至少定义 `__repr__`，确保容器内显示和调试都有可读内容。
+
+### 4.2 `int()` 解析字符串的内部流程
+
+`int(string)` 在 CPython 中的解析过程：
+
+```text
+int("42") 的解析流程：
+
+  1. 检查 string 是否为 str 类型 → 是
+  2. 去除两端空白 → "42"
+  3. 检查是否有符号前缀 (+/-) → 无
+  4. 逐字符检查：
+     '4' → 在 '0'-'9' 范围内 (48-57) → 数值贡献: 4 * 10^1 = 40
+     '2' → 在 '0'-'9' 范围内 (48-57) → 数值贡献: 2 * 10^0 = 2
+  5. 累加: 40 + 2 = 42
+  6. 返回整数对象 42
+```
+
+当指定 `base` 时，步骤 4 的字符范围检查会改变——例如 `base=16` 时，`a-f` 和 `A-F` 也被视为合法数字字符。
+
+`int("3.14")` 之所以失败——在步骤 4 中遇到 `.` 时，`.` 不在 `0-9` 的字符范围内，直接抛出 `ValueError`。而 `float("3.14")` 内部有不同的解析逻辑，能识别小数点和科学记数法。
+
+### 4.3 `join()` 为什么比 `+` 快
+
+`+` 拼接每次都创建新字符串对象。Python 字符串是不可变的，拼接两个字符串需要分配一块新的内存，把两个原字符串的内容复制进去：
+
+```text
+"+" 拼接 3 个字符串的过程：
+
+  "a" + "b" → 创建新对象 "ab" (分配内存，复制 'a' 和 'b')
+  "ab" + "c" → 创建新对象 "abc" (分配内存，复制 'a','b','c')
   
-如果全部不匹配 → 返回 False
+  共分配 2 次内存，复制 5 个字符 (a, b, a, b, c)
 ```
 
-这种"短路匹配"机制使得元组匹配比手动 `or` 条件更高效——在 Python 字节码层面，元组匹配只需要一次方法调用，而多个 `or` 条件需要多次方法调用和条件跳转。
+`join()` 的工作方式完全不同——它先计算所有元素的总长度，一次性分配足够的内存，然后把所有元素的内容直接复制到目标位置：
+
+```text
+",".join(["a", "b", "c"]) 的过程：
+
+  1. 计算总长度: len("a") + len(",") + len("b") + len(",") + len("c") = 5
+  2. 一次性分配 5 字符的内存
+  3. 依次复制: 'a' ',' 'b' ',' 'c'
+  
+  共分配 1 次内存，复制 5 个字符
+```
+
+当拼接 N 个字符串时，`+` 的总内存分配次数是 O(N)，而 `join` 是 O(1)——差异随 N 增大而放大。
+
+### 4.4 `chr()` / `ord()` 与 Unicode 编码
+
+`chr()` 和 `ord()` 直接操作 Unicode 码点——它们是 Python 字符串与整数之间的"最低层"转换接口。
+
+```text
+字符 '中' 的内部表示：
+
+  Unicode 码点: U+4E00 (十进制 20013)
+  ord('中') → 20013
+  chr(20013) → '中'
+
+  Python 3 中 str 内部使用 Unicode 存储字符
+  chr/ord 就是码点和字符之间的直接映射
+```
+
+Python 的内置字符串方法（如 `upper()`、`isalpha()`）在底层都依赖 Unicode 码点来判断字符类别和执行转换。`chr()` 和 `ord()` 揭示了这层"字符 ↔ 整数"的映射关系，使得开发者可以直接在码点层面进行操作——这在编码处理、加密算法、字符分类等场景中非常有用。
 
 ## 5. 总结
 
-本文围绕 Python 字符串的查询与判断方法展开，主要介绍了以下内容：
+本文围绕 Python 字符串与类型转换展开，主要介绍了以下内容：
 
-- **查询族方法**：`len()` 返回字符数（不是字节数）；`in`/`not in` 判断子串存在（大小写敏感，判断子串而非单词）；`find()`/`rfind()` 返回子串位置（找不到返回 -1）；`index()`/`rindex()` 功能相同但找不到时抛出 `ValueError`；`count()` 统计非重叠出现次数（C 实现，比循环快百倍）
-- **前缀后缀判断**：`startswith()`/`endswith()` 支持元组多值匹配，是文件类型判断和 URL 协议检查的利器；支持 `start`/`end` 范围限定；空前缀/后缀总返回 `True`
-- **字符类型判断**：`isalpha`（含中文）、`isdigit`（含 Unicode 数字形式）、`isalnum`（字母或数字）、`isspace`（空白字符）；`isdecimal` < `isdigit` < `isnumeric` 严格度递减，数值转换前用 `isdecimal()`
-- **大小写与格式判断**：`isupper`/`islower` 判断"所有有大小写属性的字符都是大/小写"（数字标点不参与）；`istitle` 判断标题格式（每个单词首字母大写）
-- **标识符与其他判断**：`isidentifier` 判断合法标识符（含中文标识符），需配合 `keyword.iskeyword` 排除关键字；`isprintable` 判断可打印字符（空串返回 `True`）；`isascii` 判断 ASCII 范围
-- **最佳实践**：存在判断用 `in`，位置查找用 `find`，计数用 `count`，多后缀判断用元组匹配 `endswith`，数值转换前用 `isdecimal` 校验；注意空字符串各方法返回值不一致
-- **底层原理**：判断方法基于 Unicode 字符属性数据库，`isdecimal`/`isdigit`/`isnumeric` 差异源于检查的 Unicode 属性范围不同；`find` 与 `index` 搜索算法相同仅返回值不同；`startswith`/`endswith` 元组匹配采用短路机制
+- **`str()` 方法**：将任何类型转为字符串，基本类型直接转换，容器类型返回字面量表示；内部调用 `__str__` 协议方法；`print()` 默认使用 `str()`
+- **`int()` / `float()` 方法**：将字符串解析为数字；`int()` 支持进制参数 `base`（2~36）和 `base=0` 自动识别；`int()` 不接受浮点字符串（需先 `float()` 再 `int()`）；解析失败抛 `ValueError`，应使用 try-except 安全处理
+- **`list()` / `join()` 方法**：`list()` 将字符串拆成字符列表，`join()` 将字符串列表拼回字符串，互为逆操作；`join()` 只能拼接字符串元素，非字符串需先 `str()` 转换；`join()` 性能远优于 `+` 拼接（单次内存分配 vs 多次分配）
+- **`chr()` / `ord()` 方法**：字符与 Unicode 码点互转，互为逆函数；ASCII 范围内大小写码点差 32；可用于实现凯撒密码、生成字符表、Unicode 表探索
+- **`str()` vs `repr()` 方法**：`str()` 给人看（人类可读），`repr()` 给程序看（可 `eval` 还原）；自定义类通过 `__str__` 和 `__repr__` 分别控制；容器内使用 `repr` 显示元素；调试时用 `!r` 后缀
+- **最佳实践**：数字转字符串用 f-string 代替 `str()` 拼接；字符串转数字用 try-except 安全处理；列表拼字符串用 `join()`；调试输出用 `repr()` 或 `!r`
+- **底层原理**：`str()`/`repr()` 基于特殊方法协议（`__str__` 回退到 `__repr__`）；`int()` 逐字符验证数字范围；`join()` 单次分配内存优于 `+` 的多次分配；`chr()`/`ord()` 直接操作 Unicode 码点

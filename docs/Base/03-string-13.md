@@ -3,990 +3,1079 @@ group:
   title: 【03】字符串深度剖析
   order: 3
 order: 13
-title: 字符串与正则表达式
+title: 字符串分割方法
 nav:
   title: Python基础
   order: 1
 ---
 
-# 字符串与正则表达式
+# 字符串分割方法
 
 ## 1. 介绍
 
-### 1.1 什么是正则表达式
+### 1.1 什么是字符串分割方法
 
-正则表达式（Regular Expression，简称 regex）是一种描述字符串模式的微型语言。它用一套特殊的元字符和语法，精确定义"什么样的字符串符合要求"——比如"以数字开头""包含 @ 符号""恰好 11 位手机号"。Python 通过内置的 `re` 模块提供正则表达式支持。
+字符串分割方法是 Python `str` 类中用于"将一个字符串拆成多段"的一组内置方法。它们根据指定的分隔符或行边界，将字符串拆分成列表或元组，是文本解析、数据提取、格式转换中最基础也最常用的工具。
 
 ```python
-import re
+# split 按分隔符拆成列表
+print("a,b,c,d".split(","))
+# ['a', 'b', 'c', 'd']
 
-# 验证手机号格式
-phone = "13812345678"
-if re.match(r'1[3-9]\d{9}$', phone):
-    print("手机号有效")
+# splitlines 按行拆成列表
+print("第一行\n第二行".splitlines())
+# ['第一行', '第二行']
 
-# 从文本中提取所有邮箱
-text = "联系: alice@example.com 或 bob@test.org"
-emails = re.findall(r'[\w.]+@[\w.]+\.\w+', text)
-print(emails)  # ['alice@example.com', 'bob@test.org']
-
-# 替换敏感词
-cleaned = re.sub(r'[垃圾骗局]', lambda m: '*' * len(m.group()), '这个游戏真垃圾')
-print(cleaned)  # 这个游戏真**
+# partition 拆成三元素元组
+print("key=value".partition("="))
+# ('key', '=', 'value')
 ```
 
-### 1.2 正则表达式解决了什么问题
+Python 的字符串分割方法可以分成三类：
 
-字符串的 `str.find()`、`str.replace()` 只能处理固定的子串，而正则表达式处理的是"模式"——一类字符串的共同特征。当需求从"找到 hello"变成"找到以 h 开头、以 o 结尾、中间至少一个字母的单词"时，`str` 方法就力不从心了。
+| 类 | 方法 | 返回值 | 核心特点 |
+|----|------|--------|---------|
+| `split` 族 | `split`、`rsplit` | 列表 | 按分隔符拆分，可控制分割次数 |
+| 按行分割 | `splitlines` | 列表 | 按通用换行符拆分，跨平台安全 |
+| `partition` 族 | `partition`、`rpartition` | 三元组 | 固定返回三元素，找不到分隔符不报错 |
 
-| 需求 | `str` 方法 | 正则表达式 |
-|------|-----------|-----------|
-| 找到 "hello" | `"hello world".find("hello")` | `re.search(r'hello', 'hello world')` |
-| 找到任意数字 | 需手动遍历每个字符 | `re.findall(r'\d+', text)` |
-| 验证邮箱格式 | 几乎不可能 | `re.match(r'[\w.]+@[\w.]+\.\w+', email)` |
-| 替换所有数字 | 需多次 replace | `re.sub(r'\d', 'X', text)` |
-| 按多种分隔符分割 | 需多次 split 或循环 | `re.split(r'[,;|]', text)` |
+### 1.2 最简示例
 
-### 1.3 re 模块方法速览
+```python
+# split：解析 CSV 行
+csv = "apple,banana,cherry"
+print(csv.split(","))
+# ['apple', 'banana', 'cherry']
 
-Python `re` 模块提供三组核心函数：
+# rsplit + maxsplit：从右提取文件扩展名
+name, ext = "report.tar.gz".rsplit(".", 1)
+print(f"文件名: {name}, 扩展名: {ext}")
+# 文件名: report.tar, 扩展名: gz
 
-| 函数 | 作用 | 返回值 |
-|------|------|--------|
-| `re.match` | 从字符串开头匹配 | `Match` 对象或 `None` |
-| `re.search` | 在任意位置搜索第一个匹配 | `Match` 对象或 `None` |
-| `re.fullmatch` | 要求整个字符串完全匹配 | `Match` 对象或 `None` |
-| `re.findall` | 找到所有匹配 | 字符串列表或元组列表 |
-| `re.finditer` | 找到所有匹配 | `Match` 对象迭代器 |
-| `re.sub` | 替换匹配 | 替换后的字符串 |
-| `re.subn` | 替换并计数 | `(替换后字符串, 替换次数)` |
-| `re.split` | 按正则分割 | 字符串列表 |
-| `re.compile` | 编译正则 | 编译后的 Pattern 对象 |
+# splitlines：安全处理多行文本
+text = "line1\r\nline2\nline3"
+print(text.splitlines())
+# ['line1', 'line2', 'line3']
+
+# partition：安全解析键值对
+key, _, value = "host=localhost".partition("=")
+print(f"key={key}, value={value}")
+# key=host, value=localhost
+```
+
+这三类方法覆盖了文本分割的核心需求——"按某分隔符拆成 N 段""按行拆分""拆成前后两部分"。理解每种方法的行为细节和适用场景，能让你在日志解析、配置读取、CSV 处理等任务中写出简洁健壮的代码。
 
 ## 2. 核心内容
 
-### 2.1 匹配与搜索：match / search / fullmatch
+### 2.1 `split()` 按分隔符分割
 
-#### 2.1.1 `re.match` 从开头匹配
+#### 2.1.1 不带参数：按空白字符分割
 
-`re.match(pattern, string)` 从字符串**开头**尝试匹配，如果开头不匹配则返回 `None`。返回 `Match` 对象表示匹配成功。
+`split()` 不带任何参数时，以任意空白字符（空格、制表符 `\t`、换行符 `\n`、回车 `\r` 等）为分隔符。最大的特点：**连续空白自动合并，首尾空白自动忽略**。
 
 ```python
-import re
+# 连续空白合并为单个分隔符
+text = "  Hello   Python   World  "
+print(text.split())
+# ['Hello', 'Python', 'World']
 
-# 开头匹配成功
-result = re.match(r'Hello', 'Hello World')
-print(result)  # <re.Match object; span=(0, 5), match='Hello'>
-print(result.group())  # Hello
-print(result.span())    # (0, 5)
+# 混合空白也自动处理
+text2 = "Python\tJava\nGo\r\nRust"
+print(text2.split())
+# ['Python', 'Java', 'Go', 'Rust']
 
-# 开头不匹配 → 返回 None
-result = re.match(r'World', 'Hello World')
-print(result)  # None
+# 空字符串返回空列表
+print("".split())
+# []
 ```
 
-`match` 只检查开头——即使模式在字符串后面出现了，只要开头不匹配就返回 `None`。
+这个行为非常有用——处理用户输入时，不需要关心用户输入了多少空格，`split()` 会自动归一化。
 
-#### 2.1.2 `re.search` 任意位置搜索
+#### 2.1.2 指定分隔符
 
-`re.search(pattern, string)` 在字符串**任意位置**搜索第一个匹配，找到就返回 `Match` 对象。
+`split(sep)` 按指定分隔符 `sep` 分割字符串，返回列表。分隔符可以是单个字符，也可以是多字符的子串。
 
 ```python
-# match 找不到（不在开头），search 能找到
-result = re.search(r'World', 'Hello World')
-print(result)  # <re.Match object; span=(6, 11), match='World'>
-print(result.group())  # World
-print(result.span())    # (6, 11)
+# 单字符分隔符
+csv_line = "apple,banana,cherry,date"
+print(csv_line.split(","))
+# ['apple', 'banana', 'cherry', 'date']
 
-# 找不到时返回 None
-result = re.search(r'Python', 'Hello World')
-print(result)  # None
+# 多字符分隔符
+log = "2024-01-15|INFO|System started"
+print(log.split("|"))
+# ['2024-01-15', 'INFO', 'System started']
+
+# 分隔符不存在时，返回单元素列表
+print("hello".split(","))
+# ['hello']
 ```
 
-#### 2.1.3 `re.fullmatch` 完全匹配
+#### 2.1.3 `maxsplit` 参数：限制分割次数
 
-`re.fullmatch(pattern, string)` 要求**整个字符串**完全匹配模式，多了或少了都不行。
+`maxsplit` 控制最多分割几刀——分割后的列表最多有 `maxsplit + 1` 个元素。剩余部分作为最后一个元素，不再继续分割。
 
 ```python
-# 完全匹配
-result = re.fullmatch(r'Hello World', 'Hello World')
-print(result)  # <re.Match object; span=(0, 11), match='Hello World'>
+text = "a-b-c-d-e"
 
-# 不完全匹配
-result = re.fullmatch(r'Hello', 'Hello World')
-print(result)  # None
+# 不限制：全部分割
+print(text.split("-"))
+# ['a', 'b', 'c', 'd', 'e']
+
+# 最多 1 刀 → 2 个元素
+print(text.split("-", 1))
+# ['a', 'b-c-d-e']
+
+# 最多 2 刀 → 3 个元素
+print(text.split("-", 2))
+# ['a', 'b', 'c-d-e']
+
+# 最多 3 刀
+print(text.split("-", 3))
+# ['a', 'b', 'c', 'd-e']
 ```
 
-#### 2.1.4 三种匹配方式对比
+`maxsplit` 的典型场景是"只提取前几个部分，剩余部分保持整体"。例如解析配置行时，值中可能包含等号，只需要在第一个等号处分割：
 
 ```python
-text = "Hello World"
-
-# match: 从开头匹配
-print(re.match(r'Hello', text))   # 匹配成功
-print(re.match(r'World', text))   # None（不在开头）
-
-# search: 任意位置搜索
-print(re.search(r'Hello', text)) # 匹配成功
-print(re.search(r'World', text)) # 匹配成功
-
-# fullmatch: 完全匹配
-print(re.fullmatch(r'Hello World', text))  # 匹配成功
-print(re.fullmatch(r'Hello', text))        # None（不完全匹配）
+# 值中可能包含 = 号，只在第一个 = 处分割
+config_line = "path=/home/user/test=a=b"
+key, value = config_line.split("=", 1)
+print(f"key={key}, value={value}")
+# key=path, value=/home/user/test=a=b
 ```
 
-**选择指南**：
+#### 2.1.4 指定分隔符 vs 不带参数的关键差异
 
-| 需求 | 推荐方法 |
-|------|---------|
-| 验证字符串是否以某模式开头 | `re.match` |
-| 验证字符串整体格式（如邮箱、手机号） | `re.fullmatch` |
-| 在文本中搜索某个模式 | `re.search` |
-
-#### 2.1.5 Match 对象的常用方法
-
-匹配成功后，`Match` 对象提供了多种方法获取匹配信息：
+指定分隔符和不带参数的 `split()` 行为完全不同——这是最容易混淆的地方：
 
 ```python
-m = re.search(r'(\w+)@(\w+)\.(\w+)', '联系我: alice@example.com 或 bob@test.org')
+text = "  a   b  "
 
-print(m.group())      # alice@example.com（整个匹配）
-print(m.group(0))     # alice@example.com（同上）
-print(m.group(1))     # alice（第 1 组）
-print(m.group(2))     # example（第 2 组）
-print(m.group(3))     # com（第 3 组）
-print(m.groups())     # ('alice', 'example', 'com')
-print(m.start())      # 5（匹配起始位置）
-print(m.end())        # 22（匹配结束位置）
-print(m.span())       # (5, 22)
+# 不带参数：连续空白合并，首尾空白忽略
+print(text.split())
+# ['a', 'b']
+
+# 指定空格为分隔符：每个空格都是独立分隔符
+print(text.split(" "))
+# ['', '', 'a', '', '', 'b', '', '']
 ```
 
-### 2.2 re.findall 与 re.finditer
-
-#### 2.2.1 `re.findall` 找到所有匹配
-
-`re.findall(pattern, string)` 返回所有匹配的列表。无分组时返回匹配的字符串列表，有分组时返回元组列表。
+指定分隔符后，连续的分隔符会产生**空字符串**元素，首尾的分隔符也会产生空串：
 
 ```python
-# 无分组：返回匹配的字符串列表
-results = re.findall(r'\d+', '电话: 13812345678, 邮编: 200001')
-print(results)  # ['13812345678', '200001']
+# 连续分隔符产生空串
+print("a,,b,,,c".split(","))
+# ['a', '', 'b', '', '', 'c']
 
-# 两个分组：返回元组列表
-results = re.findall(r'(\w+)@(\w+)\.com', 'alice@example.com 和 bob@test.org')
-print(results)  # [('alice', 'example'), ('bob', 'test')]
+# 首尾分隔符产生空串
+print(",a,b,".split(","))
+# ['', 'a', 'b', '']
 ```
 
-**分组对 findall 返回值的影响**：
+#### 2.1.5 分隔符为空字符串的特殊行为
 
-| 正则中有分组 | 返回值 |
-|------------|--------|
-| 无分组 | 匹配的完整字符串列表 |
-| 1 个分组 | 该组内容的字符串列表 |
-| 多个分组 | 各组内容的元组列表 |
-
-#### 2.2.2 `re.finditer` 返回 Match 迭代器
-
-`re.finditer` 返回 `Match` 对象的迭代器，可以获取每次匹配的位置信息：
+`split("")` 会抛出 `ValueError`：
 
 ```python
-for m in re.finditer(r'\d+', '价格: 100元, 200元, 350元'):
-    print(f"  匹配: '{m.group()}' 位置: {m.span()}")
-# 匹配: '100' 位置: (4, 7)
-# 匹配: '200' 位置: (10, 13)
-# 匹配: '350' 位置: (16, 19)
+try:
+    "hello".split("")
+except ValueError as e:
+    print(f"split('') 报错: {e}")
+# split('') 报错: empty separator
 ```
 
-`findall` 拿不到位置信息（只返回字符串），`finditer` 可以拿到完整的 `Match` 对象。
-
-### 2.3 正则元字符与字符类
-
-#### 2.3.1 基本元字符
-
-正则表达式用特殊的元字符描述模式：
+如果需要将字符串拆成单个字符的列表，应该用 `list()`：
 
 ```python
-# . 匹配任意单个字符（除换行符）
-re.findall(r'c.t', 'cat cot cut c t')  # ['cat', 'cot', 'cut', 'c t']
-
-# \d 匹配数字（0-9），\D 匹配非数字
-re.findall(r'\d+', 'abc123def456')  # ['123', '456']
-
-# \w 匹配字母数字下划线，\W 匹配非字母数字下划线
-re.findall(r'\w+', 'hello_world 123!@#')  # ['hello_world', '123']
-
-# \s 匹配空白字符，\S 匹配非空白
-re.findall(r'\S+', 'hello world  python')  # ['hello', 'world', 'python']
+print(list("hello"))
+# ['h', 'e', 'l', 'l', 'o']
 ```
 
-常用元字符速查表：
-
-| 元字符 | 含义 | 示例 | 匹配 |
-|--------|------|------|------|
-| `.` | 任意单个字符（除换行） | `c.t` | `cat`、`cot` |
-| `\d` | 数字 0-9 | `\d+` | `123` |
-| `\D` | 非数字 | `\D+` | `abc` |
-| `\w` | 字母数字下划线 | `\w+` | `hello_123` |
-| `\W` | 非字母数字下划线 | `\W+` | `!@#` |
-| `\s` | 空白字符 | `\s+` | `  \t\n` |
-| `\S` | 非空白 | `\S+` | `hello` |
-| `\b` | 单词边界 | `\bcat\b` | `cat`（不匹配 `catfish`） |
-| `^` | 字符串开头 | `^Hello` | `Hello World` |
-| `$` | 字符串结尾 | `World$` | `Hello World` |
-| `\` | 转义字符 | `\.` | `.` 字面量 |
-
-#### 2.3.2 字符集合 `[...]`
-
-方括号定义字符集合，匹配集合中的任意一个字符：
+#### 2.1.6 实际应用——路径解析
 
 ```python
-# 匹配集合中的任意字符
-re.findall(r'[aeiou]', 'Hello World')  # ['e', 'o', 'o']
+path = "/home/user/projects/myapp/src/main.py"
 
-# 范围匹配
-re.findall(r'[0-9]+', 'a1b22c333')  # ['1', '22', '333']
-re.findall(r'[a-z]+', 'Hello World')  # ['ello', 'orld']
+# 提取路径各部分
+parts = path.split("/")
+print(parts)
+# ['', 'home', 'user', 'projects', 'myapp', 'src', 'main.py']
 
-# 取反：[^...] 匹配不在集合中的字符
-re.findall(r'[^aeiou]', 'Hello')  # ['H', 'l', 'l']
+# 提取文件名（最后一部分）
+filename = path.split("/")[-1]
+print(f"文件名: {filename}")
+# 文件名: main.py
+
+# 提取目录路径（除最后一部分）
+dir_path = "/".join(path.split("/")[:-1])
+print(f"目录: {dir_path}")
+# 目录: /home/user/projects/myapp/src
 ```
 
-#### 2.3.3 或运算 `|`
+### 2.2 `rsplit()` 从右向左分割
 
-`|` 匹配左边或右边的模式：
+#### 2.2.1 `rsplit` 不带 `maxsplit` 时与 `split` 完全相同
+
+当不限制分割次数时，`rsplit` 和 `split` 的结果完全一样——都是从左到右全部拆分：
 
 ```python
-re.findall(r'cat|dog', 'I have a cat and a dog')  # ['cat', 'dog']
+text = "a-b-c-d-e"
+print(text.split("-"))
+# ['a', 'b', 'c', 'd', 'e']
 
-# 多个选择
-re.findall(r'apple|banana|cherry', 'apple pie and banana cake')  # ['apple', 'banana']
+print(text.rsplit("-"))
+# ['a', 'b', 'c', 'd', 'e']  ← 结果相同
 ```
 
-#### 2.3.4 单词边界 `\b`
+#### 2.2.2 `rsplit` 的 `maxsplit` 从右向左计数
 
-`\b` 匹配单词和空格（或字符串首尾）之间的位置，用于精确匹配单词：
+`rsplit` 的核心价值在于配合 `maxsplit` 使用——分割方向从右向左：
 
 ```python
-# 不加 \b：catfish 和 concatenate 中的 cat 也会匹配
-re.findall(r'cat', 'cat catfish concatenate')  # ['cat', 'cat', 'cat']
+text = "a-b-c-d-e"
 
-# 加 \b：只匹配独立的单词 cat
-re.findall(r'\bcat\b', 'cat catfish concatenate')  # ['cat']
+# split 从左限制 2 刀
+print(text.split("-", 2))
+# ['a', 'b', 'c-d-e']
+
+# rsplit 从右限制 2 刀
+print(text.rsplit("-", 2))
+# ['a-b-c', 'd', 'e']
 ```
 
-### 2.4 量词
+**注意 `maxsplit` 的值仍然代表"分割几刀"**，所以 `rsplit("-", 2)` 返回 3 个元素——从右切 2 刀，得到左边整体 + 右边 2 个元素。
 
-量词控制前一个元素匹配多少次：
-
-#### 2.4.1 基本量词
+#### 2.2.3 `split` vs `rsplit` 的 `maxsplit` 对比
 
 ```python
-# * 匹配 0 次或多次
-re.findall(r'ab*', 'a ab abb abbb')  # ['a', 'ab', 'abb', 'abbb']
+text = "1,2,3,4,5,6,7,8,9,10"
 
-# + 匹配 1 次或多次
-re.findall(r'ab+', 'a ab abb abbb')  # ['ab', 'abb', 'abbb']
-
-# ? 匹配 0 次或 1 次
-re.findall(r'colou?r', 'color colour')  # ['color', 'colour']
-```
-
-#### 2.4.2 精确量词 `{n}`, `{n,}`, `{n,m}`
-
-```python
-# {n} 恰好 n 次
-re.findall(r'\d{3}', '12 123 1234 12345')  # ['123', '123', '123']
-
-# {n,} 至少 n 次
-re.findall(r'\d{2,}', '1 12 123 1234')  # ['12', '123', '1234']
-
-# {n,m} n 到 m 次
-re.findall(r'\d{2,4}', '1 12 123 1234 12345')  # ['12', '123', '1234', '1234']
-```
-
-#### 2.4.3 量词速查表
-
-| 量词 | 匹配次数 | 等价形式 |
-|------|---------|---------|
-| `*` | 0 次或多次 | `{0,}` |
-| `+` | 1 次或多次 | `{1,}` |
-| `?` | 0 次或 1 次 | `{0,1}` |
-| `{n}` | 恰好 n 次 | |
-| `{n,}` | 至少 n 次 | |
-| `{n,m}` | n 到 m 次 | |
-
-### 2.5 分组与断言
-
-#### 2.5.1 捕获组 `(...)`
-
-用圆括号将模式的一部分分组，分组的内容可以被提取和反向引用：
-
-```python
-m = re.search(r'(\d{4})-(\d{2})-(\d{2})', '日期: 2024-01-15')
-print(m.group(1))  # 2024
-print(m.group(2))  # 01
-print(m.group(3))  # 15
-print(m.groups())   # ('2024', '01', '15')
-```
-
-#### 2.5.2 命名分组 `(?P<name>...)`
-
-命名分组用 `(?P<name>...)` 给分组取名字，比数字索引更直观：
-
-```python
-m = re.search(r'(?P<year>\d{4})-(?P<month>\d{2})-(?P<day>\d{2})', '2024-01-15')
-print(m.group('year'))   # 2024
-print(m.group('month'))  # 01
-print(m.groupdict())      # {'year': '2024', 'month': '01', 'day': '15'}
-```
-
-#### 2.5.3 非捕获组 `(?:...)`
-
-非捕获组用 `(?:...)` 表示只分组不捕获——`findall` 不会返回它的内容：
-
-```python
-# 普通分组：findall 返回分组内容
-re.findall(r'(\d{4})-(\d{2})-(\d{2})', '2024-01-15')
-# [('2024', '01', '15')]
-
-# 非捕获组：findall 返回完整匹配
-re.findall(r'(?:\d{4})-(?:\d{2})-(?:\d{2})', '2024-01-15')
-# ['2024-01-15']
-```
-
-非捕获组的优势——不需要提取内容时，用非捕获组避免 `findall` 返回分组内容，同时性能略优。
-
-#### 2.5.4 反向引用
-
-在正则表达式中用 `\1` 或 `(?P=name)` 引用前面的分组——检查重复内容：
-
-```python
-# \1 引用第 1 个分组，找出连续重复的单词
-re.findall(r'\b(\w+)\s+\1\b', 'hello hello world world test pass')
-# ['hello', 'world']
-
-# 命名反向引用
-m = re.search(r'(?P<word>\w+)\s+(?P=word)', 'hello hello world')
-print(m.group('word'))  # hello
-
-# 匹配成对的引号
-re.findall(r'(["\']).*?\1', "他说\"你好\", 她说'再见'")
-# ['"', "'"]
-```
-
-#### 2.5.5 零宽断言（Lookaround）
-
-零宽断言检查某个位置前后是否满足条件，但**不消耗字符**——匹配的位置是"边界"而非内容。
-
-| 断言 | 语法 | 含义 |
-|------|------|------|
-| 正向预查 | `(?=...)` | 后面跟着 X |
-| 负向预查 | `(?!...)` | 后面不跟着 X |
-| 正向后顾 | `(?<=...)` | 前面是 X |
-| 负向后顾 | `(?<!...)` | 前面不是 X |
-
-```python
-# 正向预查：提取"元"前面的数字
-re.findall(r'\d+(?=元)', '价格: 100元, 200美元, 350元')
-# ['100', '350']
-
-# 正向后顾：提取"￥"后面的数字
-re.findall(r'(?<=￥)\d+', '￥100, $200, ￥350')
-# ['100', '350']
-```
-
-**实际应用——URL 解析**：
-
-```python
-url_pattern = re.compile(
-    r'(?P<protocol>https?)://'
-    r'(?P<domain>[\w.]+)'
-    r'(?::(?P<port>\d+))?'
-    r'(?P<path>/[^\s]*)?'
-)
-
-url = 'http://api.test.org:8080/v1/users'
-m = url_pattern.search(url)
-if m:
-    d = m.groupdict()
-    print(f"  协议: {d.get('protocol')}")
-    print(f"  域名: {d.get('domain')}")
-    print(f"  端口: {d.get('port')}")
-    print(f"  路径: {d.get('path')}")
+for n in [1, 2, 3]:
+    print(f"split({n}):   {text.split(',', n)}")
+    print(f"rsplit({n}):  {text.rsplit(',', n)}")
+    print()
 
 # 输出:
-#   协议: http
-#   域名: api.test.org
-#   端口: 8080
-#   路径: /v1/users
+# split(1):   ['1', '2,3,4,5,6,7,8,9,10']
+# rsplit(1):  ['1,2,3,4,5,6,7,8,9', '10']
+#
+# split(2):   ['1', '2', '3,4,5,6,7,8,9,10']
+# rsplit(2):  ['1,2,3,4,5,6,7,8', '9', '10']
+#
+# split(3):   ['1', '2', '3', '4,5,6,7,8,9,10']
+# rsplit(3):  ['1,2,3,4,5,6,7', '8', '9', '10']
 ```
 
-### 2.6 贪婪与非贪婪
-
-#### 2.6.1 贪婪模式（默认）
-
-默认情况下，量词尽可能多地匹配——这就是"贪婪"模式：
+#### 2.2.4 实际应用——从路径提取扩展名
 
 ```python
-text = '<div>内容1</div><div>内容2</div>'
+filepath = "/home/user/docs/report.csv"
 
-# 贪婪 .* 从第一个 <div> 匹配到最后一个 </div>
-greedy = re.findall(r'<div>.*</div>', text)
-print(greedy)
-# ['<div>内容1</div><div>内容2</div>']  ← 一口气匹配到最后
+# rsplit 从右切 1 刀，提取扩展名
+name, ext = filepath.rsplit(".", 1)
+print(f"文件名: {name}")
+print(f"扩展名: {ext}")
+# 文件名: /home/user/docs/report
+# 扩展名: csv
+
+# 从右切 1 刀，提取纯文件名
+dir_part, filename = filepath.rsplit("/", 1)
+print(f"目录: {dir_part}")
+print(f"文件名: {filename}")
+# 目录: /home/user/docs
+# 文件名: report.csv
 ```
 
-#### 2.6.2 非贪婪模式
-
-在量词后加 `?` 使其变为非贪婪——尽可能少地匹配：
+#### 2.2.5 实际应用——从多层域名提取顶级域名
 
 ```python
-# 非贪婪 .*? 遇到第一个 </div> 就停止
-lazy = re.findall(r'<div>.*?</div>', text)
-print(lazy)
-# ['<div>内容1</div>', '<div>内容2</div>']  ← 每个标签单独匹配
+domain = "mail.example.co.uk"
+
+# split 从左：拿第一段
+print(domain.split(".", 1))
+# ['mail', 'example.co.uk']
+
+# rsplit 从右：拿最后一段（顶级域名）
+print(domain.rsplit(".", 1))
+# ['mail.example', 'co.uk']
 ```
 
-三种量词的非贪婪形式：
+### 2.3 `splitlines()` 按行分割
 
-| 贪婪 | 非贪婪 | 含义 |
-|------|--------|------|
-| `*` | `*?` | 0 或多次，尽可能少 |
-| `+` | `+?` | 1 或多次，尽可能少 |
-| `?` | `??` | 0 或 1 次，尽可能少 |
+#### 2.3.1 `splitlines` 基本用法
 
-#### 2.6.3 贪婪与非贪婪的典型陷阱
+`splitlines()` 按通用换行符分割字符串。与 `split("\n")` 不同，`splitlines` 能正确处理所有平台的所有换行形式——`\n`、`\r\n`、`\r` 以及 Unicode 行分隔符。
 
 ```python
-text = '"name":"Alice","age":30,"city":"Beijing"'
+text = "第一行\n第二行\n第三行"
+print(text.splitlines())
+# ['第一行', '第二行', '第三行']
 
-# 贪婪：从第一个引号匹配到最后一个引号
-re.findall(r'"(.*)"', text)
-# ['name":"Alice","age":30,"city":"Beijing']  ← 错误！
-
-# 非贪婪：每个引号对单独匹配
-re.findall(r'"(.*?)"', text)
-# ['name', 'Alice', 'age', 'city', 'Beijing']  ← 正确
+# 混合换行符也能正确处理
+text2 = "Windows行\r\nUnix行\n旧Mac行\r"
+print(text2.splitlines())
+# ['Windows行', 'Unix行', '旧Mac行']
 ```
 
-**秒记**：提取成对标记的内容时，用 `.*?`（非贪婪）比 `.*`（贪婪）更安全。
+#### 2.3.2 `splitlines` vs `split("\n")` 的关键差异
 
-### 2.7 re.compile 编译预编译
-
-#### 2.7.1 为什么要编译
-
-`re.compile(pattern)` 将正则表达式编译为 `Pattern` 对象，避免每次调用都重新编译：
+这是处理多行文本时最容易踩坑的地方：
 
 ```python
-# 不编译：每次调用都重新解析正则
-re.findall(r'\d+', '电话: 13812345678')
-re.findall(r'\d+', '邮编: 200001')
+text_mixed = "line1\r\nline2\nline3"
 
-# 编译一次，复用多次
-digit_pattern = re.compile(r'\d+')
-digit_pattern.findall('电话: 13812345678')
-digit_pattern.findall('邮编: 200001')
+# split("\n") 不能处理 \r\n：\r 会残留
+print(text_mixed.split("\n"))
+# ['line1\r', 'line2', 'line3']  ← \r 残留
+
+# splitlines() 正确处理所有换行符
+print(text_mixed.splitlines())
+# ['line1', 'line2', 'line3']  ← 干净
 ```
 
-编译后的 `Pattern` 对象拥有与 `re` 模块相同的方法（`match`、`search`、`findall`、`sub`、`split` 等）。
-
-#### 2.7.2 编译标志（Flags）
-
-`re.compile` 的第二个参数可以传标志，控制正则的行为：
+末尾换行符的处理也不同：
 
 ```python
-# re.IGNORECASE (re.I): 忽略大小写
-p = re.compile(r'hello', re.I)
-p.search('HELLO')  # 匹配成功
-p.search('HeLLo')  # 匹配成功
+text_trailing = "line1\nline2\n"
 
-# re.DOTALL (re.S): 让 . 匹配包括换行符
-p = re.compile(r'.+', re.DOTALL)
-p.match('line1\nline2').group()  # 'line1\nline2'
+# split("\n") 末尾会产生空串
+print(text_trailing.split("\n"))
+# ['line1', 'line2', '']  ← 末尾多一个空串
 
-# re.MULTILINE (re.M): ^ 和 $ 匹配每一行的首尾
-p = re.compile(r'^\w+', re.MULTILINE)
-p.findall('line1\nline2\nline3')  # ['line1', 'line2', 'line3']
-
-# re.VERBOSE (re.X): 允许在正则中添加注释和空格
-p = re.compile(r"""
-    \d{4}      # 年
-    -          # 分隔符
-    \d{2}      # 月
-    -          # 分隔符
-    \d{2}      # 日
-""", re.VERBOSE)
-p.search('2024-01-15').group()  # '2024-01-15'
+# splitlines() 末尾换行不会产生空串
+print(text_trailing.splitlines())
+# ['line1', 'line2']  ← 干净
 ```
 
-标志速查表：
+#### 2.3.3 `keepends` 参数：保留换行符
 
-| 标志 | 缩写 | 作用 |
-|------|------|------|
-| `re.IGNORECASE` | `re.I` | 忽略大小写 |
-| `re.DOTALL` | `re.S` | `.` 匹配包括换行符 |
-| `re.MULTILINE` | `re.M` | `^` `$` 匹配每行首尾 |
-| `re.VERBOSE` | `re.X` | 允许注释和空格 |
-
-多个标志可以用 `|` 组合：`re.compile(pattern, re.I | re.M)`。
-
-### 2.8 re.sub 替换
-
-#### 2.8.1 基本替换
-
-`re.sub(pattern, repl, string, count=0)` 将匹配替换为 `repl`：
+`splitlines(keepends=True)` 保留每行末尾的换行符，可以用于精确重组原字符串：
 
 ```python
-# 替换所有匹配
-re.sub(r'\d+', 'N', '电话: 13812345678, 邮编: 200001')
-# '电话: N, 邮编: N'
+text = "第一行\n第二行\r\n第三行\r"
 
-# count 参数：只替换前 N 个
-re.sub(r'\d+', 'N', '1-2-3-4-5', count=2)
-# 'N-N-3-4-5'
+print("keepends=False（默认）:")
+for line in text.splitlines():
+    print(f"  '{line}'")
 
-# 替换为空串 = 删除
-re.sub(r'[\d,]', '', '1,000,000')
-# ''
+print("keepends=True:")
+for line in text.splitlines(keepends=True):
+    print(f"  '{line}'")
 ```
 
-#### 2.8.2 反向引用替换
+**运行结果**：
 
-在替换字符串中用 `\1` 或 `\g<name>` 引用分组：
-
-```python
-# \1 \2 引用分组
-re.sub(r'(\w+)@(\w+)\.com', r'\2.\1@org.cn', '联系: alice@example.com')
-# '联系: example.alice@org.cn'
-
-# 日期格式转换 YYYY-MM-DD → DD/MM/YYYY
-re.sub(r'(\d{4})-(\d{2})-(\d{2})', r'\3/\2/\1', '日期: 2024-01-15')
-# '日期: 15/01/2024'
+```text
+keepends=False（默认）:
+  '第一行'
+  '第二行'
+  '第三行'
+keepends=True:
+  '第一行\n'
+  '第二行\r\n'
+  '第三行\r'
 ```
 
-#### 2.8.3 函数替换
-
-`repl` 可以是一个函数，接收 `Match` 对象，返回替换字符串：
+`keepends=True` 的实际用途——需要精确重组原字符串时：
 
 ```python
-# 敏感词替换为等长星号
-def replace_sensitive(match):
-    return '*' * len(match.group())
-
-re.sub(r'[垃圾骗局]', replace_sensitive, '这个游戏真垃圾，很骗局')
-# '这个游戏真**，很**'
-
-# 数字千分位格式化
-def add_commas(match):
-    return f'{int(match.group()):,}'
-
-re.sub(r'\d+', add_commas, '价格: 1234567 元, 运费: 89 元')
-# '价格: 1,234,567 元, 运费: 89 元'
+original = "line1\nline2\r\nline3"
+parts = original.splitlines(keepends=True)
+restored = "".join(parts)
+print(f"重组后与原字符串相同: {restored == original}")
+# 重组后与原字符串相同: True
 ```
 
-#### 2.8.4 `re.subn` 替换并计数
+#### 2.3.4 `splitlines` 支持的行边界
 
-`re.subn` 与 `re.sub` 用法相同，但额外返回替换次数：
+`splitlines` 不仅能处理 `\n`、`\r\n`、`\r`，还支持 Unicode 标准定义的其他行边界：
 
 ```python
-result, count = re.subn(r'\d+', 'N', 'a1b2c3d4')
-print(result)  # aNbNcNdN
-print(count)   # 4
+# Unicode 行分隔符 U+2028、段分隔符 U+2029
+text_unicode = "行1\u2028行2\u2029行3"
+print(text_unicode.splitlines())
+# ['行1', '行2', '行3']
+
+# 文件分隔符 \x1c、组分隔符 \x1d、记录分隔符 \x1e
+text_special = "A\x1cB\x1dC\x1eD"
+print(text_special.splitlines())
+# ['A', 'B', 'C', 'D']
 ```
 
-### 2.9 re.split 分割
+**`splitlines` 支持的行边界一览**：
 
-#### 2.9.1 基本分割
+| 字符 | 说明 |
+|------|------|
+| `\n` | 换行符（Unix/Linux） |
+| `\r` | 回车符（旧 Mac） |
+| `\r\n` | 回车+换行（Windows） |
+| `\v` / `\f` | 垂直制表符 / 换页符 |
+| `\x1c` | 文件分隔符 |
+| `\x1d` | 组分隔符 |
+| `\x1e` | 记录分隔符 |
+| `\x85` | 下一行（Next Line, NEL） |
+| `\u2028` | 行分隔符（Line Separator） |
+| `\u2029` | 段分隔符（Paragraph Separator） |
 
-`re.split(pattern, string, maxsplit=0)` 按正则匹配的位置分割字符串：
+#### 2.3.5 实际应用——解析多行配置
 
 ```python
-# 按白色分割
-re.split(r'\s+', 'hello   world  python')
-# ['hello', 'world', 'python']
+config_text = """
+# 数据库配置
+host=localhost
+port=8080
 
-# 多种分隔符
-re.split(r'[,;|]', 'a,b;c|d')
-# ['a', 'b', 'c', 'd']
+# 缓存配置
+cache_host=redis
+cache_port=6379
+"""
 
-# maxsplit 参数
-re.split(r'[,;]', 'a,b;c,d,e', maxsplit=2)
-# ['a', 'b', 'c,d,e']
+config = {}
+for line in config_text.splitlines():
+    line = line.strip()
+    if not line or line.startswith("#"):
+        continue
+    if "=" in line:
+        key, value = line.split("=", 1)
+        config[key] = value
+
+print("解析结果:")
+for k, v in config.items():
+    print(f"  {k} = {v}")
+
+# 输出:
+# 解析结果:
+#   host = localhost
+#   port = 8080
+#   cache_host = redis
+#   cache_port = 6379
 ```
 
-#### 2.9.2 分组对 split 的影响
+### 2.4 `partition()` / `rpartition()` 三元素分割
 
-`re.split` 中如果模式含分组，分隔符也会出现在结果中：
+#### 2.4.1 `partition` 基本用法
+
+`partition(sep)` 将字符串在**第一个**匹配的分隔符处分成三部分，返回一个三元组 `(分隔符前, 分隔符本身, 分隔符后)`。它**总是返回三个元素**，不会报错。
 
 ```python
-# 无分组：分隔符被丢弃
-re.split(r'\s*,\s*', 'a , b , c')
-# ['a', 'b', 'c']
+text = "Hello World Python"
+result = text.partition(" ")
+print(result)
+# ('Hello', ' ', 'World Python')
 
-# 有分组：分隔符保留在结果中
-re.split(r'(\s*,\s*)', 'a , b , c')
-# ['a', ' , ', 'b', ' , ', 'c']
-
-# 保留日期中的分隔符
-re.split(r'(-)', '2024-01-15')
-# ['2024', '-', '01', '-', '15']
+# 用三元组解包
+before, sep, after = text.partition(" ")
+print(f"前: '{before}', 分隔: '{sep}', 后: '{after}'")
+# 前: 'Hello', 分隔: ' ', 后: 'World Python'
 ```
 
-#### 2.9.3 re.split vs str.split
+#### 2.4.2 分隔符不存在时的安全行为
+
+`partition` 最大的优势——分隔符不存在时不会报错，返回 `(原字符串, "", "")`：
 
 ```python
-text = "hello,,world,,,python"
+text = "HelloWorld"
+result = text.partition(" ")
+print(result)
+# ('HelloWorld', '', '')
 
-# str.split: 只能按固定字符串分割，产生空串
-text.split(',')
-# ['hello', '', 'world', '', '', 'python']
+# 这使得 partition 比 split 更安全
+print(text.split(" "))
+# ['HelloWorld']  ← 返回单元素列表，需要检查长度
 
-# re.split: 用正则 + 匹配连续分隔符，无空串
-re.split(r',+', text)
-# ['hello', 'world', 'python']
+# partition 总是三元素，解包不会出错
+before, sep, after = "no-space-here".partition(" ")
+print(f"有分隔符吗: {bool(sep)}")
+# 有分隔符吗: False
 ```
 
-`re.split` 支持"一个或多个分隔符"的模式，而 `str.split` 只能按固定字符串分割。
+#### 2.4.3 `rpartition` 从右侧查找分隔符
 
-### 2.10 综合实战
-
-#### 2.10.1 邮箱验证与提取
+`rpartition(sep)` 从右向左查找第一个匹配的分隔符：
 
 ```python
-email_pattern = re.compile(
-    r'^(?P<local>[\w.]+)@(?P<domain>[\w.]+)$'
-)
+text = "a=1&b=2&c=3"
 
-# 验证
-test_emails = ['alice@example.com', 'invalid-email', '@no-local.com', 'no-domain@']
-for email in test_emails:
-    m = email_pattern.match(email)
-    status = f"有效 ({m.group('local')}@{m.group('domain')})" if m else "无效"
-    print(f"  {email:<25} → {status}")
+# partition 从左找到第一个 "="
+key, _, value = text.partition("=")
+print(f"左: key={key}, value={value}")
+# 左: key=a, value=1&b=2&c=3
 
-# 从文本中提取
-text = "联系: alice@example.com 或 bob@test.org, 非邮箱: @invalid"
-re.findall(r'[\w.]+@[\w.]+\.\w+', text)
-# ['alice@example.com', 'bob@test.org']
+# rpartition 从右找到最后一个 "="
+key, _, value = text.rpartition("=")
+print(f"右: key={key}, value={value}")
+# 右: key=a=1&b=2&c, value=3
 ```
 
-#### 2.10.2 手机号验证
+#### 2.4.4 `partition` vs `rpartition` 方向对比
 
 ```python
-phone_pattern = re.compile(r'^1[3-9]\d{9}$')
+text = "2024-01-15-10-30"
 
-test_phones = ['13812345678', '19987654321', '12345678901', '1381234567']
-for phone in test_phones:
-    valid = bool(phone_pattern.match(phone))
-    print(f"  {phone:<15} {'有效' if valid else '无效'}")
-# 13812345678     有效
-# 19987654321     有效
-# 12345678901     无效
-# 1381234567      无效
+# partition 从左找到第一个 "-"
+left = text.partition("-")
+print(f"partition: {left}")
+# ('2024', '-', '01-15-10-30')
+
+# rpartition 从右找到最后一个 "-"
+right = text.rpartition("-")
+print(f"rpartition: {right}")
+# ('2024-01-15-10', '-', '30')
 ```
 
-#### 2.10.3 HTML 标签处理
+#### 2.4.5 `partition` vs `split` 的安全性对比
+
+`partition` 比带 `maxsplit=1` 的 `split` 更安全——后者返回列表，长度不确定，需要额外检查；前者固定返回三元素，解包天然安全。
 
 ```python
-html = '<div class="header"><h1>标题</h1></div><p class="content">正文</p>'
+# split 模式：需要检查列表长度
+def parse_key_value_split(text):
+    parts = text.split("=", 1)
+    if len(parts) == 2:
+        return parts[0], parts[1]
+    else:
+        return parts[0], None
 
-# 提取所有标签名
-re.findall(r'</?(\w+)[^>]*>', html)
-# ['div', 'h1', 'h1', 'div', 'p', 'p']
+# partition 模式：天然安全，不用检查长度
+def parse_key_value_partition(text):
+    key, sep, value = text.partition("=")
+    if sep:
+        return key, value
+    return key, None
 
-# 提取属性键值对
-re.findall(r'(\w+)="([^"]*)"', html)
-# [('class', 'header'), ('class', 'content')]
+test_cases = [
+    "host=localhost",
+    "port=8080",
+    "invalid",           # 没有 = 号
+    "path=/a=b=c",       # 多个 = 号
+]
 
-# 去除所有标签
-re.sub(r'</?[^>]+>', '', html)
-# '标题正文'
+for text in test_cases:
+    r1 = parse_key_value_split(text)
+    r2 = parse_key_value_partition(text)
+    print(f"  '{text}' → split: {r1}, partition: {r2}")
 
-# 提取特定标签内容（非贪婪）
-re.search(r'<h1>(.*?)</h1>', html).group(1)
-# '标题'
+# 'host=localhost' → split: ('host', 'localhost'), partition: ('host', 'localhost')
+# 'port=8080' → split: ('port', '8080'), partition: ('port', '8080')
+# 'invalid' → split: ('invalid', None), partition: ('invalid', None)
+# 'path=/a=b=c' → split: ('path', '/a=b=c'), partition: ('path', '/a=b=c')
 ```
 
-#### 2.10.4 日志解析
+#### 2.4.6 实际应用——解析 URL
+
+`partition` 在链式解析结构化文本时非常优雅——不需要检查分隔符是否存在，直接解包：
 
 ```python
-log_pattern = re.compile(
-    r'\[(?P<date>\d{4}-\d{2}-\d{2})\s+(?P<time>\d{2}:\d{2}:\d{2})\]\s+'
-    r'(?P<level>\w+)\s+\|\s+'
-    r'(?P<service>\w+)\s+\|\s+'
-    r'(?P<message>.*)'
-)
+url = "https://www.example.com:8080/api/v1?query=1"
 
-line = '[2024-01-15 10:30:45] INFO  | user_service | User login: id=12345'
-m = log_pattern.match(line)
-print(m.groupdict())
-# {'date': '2024-01-15', 'time': '10:30:45', 'level': 'INFO',
-#  'service': 'user_service', 'message': 'User login: id=12345'}
+# 分离协议
+protocol, _, rest = url.partition("://")
+print(f"协议: {protocol}")
+# 协议: https
 
-# 提取日志中的键值对
-re.findall(r'(\w+)=(\S+)', line)
-# [('id', '12345')]
+# 分离域名和路径
+domain, _, path = rest.partition("/")
+print(f"域名: {domain}")
+print(f"路径: {path}")
+# 域名: www.example.com:8080
+# 路径: api/v1?query=1
+
+# 分离端口
+host, sep, port = domain.partition(":")
+print(f"主机: {host}")
+print(f"端口: {port if sep else '(默认)'}")
+# 主机: www.example.com
+# 端口: 8080
+
+# 分离路径和查询参数
+path_part, _, query = path.partition("?")
+print(f"路径: /{path_part}")
+print(f"参数: {query}")
+# 路径: /api/v1
+# 参数: query=1
 ```
 
-#### 2.10.5 密码强度检查
+#### 2.4.7 分隔符不存在时 `partition` vs `rpartition` 的差异
+
+分隔符不存在时，`partition` 把原字符串放在第一个位置，而 `rpartition` 把原字符串放在最后一个位置——这是两者的关键差异：
 
 ```python
-def check_password_strength(password):
-    """用正则检查密码各项要求"""
-    checks = {
-        '长度>=8': bool(re.search(r'.{8,}', password)),
-        '包含大写': bool(re.search(r'[A-Z]', password)),
-        '包含小写': bool(re.search(r'[a-z]', password)),
-        '包含数字': bool(re.search(r'\d', password)),
-        '包含特殊字符': bool(re.search(r'[!@#$%^&*(),.?":{}|<>]', password)),
+text = "no-separator-here"  # 这里没有逗号
+
+# partition: 分隔符不存在 → (原字符串, "", "")
+print(text.partition(","))
+# ('no-separator-here', '', '')
+
+# rpartition: 分隔符不存在 → ("", "", 原字符串)
+print(text.rpartition(","))
+# ('', '', 'no-separator-here')
+```
+
+这个差异在实际使用中很重要：`rpartition` 在分隔符不存在时把内容放在最后一个元素，这意味着如果你需要的是"分隔符后的内容"，用 `rpartition` 时分隔符不存在会得到空串而非原字符串。反过来，如果你需要的是"分隔符前的内容"，用 `partition` 更合适。
+
+### 2.5 综合实战
+
+#### 2.5.1 CSV 解析器
+
+综合使用 `splitlines` + `split` 实现简易 CSV 解析：
+
+```python
+def parse_csv_line(line, delimiter=","):
+    """解析单行 CSV"""
+    line = line.rstrip("\n\r")
+    return [f.strip() for f in line.split(delimiter)]
+
+def parse_csv(csv_text):
+    """解析 CSV 文本，返回表头和数据行"""
+    lines = csv_text.strip().splitlines()
+    if not lines:
+        return [], []
+    headers = parse_csv_line(lines[0])
+    data = [parse_csv_line(line) for line in lines[1:] if line.strip()]
+    return headers, data
+
+csv_data = """姓名,年龄,邮箱,部门
+张三,30,zhangsan@example.com,技术部
+李四,25,lisi@example.com,市场部
+王五,35,wangwu@example.com,管理部
+"""
+
+headers, rows = parse_csv(csv_data)
+print(f"表头: {headers}")
+for row in rows:
+    print(f"  {row}")
+
+# 输出:
+# 表头: ['姓名', '年龄', '邮箱', '部门']
+#   ['张三', '30', 'zhangsan@example.com', '技术部']
+#   ['李四', '25', 'lisi@example.com', '市场部']
+#   ['王五', '35', 'wangwu@example.com', '管理部']
+```
+
+#### 2.5.2 日志解析器
+
+综合使用 `partition` + `splitlines` 解析结构化日志：
+
+```python
+def parse_log_line(log_line):
+    """解析日志行：[时间戳] 级别: 消息"""
+    line = log_line.strip()
+    if not line:
+        return None
+
+    # 用 partition 安全提取时间戳
+    after_bracket, _, rest = line.partition("]")
+    if not _:
+        return None
+    timestamp = after_bracket[1:]  # 去掉开头的 '['
+
+    # 用 partition 安全提取级别和消息
+    level, _, message = rest.strip().partition(": ")
+    if not _:
+        return None
+
+    return {"timestamp": timestamp, "level": level, "message": message.strip()}
+
+log_content = """[2024-01-15 08:30:00] INFO: System started
+[2024-01-15 08:32:45] WARN: Cache hit rate below 60%
+[2024-01-15 08:33:10] ERROR: Database connection timeout
+[2024-01-15 08:35:20] ERROR: Authentication failed"""
+
+for line in log_content.strip().splitlines():
+    parsed = parse_log_line(line)
+    if parsed:
+        print(f"  [{parsed['level']:5s}] {parsed['timestamp']} → {parsed['message']}")
+
+# 输出:
+#   [INFO ] 2024-01-15 08:30:00 → System started
+#   [WARN ] 2024-01-15 08:32:45 → Cache hit rate below 60%
+#   [ERROR] 2024-01-15 08:33:10 → Database connection timeout
+#   [ERROR] 2024-01-15 08:35:20 → Authentication failed
+```
+
+#### 2.5.3 URL 解析器
+
+综合使用 `partition` / `rpartition` / `split` 链式解析 URL：
+
+```python
+def parse_url(url):
+    """将 URL 解析为各组成部分"""
+    result = {}
+    protocol, _, rest = url.partition("://")
+    if _:
+        result["protocol"] = protocol
+    else:
+        rest = protocol
+        result["protocol"] = ""
+
+    host_port, _, path = rest.partition("/")
+    if _:
+        result["path"] = "/" + path
+    else:
+        host_port = rest
+        result["path"] = ""
+
+    host, sep, port = host_port.partition(":")
+    result["host"] = host
+    result["port"] = port if sep else ""
+
+    path_part, _, query = result["path"].partition("?")
+    result["path"] = path_part
+    result["params"] = {}
+    if _:
+        for pair in query.split("&"):
+            k, s, v = pair.partition("=")
+            if s:
+                result["params"][k] = v
+            else:
+                result["params"][k] = ""
+    return result
+
+url = "https://www.example.com:8080/api/v1?id=1&name=alice"
+parsed = parse_url(url)
+print(f"协议: {parsed['protocol']}")
+print(f"主机: {parsed['host']}")
+print(f"端口: {parsed['port']}")
+print(f"路径: {parsed['path']}")
+print(f"参数: {parsed['params']}")
+
+# 输出:
+# 协议: https
+# 主机: www.example.com
+# 端口: 8080
+# 路径: /api/v1
+# 参数: {'id': '1', 'name': 'alice'}
+```
+
+#### 2.5.4 代码行统计工具
+
+综合使用 `splitlines` + `split` 统计 Python 代码行信息：
+
+```python
+def analyze_code(code_text):
+    """分析 Python 代码行统计信息"""
+    lines = code_text.splitlines()
+    stats = {
+        "总行数": len(lines),
+        "代码行": 0,
+        "注释行": 0,
+        "空行": 0,
+        "函数定义": 0,
+        "类定义": 0,
     }
-    score = sum(checks.values())
-    levels = ['极弱', '弱', '一般', '中等', '较强', '强']
-    return levels[score], checks
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            stats["空行"] += 1
+        elif stripped.startswith("#"):
+            stats["注释行"] += 1
+        else:
+            stats["代码行"] += 1
+            if stripped.startswith("def "):
+                stats["函数定义"] += 1
+            elif stripped.startswith("class "):
+                stats["类定义"] += 1
+    return stats
 
-passwords = ['123', 'abc123', 'Abc123!', 'P@ssw0rd!']
-for pwd in passwords:
-    level, _ = check_password_strength(pwd)
-    print(f"  {pwd:<15} → {level}")
-# 123              → 弱
-# abc123           → 一般
-# Abc123!          → 较强
-# P@ssw0rd!        → 强
+sample_code = """class Calculator:
+    def add(self, a, b):
+        return a + b
+
+    def subtract(self, a, b):
+        # 减法运算
+        return a - b
+
+# 使用示例
+calc = Calculator()
+result = calc.add(10, 5)"""
+
+stats = analyze_code(sample_code)
+for key, value in stats.items():
+    print(f"  {key}: {value}")
+
+# 输出:
+#   总行数: 10
+#   代码行: 6
+#   注释行: 2
+#   空行: 2
+#   函数定义: 2
+#   类定义: 1
+```
+
+#### 2.5.5 四种分割方法对比一览
+
+```python
+text = "name=alice&age=30&city=beijing"
+
+print(f"原始: '{text}'")
+print()
+
+# split() 不带参数
+print(f"split():               {text.split()}")
+# ['name=alice&age=30&city=beijing']
+
+# split 指定分隔符
+print(f"split('&'):            {text.split('&')}")
+# ['name=alice', 'age=30', 'city=beijing']
+
+# rsplit 从右限 1 刀
+print(f"rsplit('&', 1):        {text.rsplit('&', 1)}")
+# ['name=alice&age=30', 'city=beijing']
+
+# partition 拆第一个 =
+before, _, after = text.partition("=")
+print(f"partition('='):        ('{before}', '{after}')")
+# ('name', 'alice&age=30&city=beijing')
+
+# rpartition 拆最后一个 =
+before, _, after = text.rpartition("=")
+print(f"rpartition('='):       ('{before}', '{after}')")
+# ('name=alice&age=30&city', 'beijing')
 ```
 
 ## 3. 最佳实践
 
-### 3.1 选择正确的方法
+### 3.1 选择正确的分割方法
 
 | 需求 | 推荐方法 | 原因 |
 |------|---------|------|
-| 验证字符串格式 | `re.fullmatch` | 要求整串完全匹配 |
-| 从开头匹配 | `re.match` | 只匹配开头 |
-| 搜索第一个匹配 | `re.search` | 任意位置 |
-| 找到所有匹配 | `re.findall` | 返回列表，简洁 |
-| 遍历匹配+位置 | `re.finditer` | 需要 Match 对象 |
-| 替换匹配 | `re.sub` | 支持函数/反向引用 |
-| 替换并计数 | `re.subn` | 同时知道改了几处 |
-| 按正则分割 | `re.split` | 支持多分隔符 |
-| 重复使用同一正则 | `re.compile` | 编译一次复用多次 |
+| 按空白拆分（自动合并） | `split()` | 不带参数，连续空白自动合并 |
+| 按固定分隔符全量拆分 | `split(sep)` | 简单直接，返回列表 |
+| 只拆前 N 段（保留剩余整体） | `split(sep, N)` | `maxsplit` 限制分割次数 |
+| 只拆后 N 段 | `rsplit(sep, N)` | 从右限制分割次数 |
+| 按行拆分（跨平台安全） | `splitlines()` | 正确处理 `\n`、`\r\n`、`\r` |
+| 拆键值对（前后两部分） | `partition(sep)` | 固定返回三元素，不报错 |
+| 从右找分隔符拆两部分 | `rpartition(sep)` | 如提取文件扩展名 |
+| 多行文本逐行处理 | `splitlines()` | 末尾换行不产生空串 |
 
 ### 3.2 推荐 vs 不推荐写法
 
 ```python
-# ---- 验证格式 ----
+# ---- 按行分割 ----
 
-# 推荐：fullmatch 验证整体格式
-if re.fullmatch(r'1[3-9]\d{9}', phone):
-    print("有效")
+# 推荐：splitlines() 跨平台安全
+for line in text.splitlines():
+    process(line)
 
-# 不推荐：match + $ 效果相同但语义不如 fullmatch 直观
-if re.match(r'1[3-9]\d{9}$', phone):
-    print("有效")
+# 不推荐：split("\n") 不能处理 \r\n，末尾产生空串
+for line in text.split("\n"):
+    if line:  # 需要额外过滤空串
+        process(line)
 
-# ---- 提取多个匹配 ----
+# ---- 解析键值对 ----
 
-# 推荐：findall 简洁
-emails = re.findall(r'[\w.]+@[\w.]+\.\w+', text)
+# 推荐：partition 天然安全，总返回三元素
+key, sep, value = line.partition("=")
+if sep:
+    print(f"{key}={value}")
 
-# 不推荐：手动 find + 循环
-pos = 0
-emails = []
-while True:
-    m = re.search(r'[\w.]+@[\w.]+\.\w+', text[pos:])
-    if not m:
-        break
-    emails.append(m.group())
-    pos += m.end()
+# 不推荐：split 需要检查列表长度
+parts = line.split("=", 1)
+if len(parts) == 2:
+    key, value = parts
+else:
+    key = parts[0]
+    value = None
 
-# ---- 重复使用同一正则 ----
+# ---- 提取文件扩展名 ----
 
-# 推荐：compile 编译复用
-digit_re = re.compile(r'\d+')
-for line in lines:
-    digits = digit_re.findall(line)
+# 推荐：rsplit(".", 1) 一行搞定
+name, ext = "report.tar.gz".rsplit(".", 1)
 
-# 不推荐：每次都重新编译
-for line in lines:
-    digits = re.findall(r'\d+', line)
+# 不推荐：split(".") + 取最后一个，不够直观
+parts = "report.tar.gz".split(".")
+ext = parts[-1]
+name = ".".join(parts[:-1])
 
-# ---- 提取成对标记内容 ----
+# ---- 限制分割次数 ----
 
-# 推荐：非贪婪 .*?
-re.findall(r'<div>(.*?)</div>', html)
+# 推荐：用 maxsplit 只拆第一刀
+key, value = config_line.split("=", 1)
 
-# 不推荐：贪婪 .* 跨越多个标签
-re.findall(r'<div>(.*)</div>', html)
+# 不推荐：不用 maxsplit，值中的 = 被错误拆分
+key, value = config_line.split("=")  # 如果值中有 = 就多了
 
-# ---- 只分组不分得内容时 ----
+# ---- 读取文件行 ----
 
-# 推荐：非捕获组 (?:...)
-re.findall(r'(?:\d{4})-(?:\d{2})', text)  # 返回完整匹配
+# 推荐：rstrip 去掉行尾换行
+with open("data.txt") as f:
+    for line in f:
+        line = line.rstrip("\n")
+        process(line)
 
-# 不推荐：普通分组 (...)
-re.findall(r'(\d{4})-(\d{2})', text)  # 返回分组元组而非完整匹配
+# 也可以：splitlines 统一处理
+with open("data.txt") as f:
+    for line in f.read().splitlines():
+        process(line)
+
+# 不推荐：切片去换行，\r\n 会有残留
+for line in f:
+    line = line[:-1]  # 如果行尾是 \r\n，\r 会残留
 ```
 
 ### 3.3 综合推荐 vs 不推荐对照表
 
 | 场景 | 推荐写法 | 不推荐写法 | 原因 |
 |------|---------|-----------|------|
-| 验证手机号 | `re.fullmatch(r'1\d{10}', phone)` | 手动检查 `len(phone) == 11 and phone.isdigit()` | 正则一行搞定 |
-| 提取数字 | `re.findall(r'\d+', text)` | 字符遍历 + 累积字符 | 正则简洁 |
-| 替换敏感词 | `re.sub(pattern, '***', text)` | 逐个 replace | 正则支持模式 |
-| 复杂分割 | `re.split(r'[,;|\s]+', text)` | 多次 `str.split` | 一次分割所有 |
-| 重复正则 | `re.compile(pattern)` | 每次调用 `re.search` | 编译复用更快 |
-| 复杂正则可读性 | `re.X` 标志 + 注释 | 单行紧凑正则 | 注释更易维护 |
+| 按行拆分 | `text.splitlines()` | `text.split("\n")` | `splitlines` 跨平台安全 |
+| 键值对解析 | `s.partition("=")` | `s.split("=", 1)` + 检查长度 | `partition` 天然三元素 |
+| 提取扩展名 | `s.rsplit(".", 1)` | `s.split(".")[-1]` | `rsplit` 更直观 |
+| 只拆前 N 段 | `s.split(sep, N)` | 全拆后取前 N 个 | `maxsplit` 更高效 |
+| 按空白拆分 | `s.split()` | `s.split(" ")` | 不带参数自动合并空白 |
+| 文件行处理 | `line.rstrip()` | `line[:-1]` | `rstrip` 安全处理换行 |
 
 ### 3.4 常见错误与注意事项
 
-**`re.match` 不匹配非开头内容**
+**`split()` 不带参数和 `split(" ")` 完全不同**
 
 ```python
-# 误解：以为 match 会搜索整个字符串
-result = re.match(r'World', 'Hello World')
-print(result)  # None
+text = "  a   b  "
 
-# match 只从开头匹配，搜索任意位置用 search
-re.search(r'World', 'Hello World')  # 匹配成功
+# 不带参数：空白自动合并
+print(text.split())
+# ['a', 'b']
+
+# 指定空格：每个空格都是独立分隔符
+print(text.split(" "))
+# ['', '', 'a', '', '', 'b', '', '']
 ```
 
-**`findall` 的分组陷阱**
+**`split("\n")` 不能正确处理 Windows 换行**
 
 ```python
-# 期望返回完整匹配，但因为有分组返回了分组内容
-re.findall(r'(\d{4})-(\d{2})', '2024-01')
-# [('2024', '01')]  ← 返回元组而非完整匹配
+# Windows 换行 \r\n
+text = "line1\r\nline2"
 
-# 如果不需要分组内容，用非捕获组
-re.findall(r'(?:\d{4})-(?:\d{2})', '2024-01')
-# ['2024-01']  ← 完整匹配
+# split("\n") 会留下 \r
+print(text.split("\n"))
+# ['line1\r', 'line2']  ← \r 残留
+
+# 用 splitlines() 或 rstrip
+print(text.splitlines())
+# ['line1', 'line2']
 ```
 
-**正则特殊字符需要转义**
+**`partition` 分隔符不存在时的方向差异**
 
 ```python
-# . 在正则中是"任意字符"
-re.findall(r'price.txt', 'price.txt priceXtxt')
-# ['price.txt', 'priceXtxt']  ← . 匹配了任意字符
+text = "no-separator"
 
-# 转义 . 后只匹配字面量
-re.findall(r'price\.txt', 'price.txt priceXtxt')
-# ['price.txt']  ← 只匹配 . 本身
+# partition: 内容在第一个位置
+print(text.partition(","))
+# ('no-separator', '', '')
+
+# rpartition: 内容在最后一个位置
+print(text.rpartition(","))
+# ('', '', 'no-separator')
 ```
 
-**反斜杠在原始字符串中的处理**
+**`split` 的 `maxsplit` 与结果元素数量的关系**
 
 ```python
-# 正则中的 \b 需要用原始字符串 r''
-re.findall(r'\bcat\b', 'cat catfish')  # ['cat']
+# maxsplit=2 意味着切 2 刀，得到 3 个元素
+print("a-b-c-d".split("-", 2))
+# ['a', 'b', 'c-d']  ← 3 个元素
 
-# 不加 r 前缀，\b 被 Python 先解释为退格符
-re.findall('\bcat\b', 'cat catfish')  # []  ← 错误！
-```
-
-**贪婪模式导致的过度匹配**
-
-```python
-# 贪婪 .* 匹配过多
-re.findall(r'"(.*)"', '"a":"b","c":"d"')
-# ['a":"b","c":"d']  ← 一口气匹配到最后
-
-# 非贪婪 .*? 正确提取
-re.findall(r'"(.*?)"', '"a":"b","c":"d"')
-# ['a', 'b', 'c', 'd']
+# maxsplit 不是"分成几个元素"，而是"切几刀"
+# 如果想要 2 个元素，maxsplit 应该设为 1
+print("a-b-c-d".split("-", 1))
+# ['a', 'b-c-d']  ← 2 个元素
 ```
 
 ## 4. 原理
 
-### 4.1 正则引擎的工作方式
+### 4.1 `split` 的两种模式的底层差异
 
-Python 的 `re` 模块使用回溯（backtracking）正则引擎。它从字符串的起始位置开始，逐字符尝试匹配模式。当遇到量词时，引擎优先匹配尽可能多的字符（贪婪），如果后续模式匹配失败，就回退（回溯）减少量词匹配量，再次尝试。
-
-```text
-匹配 r'a.*b' 到 'axyzb' 的过程:
-
-  1. a 匹配 'a' → 成功
-  2. .* 贪婪匹配 → 匹配到 'xyzb'（到字符串末尾）
-  3. b 匹配 → 失败（已经到末尾了）
-  4. 回溯：.* 退回 1 个 → 匹配 'xyz'
-  5. b 匹配 'b' → 成功
-  结果匹配 'axyzb'
-```
-
-回溯的本质是"试错"——先尝试最贪婪的匹配，失败再退回重来。这导致某些模式下性能很差（回溯爆炸），如 `r'(a+)+b'` 匹配不包含 `b` 的超长字符串。
-
-### 4.2 非贪婪的回溯行为
-
-非贪婪模式的回溯方向相反——先匹配尽可能少的字符，后续模式失败时增加量词匹配量：
+`split` 不带参数和带参数在 CPython 内部走的是完全不同的代码路径：
 
 ```text
-匹配 r'a.*?b' 到 'axyzb' 的过程:
+split() 不带参数:
+  ├─ 调用 split_whitespace() 专用路径
+  ├─ 使用 PyUnicode_ISSPACE() 判断空白字符
+  ├─ 连续空白自动跳过（循环跳过空白找到下一个非空白起点）
+  └─ 首尾空白自动跳过
 
-  1. a 匹配 'a' → 成功
-  2. .*? 非贪婪 → 先匹配 0 个字符
-  3. b 匹配 'x' → 失败
-  4. 增加：.*? 匹配 'x'
-  5. b 匹配 'y' → 失败
-  6. 增加：.*? 匹配 'xy'
-  7. b 匹配 'z' → 失败
-  8. 增加：.*? 匹配 'xyz'
-  9. b 匹配 'b' → 成功
-  结果匹配 'axyzb'
+split(sep) 带参数:
+  ├─ 调用 split_char() 或 split() 通用路径
+  ├─ 逐个字符与 sep 比较
+  ├─ 每个匹配位置都是分割点
+  └─ 连续分隔符产生空字符串元素
 ```
 
-非贪婪不是"更快"，而是"更早停止"——当后续模式能匹配时就不再增加量词匹配量。在提取成对标记时，非贪婪能在第一个闭合标记处停止，避免跨越多个标记。
+这就解释了为什么两种模式的行为差异如此之大——它们是不同的实现逻辑，而非简单地去掉了"合并空白"的功能。
 
-### 4.3 re.compile 的缓存机制
+### 4.2 `splitlines` 的行边界检测
 
-`re` 模块内部维护了一个正则缓存（`_cache`），`re.findall` 等函数调用时会先查缓存。缓存大小有限（默认 512 条），频繁使用不同正则时缓存可能被淘汰。`re.compile` 创建的 `Pattern` 对象不受缓存淘汰影响——它一直持有编译后的结果。
+`splitlines` 在 CPython 底层使用 Unicode 标准的行边界检测。Python 的 C 层面有一个 `Py_UNICODE_ISLINEBREAK` 宏来判断一个字符是否是行边界：
+
+```text
+被识别为行边界的字符：
+
+  \n   (U+000A) 换行
+  \r   (U+000D) 回车
+  \r\n        回车+换行（作为一对处理）
+  \v   (U+000B) 垂直制表符
+  \f   (U+000C) 换页符
+  \x1C (U+001C) 文件分隔符
+  \x1D (U+001D) 组分隔符
+  \x1E (U+001E) 记录分隔符
+  \x85 (U+0085) 下一行
+  \u2028      行分隔符
+  \u2029      段分隔符
+```
+
+`\r\n` 被视为一个行边界而非两个——这就是为什么 `"a\r\nb".splitlines()` 返回 `['a', 'b']` 而非 `['a', '', 'b']`。
+
+### 4.3 `partition` 的设计哲学
+
+`partition` 在 Python 2.5 中引入（PEP 358），设计目标是为"键值对解析"这类场景提供一种比 `split` 更安全的方式。
+
+`split` 的核心问题在于返回值类型——它返回列表，列表长度可变。调用者必须检查 `len(result)` 来确定分割是否成功：
 
 ```python
-# re.findall 内部流程
-def findall(pattern, string):
-    compiled = _cache.get(pattern)
-    if compiled is None:
-        compiled = _compile(pattern)
-        _cache[pattern] = compiled
-    return compiled.findall(string)
-
-# re.compile 内部流程
-pattern_obj = _compile(pattern)  # 编译一次，永久持有
-pattern_obj.findall(string)       # 直接调用，无缓存查找
+# split 方式：需要检查列表长度
+parts = "key=value".split("=", 1)
+# parts 可能是 ['key', 'value']（长度 2）
+# 也可能是 ['novalue']（长度 1），需要 if len(parts) == 2 来判断
 ```
 
-当同一个正则被使用多次时，`re.compile` 略快——省去了缓存查找的开销。但性能差异通常不大（缓存命中时仅省一次字典查找），日常代码中编译的主要价值是代码可读性——将正则定义和使用分离。
+`partition` 通过固定返回三元组解决了这个问题——无论分隔符是否存在，总是返回三个元素：
 
-### 4.4 零宽断言为什么"不消耗字符"
+```python
+# partition 方式：总返回三个元素，解包天然安全
+before, sep, after = "key=value".partition("=")
+# before='key', sep='=', after='value'
 
-正则引擎维护一个"当前位置指针"。普通匹配（如 `\d+`）会移动这个指针——匹配后指针跳到匹配结束处。零宽断言（如 `(?=...)`）只检查当前指针位置是否满足条件，**不移动指针**——检查完指针仍在原位。
+before, sep, after = "novalue".partition("=")
+# before='novalue', sep='', after=''
+# 通过 sep 是否为空即可判断是否分割成功
+```
+
+这种设计让代码更简洁、更不易出错——尤其在链式解析（如 URL）时，每一步解包都不需要条件检查。
+
+### 4.4 `maxsplit` 的工作原理
+
+`maxsplit` 在底层控制的是"分割计数器"——每次找到分隔符并完成一次分割后，计数器递减。当计数器归零时，剩余部分不再扫描，直接作为最后一个元素：
 
 ```text
-r'\d+(?=元)' 匹配 '100元' 的过程:
+split("-", 2) 处理 "a-b-c-d-e" 的过程：
 
-  位置 0: \d+ 匹配 '100' → 指针移动到位置 3
-  位置 3: (?=元) 检查 '元' → 成功，但指针不移动
-  匹配结果: '100'（不包含 '元'）
-
-对比：r'\d+元' 匹配 '100元'
-
-  位置 0: \d+ 匹配 '100' → 指针移动到位置 3
-  位置 3: 元 匹配 '元' → 指针移动到位置 4
-  匹配结果: '100元'（包含 '元'）
+  扫描到 '-' (位置 1) → 分割: ['a']  计数: 1/2
+  扫描到 '-' (位置 3) → 分割: ['a', 'b']  计数: 2/2
+  计数归零 → 剩余 "c-d-e" 作为最后一个元素
+  结果: ['a', 'b', 'c-d-e']
 ```
 
-这就是为什么 `(?=元)` 提取的数字不包含"元"——"元"只是当前位置的判断条件，不是匹配内容。
+`rsplit` 的 `maxsplit` 逻辑相同，但扫描方向从右向左——先定位最后一个分隔符，再往左找倒数第二个，以此类推。
 
 ## 5. 总结
 
-本文围绕 Python 字符串与正则表达式展开，主要介绍了以下内容：
+本文围绕 Python 字符串的分割方法展开，主要介绍了以下内容：
 
-- **re 模块核心函数**：`re.match` 从开头匹配、`re.search` 任意位置搜索、`re.fullmatch` 完全匹配；`re.findall` 找到所有匹配（无分组返回字符串列表，有分组返回元组列表）、`re.finditer` 返回 Match 对象迭代器
-- **正则元字符**：`.` 任意字符、`\d` 数字、`\w` 字母数字下划线、`\s` 空白、`\b` 单词边界、`^` 开头、`$` 结尾、`[]` 字符集合、`|` 或运算
-- **量词**：`*` 0 次或多次、`+` 1 次或多次、`?` 0 次或 1 次、`{n}` 恰好 n 次、`{n,m}` n 到 m 次；量词后加 `?` 变为非贪婪
-- **分组与断言**：捕获组 `()` 提取分组内容、命名分组 `(?P<name>)` 用名称引用、非捕获组 `(?:)` 不提取内容、反向引用 `\1` 或 `(?P=name)` 检查重复、零宽断言 `(?=)` `(?!)` `(?<=)` `(?<!)` 检查边界不消耗字符
-- **贪婪与非贪婪**：默认贪婪尽可能多匹配，非贪婪 `*?` `+?` `??` 尽可能少匹配；提取成对标记内容用非贪婪
-- **re.compile 编译**：编译为 Pattern 对象复用，标志 `re.I` 忽略大小写、`re.S` 点匹配换行、`re.M` 多行模式、`re.X` 允许注释
-- **re.sub 替换**：支持反向引用 `\1` 和函数替换；`re.subn` 额外返回替换次数
-- **re.split 分割**：按正则分割，分组会保留分隔符在结果中
-- **最佳实践**：验证格式用 `fullmatch`、重复正则用 `compile`、提取成对内容用非贪婪、不需分得内容用非捕获组
-- **底层原理**：回溯引擎贪婪优先、非贪婪反向回溯；零宽断言不移动位置指针、只做条件检查
+- **`split()` 方法**：不带参数时按任意空白字符分割（连续空白自动合并、首尾空白忽略）；指定 `sep` 时按分隔符逐个分割（连续分隔符产生空串）；`maxsplit` 参数控制最大分割次数（切几刀就多一个元素）
+- **`rsplit()` 方法**：不带 `maxsplit` 时与 `split` 完全相同；带 `maxsplit` 时从右向左计数，适合从右提取少量元素（如文件扩展名、顶级域名）
+- **`splitlines()` 方法**：按通用换行符分割，正确处理 `\n`、`\r\n`、`\r` 及 Unicode 行分隔符；末尾换行不产生空串；`keepends=True` 可保留换行符用于精确重组
+- **`partition()` / `rpartition()` 方法**：固定返回三元素三元组，分隔符不存在时不报错（`partition` 内容在第一个位置，`rpartition` 在最后一个）；比 `split` + 长度检查更安全，适合键值对解析和链式结构化文本解析
+- **最佳实践**：按行拆分用 `splitlines`，键值对解析用 `partition`，提取后缀用 `rsplit`，限制分割次数用 `maxsplit`，按空白拆分用不带参数的 `split()`
+- **底层原理**：`split` 不带参数和带参数走不同的 CPython 代码路径；`splitlines` 使用 Unicode 行边界检测；`partition` 通过固定三元素返回值设计解决了 `split` 返回列表长度不确定的安全性问题

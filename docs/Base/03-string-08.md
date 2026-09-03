@@ -3,1079 +3,1171 @@ group:
   title: 【03】字符串深度剖析
   order: 3
 order: 8
-title: 字符串分割方法
+title: 字符串与字符编码
 nav:
   title: Python基础
   order: 1
 ---
 
-# 字符串分割方法
+# 字符串与字符编码
 
 ## 1. 介绍
 
-### 1.1 什么是字符串分割方法
+### 1.1 要理解什么
 
-字符串分割方法是 Python `str` 类中用于"将一个字符串拆成多段"的一组内置方法。它们根据指定的分隔符或行边界，将字符串拆分成列表或元组，是文本解析、数据提取、格式转换中最基础也最常用的工具。
+字符编码是计算机处理文本的基础——计算机只认识 0 和 1，而人类使用的是"中""A""😀"这样的字符。字符编码就是连接这两者的桥梁：它定义了每个字符对应哪些字节，以及如何在这些字节和字符之间来回转换。
 
-```python
-# split 按分隔符拆成列表
-print("a,b,c,d".split(","))
-# ['a', 'b', 'c', 'd']
+Python 3 中，`str` 类型内部存储的是 Unicode 码点（人类可读的文本），而 `bytes` 类型存储的是原始字节序列（机器可读的二进制数据）。`encode()` 把 `str` 编码成 `bytes`，`decode()` 把 `bytes` 解码回 `str`。理解编码原理，你才能正确处理中文乱码、多语言文本、文件读写、网络传输中的字符问题。
 
-# splitlines 按行拆成列表
-print("第一行\n第二行".splitlines())
-# ['第一行', '第二行']
+### 1.2 为什么需要理解它
 
-# partition 拆成三元素元组
-print("key=value".partition("="))
-# ('key', '=', 'value')
+如果你只会写 `print("Hello")`，编码对你没有影响。但一旦涉及以下场景，不理解编码就会踩坑：
+
+- **中文乱码**：读取文件出现 `ä½ å¥½` 这样的乱码，不知道怎么修复
+- **网络传输**：HTTP 请求/响应的编码处理不当，导致数据损坏
+- **跨平台兼容**：Windows 默认 GBK，Linux 默认 UTF-8，同一份文件在不同系统上表现不同
+- **多语言支持**：处理日文、韩文、阿拉伯文、Emoji 等非 ASCII 字符时出错
+- **文件读写**：`open()` 默认编码在不同操作系统上行为不一致，导致读取失败
+
+这些问题的根源都是编码不一致——编码时用了 A 编码，解码时用了 B 编码，结果就对不上。理解编码原理后，你能快速定位"哪个环节用错了编码"，并给出修复方案。
+
+## 2. 整体架构
+
+### 2.1 从字符到字节的完整映射链
+
+计算机处理文本的核心流程：
+
+```text
+人类字符  →  Unicode 码点  →  编码(encode)  →  字节序列  →  存储/传输
+  '中'        U+4E2D          UTF-8          E4 B8 AD      磁盘/网络
+
+计算机读取  →  字节序列  →  解码(decode)  →  Unicode 码点  →  Python str
+  磁盘/网络    E4 B8 AD        UTF-8           U+4E2D          '中'
 ```
 
-Python 的字符串分割方法可以分成三类：
+这条链路中有三个关键层：
 
-| 类 | 方法 | 返回值 | 核心特点 |
-|----|------|--------|---------|
-| `split` 族 | `split`、`rsplit` | 列表 | 按分隔符拆分，可控制分割次数 |
-| 按行分割 | `splitlines` | 列表 | 按通用换行符拆分，跨平台安全 |
-| `partition` 族 | `partition`、`rpartition` | 三元组 | 固定返回三元素，找不到分隔符不报错 |
+| 层 | 内容 | 示例 |
+|----|------|------|
+| 字符层 | 人类可读的文本符号 | `'中'`、`'A'`、`'😀'` |
+| 码点层 | Unicode 为每个字符分配的唯一编号 | `U+4E2D`、`U+0041`、`U+1F600` |
+| 字节层 | 计算机存储的字节序列 | `E4 B8 AD`、`41`、`F0 9F 98 80` |
 
-### 1.2 最简示例
+### 2.2 编码方案的发展历程
 
-```python
-# split：解析 CSV 行
-csv = "apple,banana,cherry"
-print(csv.split(","))
-# ['apple', 'banana', 'cherry']
-
-# rsplit + maxsplit：从右提取文件扩展名
-name, ext = "report.tar.gz".rsplit(".", 1)
-print(f"文件名: {name}, 扩展名: {ext}")
-# 文件名: report.tar, 扩展名: gz
-
-# splitlines：安全处理多行文本
-text = "line1\r\nline2\nline3"
-print(text.splitlines())
-# ['line1', 'line2', 'line3']
-
-# partition：安全解析键值对
-key, _, value = "host=localhost".partition("=")
-print(f"key={key}, value={value}")
-# key=host, value=localhost
+```text
+ASCII (1963)
+  ↓ 7 位, 128 个字符, 只覆盖英文
+ISO 8859-1 / Latin-1 (1986)
+  ↓ 8 位, 256 个字符, 覆盖西欧语言
+GBK / Shift-JIS / Big5 (1990s)
+  ↓ 各国自行扩展, 互不兼容
+Unicode (1991)
+  ↓ 统一码点空间, 覆盖全世界所有文字
+  ↓
+UTF-8 / UTF-16 / UTF-32
+  ↓ Unicode 的不同编码实现方案
 ```
 
-这三类方法覆盖了文本分割的核心需求——"按某分隔符拆成 N 段""按行拆分""拆成前后两部分"。理解每种方法的行为细节和适用场景，能让你在日志解析、配置读取、CSV 处理等任务中写出简洁健壮的代码。
+### 2.3 Python 3 中的 str 与 bytes
 
-## 2. 核心内容
+Python 3 明确区分了"文本"和"数据"两种概念，分别用 `str` 和 `bytes` 类型表示：
 
-### 2.1 `split()` 按分隔符分割
+```text
+str  =  Unicode 字符序列   →  人类文本   →  len() 返回字符数
+bytes = 字节序列(0~255)    →  机器数据   →  len() 返回字节数
 
-#### 2.1.1 不带参数：按空白字符分割
-
-`split()` 不带任何参数时，以任意空白字符（空格、制表符 `\t`、换行符 `\n`、回车 `\r` 等）为分隔符。最大的特点：**连续空白自动合并，首尾空白自动忽略**。
-
-```python
-# 连续空白合并为单个分隔符
-text = "  Hello   Python   World  "
-print(text.split())
-# ['Hello', 'Python', 'World']
-
-# 混合空白也自动处理
-text2 = "Python\tJava\nGo\r\nRust"
-print(text2.split())
-# ['Python', 'Java', 'Go', 'Rust']
-
-# 空字符串返回空列表
-print("".split())
-# []
+str → bytes :  encode('编码方式')   (编码)
+bytes → str :  decode('编码方式')   (解码)
 ```
 
-这个行为非常有用——处理用户输入时，不需要关心用户输入了多少空格，`split()` 会自动归一化。
+### 2.4 各组件职责
 
-#### 2.1.2 指定分隔符
+| 组件 | 职责 | Python 表示 |
+|------|------|-------------|
+| Unicode | 定义字符与码点的映射 | `ord('中')` → `20013` |
+| UTF-8 | 码点到字节的编码方案 | `'中'.encode('utf-8')` → `b'\xe4\xb8\xad'` |
+| UTF-16 | 码点到字节的编码方案（定宽+字节序） | `'中'.encode('utf-16')` → `b'\xff\xfe-D'` |
+| `str` | Python 中的文本类型 | `'中文'` |
+| `bytes` | Python 中的字节序列类型 | `b'\xe4\xb8\xad\xe6\x96\x87'` |
+| `encode()` | str → bytes 的方法 | `'中'.encode('utf-8')` |
+| `decode()` | bytes → str 的方法 | `b'\xe4\xb8\xad'.decode('utf-8')` |
 
-`split(sep)` 按指定分隔符 `sep` 分割字符串，返回列表。分隔符可以是单个字符，也可以是多字符的子串。
+## 3. 关键机制拆解
+
+### 3.1 ASCII — 一切的起点
+
+ASCII（American Standard Code for Information Interchange）是最早的字符编码标准，用 7 位二进制数表示 128 个字符，覆盖英文字母、数字和常用符号。
 
 ```python
-# 单字符分隔符
-csv_line = "apple,banana,cherry,date"
-print(csv_line.split(","))
-# ['apple', 'banana', 'cherry', 'date']
+# ord() 查看字符的码点（ASCII 范围内 0~127）
+print(f"'A' 的码点: {ord('A')}")    # 65
+print(f"'a' 的码点: {ord('a')}")    # 97
+print(f"'0' 的码点: {ord('0')}")    # 48
+print(f"' ' 的码点: {ord(' ')}")    # 32
 
-# 多字符分隔符
-log = "2024-01-15|INFO|System started"
-print(log.split("|"))
-# ['2024-01-15', 'INFO', 'System started']
-
-# 分隔符不存在时，返回单元素列表
-print("hello".split(","))
-# ['hello']
+# chr() 码点转字符
+print(f"码点 65 → '{chr(65)}'")    # A
+print(f"码点 97 → '{chr(97)}'")    # a
 ```
 
-#### 2.1.3 `maxsplit` 参数：限制分割次数
+ASCII 的 128 个字符分为两类：
 
-`maxsplit` 控制最多分割几刀——分割后的列表最多有 `maxsplit + 1` 个元素。剩余部分作为最后一个元素，不再继续分割。
+```text
+控制字符 (0~31, 共 32 个): 不可打印的控制信号
+  0   NUL  空字符
+  9   TAB  制表符
+  10  LF   换行符 \n
+  13  CR   回车符 \r
+  ...
 
-```python
-text = "a-b-c-d-e"
-
-# 不限制：全部分割
-print(text.split("-"))
-# ['a', 'b', 'c', 'd', 'e']
-
-# 最多 1 刀 → 2 个元素
-print(text.split("-", 1))
-# ['a', 'b-c-d-e']
-
-# 最多 2 刀 → 3 个元素
-print(text.split("-", 2))
-# ['a', 'b', 'c-d-e']
-
-# 最多 3 刀
-print(text.split("-", 3))
-# ['a', 'b', 'c', 'd-e']
+可打印字符 (32~127, 共 96 个): 可显示的文本符号
+  32       空格
+  48~57    数字 0-9
+  65~90    大写字母 A-Z
+  97~122   小写字母 a-z
+  其余      标点符号和运算符
 ```
 
-`maxsplit` 的典型场景是"只提取前几个部分，剩余部分保持整体"。例如解析配置行时，值中可能包含等号，只需要在第一个等号处分割：
+用代码查看 ASCII 字符分类：
 
 ```python
-# 值中可能包含 = 号，只在第一个 = 处分割
-config_line = "path=/home/user/test=a=b"
-key, value = config_line.split("=", 1)
-print(f"key={key}, value={value}")
-# key=path, value=/home/user/test=a=b
-```
+# ASCII 字符分类
+categories = {
+    "控制字符 (0-31)": range(0, 32),
+    "空格 (32)": range(32, 33),
+    "数字 (48-57)": range(48, 58),
+    "大写字母 (65-90)": range(65, 91),
+    "小写字母 (97-122)": range(97, 123),
+    "符号": range(33, 48),
+}
 
-#### 2.1.4 指定分隔符 vs 不带参数的关键差异
-
-指定分隔符和不带参数的 `split()` 行为完全不同——这是最容易混淆的地方：
-
-```python
-text = "  a   b  "
-
-# 不带参数：连续空白合并，首尾空白忽略
-print(text.split())
-# ['a', 'b']
-
-# 指定空格为分隔符：每个空格都是独立分隔符
-print(text.split(" "))
-# ['', '', 'a', '', '', 'b', '', '']
-```
-
-指定分隔符后，连续的分隔符会产生**空字符串**元素，首尾的分隔符也会产生空串：
-
-```python
-# 连续分隔符产生空串
-print("a,,b,,,c".split(","))
-# ['a', '', 'b', '', '', 'c']
-
-# 首尾分隔符产生空串
-print(",a,b,".split(","))
-# ['', 'a', 'b', '']
-```
-
-#### 2.1.5 分隔符为空字符串的特殊行为
-
-`split("")` 会抛出 `ValueError`：
-
-```python
-try:
-    "hello".split("")
-except ValueError as e:
-    print(f"split('') 报错: {e}")
-# split('') 报错: empty separator
-```
-
-如果需要将字符串拆成单个字符的列表，应该用 `list()`：
-
-```python
-print(list("hello"))
-# ['h', 'e', 'l', 'l', 'o']
-```
-
-#### 2.1.6 实际应用——路径解析
-
-```python
-path = "/home/user/projects/myapp/src/main.py"
-
-# 提取路径各部分
-parts = path.split("/")
-print(parts)
-# ['', 'home', 'user', 'projects', 'myapp', 'src', 'main.py']
-
-# 提取文件名（最后一部分）
-filename = path.split("/")[-1]
-print(f"文件名: {filename}")
-# 文件名: main.py
-
-# 提取目录路径（除最后一部分）
-dir_path = "/".join(path.split("/")[:-1])
-print(f"目录: {dir_path}")
-# 目录: /home/user/projects/myapp/src
-```
-
-### 2.2 `rsplit()` 从右向左分割
-
-#### 2.2.1 `rsplit` 不带 `maxsplit` 时与 `split` 完全相同
-
-当不限制分割次数时，`rsplit` 和 `split` 的结果完全一样——都是从左到右全部拆分：
-
-```python
-text = "a-b-c-d-e"
-print(text.split("-"))
-# ['a', 'b', 'c', 'd', 'e']
-
-print(text.rsplit("-"))
-# ['a', 'b', 'c', 'd', 'e']  ← 结果相同
-```
-
-#### 2.2.2 `rsplit` 的 `maxsplit` 从右向左计数
-
-`rsplit` 的核心价值在于配合 `maxsplit` 使用——分割方向从右向左：
-
-```python
-text = "a-b-c-d-e"
-
-# split 从左限制 2 刀
-print(text.split("-", 2))
-# ['a', 'b', 'c-d-e']
-
-# rsplit 从右限制 2 刀
-print(text.rsplit("-", 2))
-# ['a-b-c', 'd', 'e']
-```
-
-**注意 `maxsplit` 的值仍然代表"分割几刀"**，所以 `rsplit("-", 2)` 返回 3 个元素——从右切 2 刀，得到左边整体 + 右边 2 个元素。
-
-#### 2.2.3 `split` vs `rsplit` 的 `maxsplit` 对比
-
-```python
-text = "1,2,3,4,5,6,7,8,9,10"
-
-for n in [1, 2, 3]:
-    print(f"split({n}):   {text.split(',', n)}")
-    print(f"rsplit({n}):  {text.rsplit(',', n)}")
-    print()
+for name, codes in categories.items():
+    chars = "".join(chr(c) if 32 <= c < 127 else f"\\x{c:02x}" for c in codes)
+    print(f"  {name}: [{chars}]")
 
 # 输出:
-# split(1):   ['1', '2,3,4,5,6,7,8,9,10']
-# rsplit(1):  ['1,2,3,4,5,6,7,8,9', '10']
-#
-# split(2):   ['1', '2', '3,4,5,6,7,8,9,10']
-# rsplit(2):  ['1,2,3,4,5,6,7,8', '9', '10']
-#
-# split(3):   ['1', '2', '3', '4,5,6,7,8,9,10']
-# rsplit(3):  ['1,2,3,4,5,6,7', '8', '9', '10']
+#   控制字符 (0-31): [\x00\x01\x02\x03...]
+#   空格 (32): [ ]
+#   数字 (48-57): [0123456789]
+#   大写字母 (65-90): [ABCDEFGHIJKLMNOPQRSTUVWXYZ]
+#   小写字母 (97-122): [abcdefghijklmnopqrstuvwxyz]
+#   符号: [!"#$%&'()*+,-./]
 ```
 
-#### 2.2.4 实际应用——从路径提取扩展名
+ASCII 的局限：128 个字符只能覆盖英文。中文、日文、韩文等非拉丁文字的字符远远超过 128 个，ASCII 无法表示它们。
 
 ```python
-filepath = "/home/user/docs/report.csv"
+# 码点 128 以上不在 ASCII 范围内
+print(f"码点 128 (非 ASCII): {chr(128)}")
+print(f"码点 256: {chr(256)}")      # Ā (扩展拉丁字母)
 
-# rsplit 从右切 1 刀，提取扩展名
-name, ext = filepath.rsplit(".", 1)
-print(f"文件名: {name}")
-print(f"扩展名: {ext}")
-# 文件名: /home/user/docs/report
-# 扩展名: csv
-
-# 从右切 1 刀，提取纯文件名
-dir_part, filename = filepath.rsplit("/", 1)
-print(f"目录: {dir_part}")
-print(f"文件名: {filename}")
-# 目录: /home/user/docs
-# 文件名: report.csv
+# 中文的码点远超 ASCII 范围
+print(f"'中' 的码点: {ord('中')}")   # 20013，远超 127
 ```
 
-#### 2.2.5 实际应用——从多层域名提取顶级域名
+### 3.2 Unicode — 统一码点空间
 
-```python
-domain = "mail.example.co.uk"
+Unicode 是解决 ASCII 局限性的方案。它为世界上所有文字系统、符号、Emoji 的每个字符都分配了一个唯一的码点，形成统一空间。
 
-# split 从左：拿第一段
-print(domain.split(".", 1))
-# ['mail', 'example.co.uk']
+#### 3.2.1 码点空间
 
-# rsplit 从右：拿最后一段（顶级域名）
-print(domain.rsplit(".", 1))
-# ['mail.example', 'co.uk']
+Unicode 的码点范围是 `U+0000` 到 `U+10FFFF`，共 1,114,112 个码点：
+
+```text
+Unicode 码点分区:
+
+  基本多语言平面 BMP (U+0000 ~ U+FFFF)
+    → 绝大多数常用字符（中、日、韩、拉丁、阿拉伯、西里尔等）
+    → 65,536 个码点
+
+  补充平面 (U+10000 ~ U+10FFFF)
+    → Emoji、古文字、罕见汉字等
+    → 1,048,576 个码点
+
+  总计: 1,114,112 个码点
 ```
 
-### 2.3 `splitlines()` 按行分割
-
-#### 2.3.1 `splitlines` 基本用法
-
-`splitlines()` 按通用换行符分割字符串。与 `split("\n")` 不同，`splitlines` 能正确处理所有平台的所有换行形式——`\n`、`\r\n`、`\r` 以及 Unicode 行分隔符。
-
 ```python
-text = "第一行\n第二行\n第三行"
-print(text.splitlines())
-# ['第一行', '第二行', '第三行']
-
-# 混合换行符也能正确处理
-text2 = "Windows行\r\nUnix行\n旧Mac行\r"
-print(text2.splitlines())
-# ['Windows行', 'Unix行', '旧Mac行']
+print("Unicode 码点分区:")
+print(f"  BMP (U+0000 ~ U+FFFF): {0x0000} ~ {0xFFFF}")
+print(f"  补充平面 (U+10000 ~ U+10FFFF): {0x10000} ~ {0x10FFFF}")
+print(f"  总码点数: {0x10FFFF + 1:,}")
+# 总码点数: 1,114,112
 ```
 
-#### 2.3.2 `splitlines` vs `split("\n")` 的关键差异
-
-这是处理多行文本时最容易踩坑的地方：
+#### 3.2.2 各语言字符的码点
 
 ```python
-text_mixed = "line1\r\nline2\nline3"
+# 中文常用字
+print("中文常用字码点:")
+for ch in ["中", "文", "编", "码", "字", "符"]:
+    print(f"  '{ch}' → U+{ord(ch):04X} (十进制 {ord(ch)})")
+# '中' → U+4E2D (十进制 20013)
+# '文' → U+6587 (十进制 25991)
 
-# split("\n") 不能处理 \r\n：\r 会残留
-print(text_mixed.split("\n"))
-# ['line1\r', 'line2', 'line3']  ← \r 残留
+# 日文平假名
+print("\n日文平假名码点:")
+for ch in "あいうえお":
+    print(f"  '{ch}' → U+{ord(ch):04X}")
+# 'あ' → U+3042
 
-# splitlines() 正确处理所有换行符
-print(text_mixed.splitlines())
-# ['line1', 'line2', 'line3']  ← 干净
+# Emoji (在补充平面，码点超过 U+FFFF)
+print("\nEmoji 码点:")
+for e in ["😀", "🐍", "❤", "✓", "①"]:
+    print(f"  '{e}' → U+{ord(e):05X}")
+# '😀' → U+1F600
+# '🐍' → U+1F40D
 ```
 
-末尾换行符的处理也不同：
+#### 3.2.3 Python 3 中 str 的 Unicode 本质
+
+Python 3 的 `str` 类型直接存储 Unicode 码点，每个 Unicode 字符都是 `str` 的一个独立元素：
 
 ```python
-text_trailing = "line1\nline2\n"
+s = "Hello中文😀"
+print(f"字符串: '{s}'")
+print(f"长度: {len(s)}")  # 8 (每个 Unicode 字符算 1 个)
+print("逐字符码点:")
+for i, ch in enumerate(s):
+    print(f"  [{i}] '{ch}' → U+{ord(ch):04X}")
 
-# split("\n") 末尾会产生空串
-print(text_trailing.split("\n"))
-# ['line1', 'line2', '']  ← 末尾多一个空串
-
-# splitlines() 末尾换行不会产生空串
-print(text_trailing.splitlines())
-# ['line1', 'line2']  ← 干净
+# 输出:
+#   [0] 'H' → U+0048
+#   [1] 'e' → U+0065
+#   ...
+#   [5] '中' → U+4E2D
+#   [6] '文' → U+6587
+#   [7] '😀' → U+1F600
 ```
 
-#### 2.3.3 `keepends` 参数：保留换行符
+这与 Python 2 中 `str` 存字节、`unicode` 存码点的设计完全不同。Python 3 中 `str` 就是 Unicode 文本，不再需要区分"字节字符串"和"Unicode 字符串"。
 
-`splitlines(keepends=True)` 保留每行末尾的换行符，可以用于精确重组原字符串：
+#### 3.2.4 Unicode 转义表示
+
+Python 支持三种 Unicode 转义写法：
 
 ```python
-text = "第一行\n第二行\r\n第三行\r"
+# \uXXXX: 4 位十六进制，适用于 BMP 范围 (U+0000 ~ U+FFFF)
+print(f"'\\u4e2d\\u6587' = '\u4e2d\u6587'")  # 中文
 
-print("keepends=False（默认）:")
-for line in text.splitlines():
-    print(f"  '{line}'")
+# \UXXXXXXXX: 8 位十六进制，适用于完整 Unicode 范围 (含补充平面)
+print(f"'\\U0001F600' = '\U0001F600'")  # 😀
 
-print("keepends=True:")
-for line in text.splitlines(keepends=True):
-    print(f"  '{line}'")
+# \N{name}: 通过 Unicode 字符名称引用
+print(f"'\\N{{CJK UNIFIED IDEOGRAPH-4E2D}}' = '\N{CJK UNIFIED IDEOGRAPH-4E2D}'")  # 中
+```
+
+#### 3.2.5 Unicode 字符属性
+
+Python 标准库 `unicodedata` 可以查询字符的 Unicode 属性：
+
+```python
+import unicodedata
+
+test_chars = [("A", "大写字母"), ("中", "中文"), ("1", "数字"), (" ", "空格"), ("😀", "emoji")]
+print("Unicode 属性检查:")
+for ch, desc in test_chars:
+    name = unicodedata.name(ch, "未知")
+    category = unicodedata.category(ch)
+    print(f"  '{ch}' ({desc}): 名称={name}, 类别={category}")
+
+# 输出:
+#   'A' (大写字母): 名称=LATIN CAPITAL LETTER A, 类别=Lu
+#   '中' (中文): 名称=CJK UNIFIED IDEOGRAPH-4E2D, 类别=Lo
+#   '1' (数字): 名称=DIGIT ONE, 类别=Nd
+#   ' ' (空格): 名称=SPACE, 类别=Zs
+#   '😀' (emoji): 名称=GRINNING FACE, 类别=So
+```
+
+类别编码的含义：`Lu` = 大写字母，`Lo` = 其他字母（如中文），`Nd` = 十进制数字，`Zs` = 空格分隔符，`So` = 其他符号（如 Emoji）。
+
+### 3.3 UTF-8 — 最常用的编码方案
+
+UTF-8 是 Unicode 的变长编码方案——不同的字符用不同数量的字节编码，从 1 到 4 字节不等。它是 Web 上最广泛使用的编码，也是 Python 3 的默认编码。
+
+#### 3.3.1 UTF-8 的变长编码规则
+
+```text
+码点范围           字节数   字节格式
+───────────────────────────────────────────────────────
+U+0000 ~ U+007F    1 字节   0xxxxxxx
+U+0080 ~ U+07FF    2 字节   110xxxxx 10xxxxxx
+U+0800 ~ U+FFFF    3 字节   1110xxxx 10xxxxxx 10xxxxxx
+U+10000 ~ U+10FFFF 4 字节   11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
+```
+
+关键规则：
+- 第一个字节的最高位 `1` 的个数表示这个字符占几个字节
+- 后续字节都以 `10` 开头（标记为"延续字节"）
+
+用 Python 验证不同字符的 UTF-8 编码：
+
+```python
+print("UTF-8 编码字节数:")
+# 1 字节: ASCII 字符
+b = 'A'.encode('utf-8')
+print(f"  'A' → {list(b)} (1 字节, 0x41)")
+
+# 2 字节: 拉丁扩展字符
+b = 'é'.encode('utf-8')
+print(f"  'é' → {list(b)} (2 字节, 0xC3 0xA9)")
+
+# 3 字节: 中文字符 (中文在 BMP 范围 U+0800 ~ U+FFFF)
+b = '中'.encode('utf-8')
+print(f"  '中' → {list(b)} (3 字节, 0xE4 0xB8 0xAD)")
+
+# 4 字节: Emoji (在补充平面 U+10000 ~ U+10FFFF)
+b = '😀'.encode('utf-8')
+print(f"  '😀' → {list(b)} (4 字节, 0xF0 0x9F 0x98 0x80)")
+```
+
+#### 3.3.2 UTF-8 字节前缀验证
+
+通过查看二进制形式，可以清楚地看到 UTF-8 的字节前缀规则：
+
+```python
+print("UTF-8 字节前缀验证:")
+for ch in ["A", "中", "é", "😀"]:
+    b = ch.encode('utf-8')
+    byte_list = list(b)
+    hex_str = " ".join(f"0x{byte:02X}" for byte in byte_list)
+    binary_str = " ".join(f"{byte:08b}" for byte in byte_list)
+    print(f"  '{ch}' (U+{ord(ch):04X}):")
+    print(f"    十六进制: {hex_str}")
+    print(f"    二进制:   {binary_str}")
+
+# 输出:
+#   'A' (U+0041):
+#     十六进制: 0x41
+#     二进制:   01000001          ← 0 开头 = 1 字节
+#   '中' (U+4E2D):
+#     十六进制: 0xE4 0xB8 0xAD
+#     二进制:   11100100 10111000 10101101   ← 1110 开头 = 3 字节
+#   '😀' (U+1F600):
+#     十六进制: 0xF0 0x9F 0x98 0x80
+#     二进制:   11110000 10011111 10011000 10000000   ← 11110 开头 = 4 字节
+```
+
+可以看到字节前缀的规律：`0` 开头是 1 字节，`110` 开头是 2 字节的第一字节，`1110` 开头是 3 字节的第一字节，`11110` 开头是 4 字节的第一字节。后续字节都以 `10` 开头。
+
+#### 3.3.3 UTF-8 与 ASCII 的兼容性
+
+UTF-8 的一个重要设计决策是向下兼容 ASCII——所有 128 个 ASCII 字符的 UTF-8 编码就是它本身（1 字节，值相同）：
+
+```python
+print("UTF-8 与 ASCII 兼容性:")
+for code in range(128):
+    char = chr(code)
+    utf8_bytes = char.encode('utf-8')
+    if len(utf8_bytes) == 1 and utf8_bytes[0] == code:
+        pass  # 兼容
+    else:
+        print(f"  不兼容! code={code}")
+        break
+else:
+    print("  所有 128 个 ASCII 字符的 UTF-8 编码与 ASCII 编码完全一致")
+```
+
+这意味着一份纯英文的 ASCII 文件同时就是一份合法的 UTF-8 文件——UTF-8 编码的英文文本和 ASCII 编码的英文文本在字节层面完全相同。这保证了 UTF-8 对遗留系统的向后兼容。
+
+#### 3.3.4 UTF-8 与 UTF-16 编码效率对比
+
+不同的编码方案对同一字符的字节消耗不同：
+
+```python
+print("UTF-8 vs UTF-16 编码字节数对比:")
+samples = [
+    ("A", "ASCII 字符"),
+    ("中", "中文"),
+    ("é", "拉丁扩展"),
+    ("😀", "Emoji"),
+    ("𠮷", "CJK 扩展B"),
+]
+
+for ch, desc in samples:
+    utf8 = ch.encode('utf-8')
+    utf16 = ch.encode('utf-16')
+    utf16le = ch.encode('utf-16-le')
+    print(f"  '{ch}' ({desc}, U+{ord(ch):04X}):")
+    print(f"    UTF-8:    {len(utf8)} 字节 {list(utf8)}")
+    print(f"    UTF-16:   {len(utf16)} 字节 {list(utf16)} (含BOM)")
+    print(f"    UTF-16LE: {len(utf16le)} 字节 {list(utf16le)} (无BOM)")
 ```
 
 **运行结果**：
 
 ```text
-keepends=False（默认）:
-  '第一行'
-  '第二行'
-  '第三行'
-keepends=True:
-  '第一行\n'
-  '第二行\r\n'
-  '第三行\r'
+  'A' (ASCII 字符, U+0041):
+    UTF-8:    1 字节 [65]
+    UTF-16:   4 字节 [255, 254, 65, 0] (含BOM)
+    UTF-16LE: 2 字节 [65, 0] (无BOM)
+  '中' (中文, U+4E2D):
+    UTF-8:    3 字节 [228, 184, 173]
+    UTF-16:   4 字节 [255, 254, 45, 78] (含BOM)
+    UTF-16LE: 2 字节 [45, 78] (无BOM)
+  'é' (拉丁扩展, U+00E9):
+    UTF-8:    2 字节 [195, 169]
+    UTF-16:   4 字节 [255, 254, 233, 0] (含BOM)
+    UTF-16LE: 2 字节 [233, 0] (无BOM)
+  '😀' (Emoji, U+1F600):
+    UTF-8:    4 字节 [240, 159, 152, 128]
+    UTF-16:   6 字节 [255, 254, 61, 216, 0, 222] (含BOM)
+    UTF-16LE: 4 字节 [61, 216, 0, 222] (无BOM)
 ```
 
-`keepends=True` 的实际用途——需要精确重组原字符串时：
+**编码效率对比**：
+
+| 字符类型 | UTF-8 | UTF-16 (无BOM) | 更优 |
+|---------|-------|---------------|------|
+| ASCII 字符 | 1 字节 | 2 字节 | UTF-8 |
+| 拉丁扩展 | 2 字节 | 2 字节 | 持平 |
+| 中日韩字符 | 3 字节 | 2 字节 | UTF-16 |
+| Emoji | 4 字节 | 4 字节 | 持平 |
+
+UTF-8 对英文最优，UTF-16 对中文略优。但 UTF-8 的 ASCII 兼容性和无字节序问题使其成为 Web 上的默认选择。
+
+### 3.4 encode() / decode() — 编码与解码
+
+`encode()` 和 `decode()` 是 Python 中 `str` 与 `bytes` 之间转换的桥梁。
+
+#### 3.4.1 encode() 编码
+
+`str.encode(encoding)` 将字符串按指定编码编码为 `bytes` 对象：
 
 ```python
-original = "line1\nline2\r\nline3"
-parts = original.splitlines(keepends=True)
-restored = "".join(parts)
-print(f"重组后与原字符串相同: {restored == original}")
-# 重组后与原字符串相同: True
+# 编码: str → bytes
+text = "Hello中文"
+encoded = text.encode('utf-8')
+print(f"编码: '{text}' → {encoded}")
+print(f"类型: {type(encoded)}")      # <class 'bytes'>
+print(f"字节列表: {list(encoded)}")   # [72, 101, 108, 108, 111, 228, 184, 173, 230, 150, 135]
 ```
 
-#### 2.3.4 `splitlines` 支持的行边界
-
-`splitlines` 不仅能处理 `\n`、`\r\n`、`\r`，还支持 Unicode 标准定义的其他行边界：
+`encode` 找不到编码方式时抛出 `LookupError`，编码失败（字符不在编码范围内）时抛出 `UnicodeEncodeError`：
 
 ```python
-# Unicode 行分隔符 U+2028、段分隔符 U+2029
-text_unicode = "行1\u2028行2\u2029行3"
-print(text_unicode.splitlines())
-# ['行1', '行2', '行3']
-
-# 文件分隔符 \x1c、组分隔符 \x1d、记录分隔符 \x1e
-text_special = "A\x1cB\x1dC\x1eD"
-print(text_special.splitlines())
-# ['A', 'B', 'C', 'D']
+# ASCII 无法编码中文
+try:
+    "中文".encode('ascii')
+except UnicodeEncodeError as e:
+    print(f"编码失败: {e}")
+# 'ascii' codec can't encode character '\u4e2d' in position 0: ordinal not in range(128)
 ```
 
-**`splitlines` 支持的行边界一览**：
+#### 3.4.2 decode() 解码
 
-| 字符 | 说明 |
-|------|------|
-| `\n` | 换行符（Unix/Linux） |
-| `\r` | 回车符（旧 Mac） |
-| `\r\n` | 回车+换行（Windows） |
-| `\v` / `\f` | 垂直制表符 / 换页符 |
-| `\x1c` | 文件分隔符 |
-| `\x1d` | 组分隔符 |
-| `\x1e` | 记录分隔符 |
-| `\x85` | 下一行（Next Line, NEL） |
-| `\u2028` | 行分隔符（Line Separator） |
-| `\u2029` | 段分隔符（Paragraph Separator） |
-
-#### 2.3.5 实际应用——解析多行配置
+`bytes.decode(encoding)` 将字节序列按指定编码解码为 `str`：
 
 ```python
-config_text = """
-# 数据库配置
-host=localhost
-port=8080
+# 解码: bytes → str
+encoded = "Hello中文".encode('utf-8')
+decoded = encoded.decode('utf-8')
+print(f"解码: {encoded} → '{decoded}'")
+print(f"类型: {type(decoded)}")      # <class 'str'>
+print(f"往返一致: {text == decoded}") # True
+```
 
-# 缓存配置
-cache_host=redis
-cache_port=6379
-"""
+`decode` 在字节序列不符合编码规则时抛出 `UnicodeDecodeError`——这是中文乱码的核心原因。
 
-config = {}
-for line in config_text.splitlines():
-    line = line.strip()
-    if not line or line.startswith("#"):
-        continue
-    if "=" in line:
-        key, value = line.split("=", 1)
-        config[key] = value
+#### 3.4.3 常用编码方式对比
 
-print("解析结果:")
-for k, v in config.items():
-    print(f"  {k} = {v}")
+```python
+print("常用编码方式对比:")
+text = "A中"
+encodings = ["utf-8", "utf-16", "gbk", "gb2312", "big5", "ascii"]
+for enc in encodings:
+    try:
+        b = text.encode(enc)
+        print(f"  {enc:>10}: {list(b)} ({len(b)} 字节)")
+    except UnicodeEncodeError as e:
+        print(f"  {enc:>10}: 编码失败 - {e}")
 
 # 输出:
-# 解析结果:
-#   host = localhost
-#   port = 8080
-#   cache_host = redis
-#   cache_port = 6379
+#       utf-8: [65, 228, 184, 173] (4 字节)
+#      utf-16: [255, 254, 65, 0, 45, 78] (6 字节)
+#         gbk: [65, 214, 208] (3 字节)
+#      gb2312: [65, 214, 208] (3 字节)
+#        big5: [65, 164, 164] (3 字节)
+#       ascii: 编码失败 (无法编码 '中')
 ```
 
-### 2.4 `partition()` / `rpartition()` 三元素分割
+各编码的特点：
 
-#### 2.4.1 `partition` 基本用法
+| 编码 | 字节序 | 中文编码 | 英文编码 | 支持范围 |
+|------|--------|---------|---------|---------|
+| UTF-8 | 无 | 3 字节 | 1 字节 | 全部 Unicode |
+| UTF-16 | 有 (LE/BE) | 2 字节 | 2 字节 | 全部 Unicode |
+| GBK | 无 | 2 字节 | 1 字节 | 中文 + ASCII |
+| Big5 | 无 | 2 字节 | 1 字节 | 繁体中文 + ASCII |
+| ASCII | 无 | 不支持 | 1 字节 | 仅 128 个 ASCII 字符 |
 
-`partition(sep)` 将字符串在**第一个**匹配的分隔符处分成三部分，返回一个三元组 `(分隔符前, 分隔符本身, 分隔符后)`。它**总是返回三个元素**，不会报错。
+#### 3.4.4 errors 参数 — 编解码错误处理
+
+`encode()` 和 `decode()` 都支持 `errors` 参数控制遇到错误时的行为：
+
+**encode 的 errors 参数**：
 
 ```python
-text = "Hello World Python"
-result = text.partition(" ")
-print(result)
-# ('Hello', ' ', 'World Python')
+print("encode errors 参数:")
 
-# 用三元组解包
-before, sep, after = text.partition(" ")
-print(f"前: '{before}', 分隔: '{sep}', 后: '{after}'")
-# 前: 'Hello', 分隔: ' ', 后: 'World Python'
+# strict (默认): 编码失败抛异常
+try:
+    "中文".encode('ascii')
+except UnicodeEncodeError as e:
+    print(f"  strict: 抛异常 - {e}")
+
+# ignore: 跳过无法编码的字符
+result = "中文".encode('ascii', errors='ignore')
+print(f"  ignore: {result}")        # b''（空字节）
+
+# replace: 用 ? 替代无法编码的字符
+result = "中文".encode('ascii', errors='replace')
+print(f"  replace: {result}")       # b'??'
+
+# xmlcharrefreplace: 用 XML 实体 &#NNNN; 替代
+result = "中文".encode('ascii', errors='xmlcharrefreplace')
+print(f"  xmlcharrefreplace: {result}")  # b'&#20013;&#25991;'
+
+# backslashreplace: 用 \uXXXX 转义替代
+result = "中文".encode('ascii', errors='backslashreplace')
+print(f"  backslashreplace: {result}")   # b'\\u4e2d\\u6587'
 ```
 
-#### 2.4.2 分隔符不存在时的安全行为
-
-`partition` 最大的优势——分隔符不存在时不会报错，返回 `(原字符串, "", "")`：
+**decode 的 errors 参数**：
 
 ```python
-text = "HelloWorld"
-result = text.partition(" ")
-print(result)
-# ('HelloWorld', '', '')
+print("decode errors 参数:")
 
-# 这使得 partition 比 split 更安全
-print(text.split(" "))
-# ['HelloWorld']  ← 返回单元素列表，需要检查长度
+# 制造一个包含非法字节的序列
+bad_bytes = b'Hello\xc3(\xe6\x96\x87'  # \xc3 后面应该跟延续字节，但跟了 '('
 
-# partition 总是三元素，解包不会出错
-before, sep, after = "no-space-here".partition(" ")
-print(f"有分隔符吗: {bool(sep)}")
-# 有分隔符吗: False
+# strict: 解码失败抛异常
+try:
+    bad_bytes.decode('utf-8')
+except UnicodeDecodeError as e:
+    print(f"  strict: 抛异常 - {e}")
+
+# ignore: 跳过非法字节
+result = bad_bytes.decode('utf-8', errors='ignore')
+print(f"  ignore: '{result}'")      # 'Hello(文'
+
+# replace: 用 替代非法字节
+result = bad_bytes.decode('utf-8', errors='replace')
+print(f"  replace: '{result}'")     # 'Hello(文'（用替换标记）
+
+# backslashreplace: 用转义序列替代
+result = bad_bytes.decode('utf-8', errors='backslashreplace')
+print(f"  backslashreplace: '{result}'")  # 'Hello\xc3(文'
 ```
 
-#### 2.4.3 `rpartition` 从右侧查找分隔符
+各 `errors` 参数的行为对比：
 
-`rpartition(sep)` 从右向左查找第一个匹配的分隔符：
+| errors 值 | encode 行为 | decode 行为 | 适用场景 |
+|-----------|------------|------------|---------|
+| `strict` | 抛异常 | 抛异常 | 默认，要求严格正确 |
+| `ignore` | 跳过字符 | 跳过字节 | 容忍丢失少量数据 |
+| `replace` | `?` 替代 | 替代 | 可视化展示损坏区域 |
+| `xmlcharrefreplace` | XML 实体替代 | 不适用 | HTML/XML 生成 |
+| `backslashreplace` | `\uXXXX` 转义 | `\xXX` 转义 | 调试和日志 |
+
+#### 3.4.5 编码不一致导致乱码
+
+乱码的根本原因：编码用的 A 编码，解码用的 B 编码，两者规则不一致，导致字节被错误解析。
 
 ```python
-text = "a=1&b=2&c=3"
+print("编码不一致导致乱码:")
 
-# partition 从左找到第一个 "="
-key, _, value = text.partition("=")
-print(f"左: key={key}, value={value}")
-# 左: key=a, value=1&b=2&c=3
+# 场景1: GBK 编码 + UTF-8 解码 → 解码失败
+text = "你好世界"
+gbk_bytes = text.encode('gbk')
+print(f"原文: '{text}'")
+print(f"GBK 编码: {list(gbk_bytes)}")
+try:
+    wrong = gbk_bytes.decode('utf-8')
+    print(f"UTF-8 解码: '{wrong}'")
+except UnicodeDecodeError:
+    print("UTF-8 解码: 解码失败")
+# UTF-8 严格的字节规则不允许 GBK 的字节模式
 
-# rpartition 从右找到最后一个 "="
-key, _, value = text.rpartition("=")
-print(f"右: key={key}, value={value}")
-# 右: key=a=1&b=2&c, value=3
+# 正确解码
+right = gbk_bytes.decode('gbk')
+print(f"GBK 解码: '{right}'")  # 你好世界
 ```
 
-#### 2.4.4 `partition` vs `rpartition` 方向对比
+三种最典型的乱码场景：
 
 ```python
-text = "2024-01-15-10-30"
+# 场景2: UTF-8 编码 + GBK 解码 → 阉字
+original = "你好"
+utf8_encoded = original.encode('utf-8')
+garbled = utf8_encoded.decode('gbk', errors='replace')
+print(f"UTF-8编码 + GBK解码: '{garbled}'")
+# '浣犲ソ' ← 6 个 UTF-8 字节被 GBK 解析为 3 个字符
 
-# partition 从左找到第一个 "-"
-left = text.partition("-")
-print(f"partition: {left}")
-# ('2024', '-', '01-15-10-30')
-
-# rpartition 从右找到最后一个 "-"
-right = text.rpartition("-")
-print(f"rpartition: {right}")
-# ('2024-01-15-10', '-', '30')
+# 场景3: UTF-8 编码 + Latin-1 解码 → 西欧乱码 (HTTP 常见问题)
+garbled = utf8_encoded.decode('latin-1')
+print(f"UTF-8编码 + Latin-1解码: '{garbled}'")
+# 'ä½ å¥½' ← 每个字节被当作一个 Latin-1 字符
 ```
 
-#### 2.4.5 `partition` vs `split` 的安全性对比
-
-`partition` 比带 `maxsplit=1` 的 `split` 更安全——后者返回列表，长度不确定，需要额外检查；前者固定返回三元素，解包天然安全。
+场景 3 的修复方法——先按错误编码回到字节，再按正确编码解码：
 
 ```python
-# split 模式：需要检查列表长度
-def parse_key_value_split(text):
-    parts = text.split("=", 1)
-    if len(parts) == 2:
-        return parts[0], parts[1]
-    else:
-        return parts[0], None
+# 修复: 把错误解码的字符串按错误编码重新变回字节，再正确解码
+fixed = garbled.encode('latin-1').decode('utf-8')
+print(f"修复: '{fixed}'")
+# '你好' ← 恢复原文
+```
 
-# partition 模式：天然安全，不用检查长度
-def parse_key_value_partition(text):
-    key, sep, value = text.partition("=")
-    if sep:
-        return key, value
-    return key, None
+#### 3.4.6 安全解码策略
 
-test_cases = [
-    "host=localhost",
-    "port=8080",
-    "invalid",           # 没有 = 号
-    "path=/a=b=c",       # 多个 = 号
+当不知道字节的编码方式时，可以采用"逐个尝试"策略——UTF-8 最严格，先试它；失败试 GBK；再失败用 Latin-1 兜底：
+
+```python
+def safe_decode(raw_bytes):
+    """安全解码: 逐个尝试常用编码"""
+    for encoding in ['utf-8', 'gbk', 'latin-1']:
+        try:
+            return raw_bytes.decode(encoding), encoding
+        except UnicodeDecodeError:
+            continue
+    # 最终兜底: Latin-1 不会失败
+    return raw_bytes.decode('utf-8', errors='replace'), 'utf-8(replace)'
+
+test_samples = [
+    '你好'.encode('utf-8'),
+    '你好'.encode('gbk'),
+    b'Hello\xc3\xc3',  # 纯 Latin-1 字节
 ]
 
-for text in test_cases:
-    r1 = parse_key_value_split(text)
-    r2 = parse_key_value_partition(text)
-    print(f"  '{text}' → split: {r1}, partition: {r2}")
-
-# 'host=localhost' → split: ('host', 'localhost'), partition: ('host', 'localhost')
-# 'port=8080' → split: ('port', '8080'), partition: ('port', '8080')
-# 'invalid' → split: ('invalid', None), partition: ('invalid', None)
-# 'path=/a=b=c' → split: ('path', '/a=b=c'), partition: ('path', '/a=b=c')
+for b in test_samples:
+    result, enc = safe_decode(b)
+    print(f"  {list(b)} → '{result}' (用 {enc} 解码)")
+# [228, 189, 160, 229, 165, 189] → '你好' (用 utf-8 解码)
+# [196, 227, 186, 195]            → '你好' (用 gbk 解码)
+# [72, 101, 108, 108, 111, 195, 195] → 'Hello妹' (用 gbk 解码)
 ```
 
-#### 2.4.6 实际应用——解析 URL
+UTF-8 是最严格的编码——它的字节前缀规则使得随机字节串恰好是合法 UTF-8 的概率很低。因此，如果 UTF-8 解码成功，几乎可以确定就是 UTF-8 编码。这是 UTF-8 的自同步特性。
 
-`partition` 在链式解析结构化文本时非常优雅——不需要检查分隔符是否存在，直接解包：
+### 3.5 bytes 与 str 的区别
 
-```python
-url = "https://www.example.com:8080/api/v1?query=1"
+Python 3 中 `str` 和 `bytes` 是两个完全不同的类型，不能直接混用。理解它们的区别是处理编码问题的基础。
 
-# 分离协议
-protocol, _, rest = url.partition("://")
-print(f"协议: {protocol}")
-# 协议: https
-
-# 分离域名和路径
-domain, _, path = rest.partition("/")
-print(f"域名: {domain}")
-print(f"路径: {path}")
-# 域名: www.example.com:8080
-# 路径: api/v1?query=1
-
-# 分离端口
-host, sep, port = domain.partition(":")
-print(f"主机: {host}")
-print(f"端口: {port if sep else '(默认)'}")
-# 主机: www.example.com
-# 端口: 8080
-
-# 分离路径和查询参数
-path_part, _, query = path.partition("?")
-print(f"路径: /{path_part}")
-print(f"参数: {query}")
-# 路径: /api/v1
-# 参数: query=1
-```
-
-#### 2.4.7 分隔符不存在时 `partition` vs `rpartition` 的差异
-
-分隔符不存在时，`partition` 把原字符串放在第一个位置，而 `rpartition` 把原字符串放在最后一个位置——这是两者的关键差异：
+#### 3.5.1 类型的本质差异
 
 ```python
-text = "no-separator-here"  # 这里没有逗号
+s = "Hello中文"           # str: Unicode 字符序列
+b = s.encode('utf-8')     # bytes: 字节序列
 
-# partition: 分隔符不存在 → (原字符串, "", "")
-print(text.partition(","))
-# ('no-separator-here', '', '')
+print(f"str: {s!r}")
+print(f"  类型: {type(s)}")
+print(f"  长度: {len(s)} (字符数)")
+print(f"  每个元素是字符: {[c for c in s]}")
 
-# rpartition: 分隔符不存在 → ("", "", 原字符串)
-print(text.rpartition(","))
-# ('', '', 'no-separator-here')
-```
-
-这个差异在实际使用中很重要：`rpartition` 在分隔符不存在时把内容放在最后一个元素，这意味着如果你需要的是"分隔符后的内容"，用 `rpartition` 时分隔符不存在会得到空串而非原字符串。反过来，如果你需要的是"分隔符前的内容"，用 `partition` 更合适。
-
-### 2.5 综合实战
-
-#### 2.5.1 CSV 解析器
-
-综合使用 `splitlines` + `split` 实现简易 CSV 解析：
-
-```python
-def parse_csv_line(line, delimiter=","):
-    """解析单行 CSV"""
-    line = line.rstrip("\n\r")
-    return [f.strip() for f in line.split(delimiter)]
-
-def parse_csv(csv_text):
-    """解析 CSV 文本，返回表头和数据行"""
-    lines = csv_text.strip().splitlines()
-    if not lines:
-        return [], []
-    headers = parse_csv_line(lines[0])
-    data = [parse_csv_line(line) for line in lines[1:] if line.strip()]
-    return headers, data
-
-csv_data = """姓名,年龄,邮箱,部门
-张三,30,zhangsan@example.com,技术部
-李四,25,lisi@example.com,市场部
-王五,35,wangwu@example.com,管理部
-"""
-
-headers, rows = parse_csv(csv_data)
-print(f"表头: {headers}")
-for row in rows:
-    print(f"  {row}")
+print(f"\nbytes: {b!r}")
+print(f"  类型: {type(b)}")
+print(f"  长度: {len(b)} (字节数)")
+print(f"  每个元素是整数(0-255): {[x for x in b]}")
 
 # 输出:
-# 表头: ['姓名', '年龄', '邮箱', '部门']
-#   ['张三', '30', 'zhangsan@example.com', '技术部']
-#   ['李四', '25', 'lisi@example.com', '市场部']
-#   ['王五', '35', 'wangwu@example.com', '管理部']
+# str: 'Hello中文'
+#   类型: <class 'str'>
+#   长度: 7 (字符数)
+#   每个元素是字符: ['H', 'e', 'l', 'l', 'o', '中', '文']
+#
+# bytes: b'Hello\xe4\xb8\xad\xe6\x96\x87'
+#   类型: <class 'bytes'>
+#   长度: 11 (字节数)
+#   每个元素是整数(0-255): [72, 101, 108, 108, 111, 228, 184, 173, 230, 150, 135]
 ```
 
-#### 2.5.2 日志解析器
+核心差异：
 
-综合使用 `partition` + `splitlines` 解析结构化日志：
+| 维度 | str | bytes |
+|------|-----|-------|
+| 内部表示 | Unicode 码点 | 原始字节 (0~255) |
+| 元素类型 | 字符 (str) | 整数 (int) |
+| `len()` | 字符数 | 字节数 |
+| 字面量 | `'...'` / `"..."` | `b'...'` / `b"..."` |
+| 可变性 | 不可变 | 不可变（`bytearray` 可变） |
+
+#### 3.5.2 bytes 字面量
+
+`bytes` 字面量用 `b'...'` 前缀表示，有三种创建方式：
 
 ```python
-def parse_log_line(log_line):
-    """解析日志行：[时间戳] 级别: 消息"""
-    line = log_line.strip()
-    if not line:
-        return None
+# 方式1: ASCII 字符直接写
+b1 = b'Hello'
+print(f"  b'Hello' = {b1}, 类型={type(b1)}")
 
-    # 用 partition 安全提取时间戳
-    after_bracket, _, rest = line.partition("]")
-    if not _:
-        return None
-    timestamp = after_bracket[1:]  # 去掉开头的 '['
+# 方式2: 十六进制转义（用于非 ASCII 字节）
+b2 = b'\xe4\xb8\xad'  # '中' 的 UTF-8 编码
+print(f"  b'\\xe4\\xb8\\xad' = {b2}")
 
-    # 用 partition 安全提取级别和消息
-    level, _, message = rest.strip().partition(": ")
-    if not _:
-        return None
+# 方式3: bytes() 构造（从整数列表创建）
+b3 = bytes([0x48, 0x65, 0x6c, 0x6c, 0x6f])  # 'Hello'
+print(f"  bytes([0x48,...]) = {b3}")
 
-    return {"timestamp": timestamp, "level": level, "message": message.strip()}
+# 方式4: 从 str 编码创建
+b4 = "中文".encode('utf-8')
+print(f"  '中文'.encode('utf-8') = {b4}")
+```
 
-log_content = """[2024-01-15 08:30:00] INFO: System started
-[2024-01-15 08:32:45] WARN: Cache hit rate below 60%
-[2024-01-15 08:33:10] ERROR: Database connection timeout
-[2024-01-15 08:35:20] ERROR: Authentication failed"""
+#### 3.5.3 bytearray — 可变的 bytes
 
-for line in log_content.strip().splitlines():
-    parsed = parse_log_line(line)
-    if parsed:
-        print(f"  [{parsed['level']:5s}] {parsed['timestamp']} → {parsed['message']}")
+`bytearray` 是 `bytes` 的可变版本，可以修改元素和追加字节：
+
+```python
+ba = bytearray(b'Hello')
+print(f"  创建: {ba}")
+print(f"  类型: {type(ba)}")  # bytearray
+
+# 可修改单个字节
+ba[0] = ord('h')     # 把 'H' 改成 'h'
+print(f"  修改后: {ba}")     # bytearray(b'hello')
+
+# 可追加字节
+ba.append(ord('!'))
+print(f"  追加后: {ba}")     # bytearray(b'hello!')
+
+# bytes 不可变
+b = b'Hello'
+# b[0] = ord('h')  # TypeError: 'bytes' 对象不支持赋值
+print("  bytes 不可变: b'Hello' 的 b[0] 不能赋值")
+```
+
+#### 3.5.4 索引与切片差异
+
+```python
+s = "Hello"
+b = b'Hello'
+
+print("索引差异:")
+# str 索引返回字符
+print(f"  s[0] = '{s[0]}' (str 返回字符)")
+
+# bytes 索引返回整数
+print(f"  b[0] = {b[0]} (bytes 返回整数)")
+
+print("切片差异:")
+# str 切片返回 str
+print(f"  s[1:3] = '{s[1:3]}' (str 切片)")
+
+# bytes 切片返回 bytes
+print(f"  b[1:3] = {b[1:3]} (bytes 切片)")
+```
+
+这个差异在实际使用中非常重要——`bytes[0]` 返回的是整数（0~255），而不是字符。要获取字符需要用 `chr(b[0])` 或 `b[0:1].decode('ascii')`。
+
+#### 3.5.5 拼接限制
+
+`str` 和 `bytes` 不能直接拼接——必须先通过 `encode()` / `decode()` 统一类型：
+
+```python
+print("拼接限制:")
+
+# bytes + bytes: 允许
+result = b'Hello' + b' ' + b'World'
+print(f"  bytes + bytes: {result}")  # b'Hello World'
+
+# str + str: 允许
+result = 'Hello' + ' ' + 'World'
+print(f"  str + str: {result}")      # Hello World
+
+# bytes + str: 不允许
+# b'Hello' + 'World'  # TypeError
+print("  bytes + str: TypeError (不兼容)")
+
+# 如果需要拼接，先统一类型
+fixed = b'Hello' + 'World'.encode('utf-8')
+print(f"  统一后: {fixed}")  # b'HelloWorld'
+```
+
+#### 3.5.6 比较与查找
+
+```python
+print("比较与查找:")
+
+# bytes 之间的比较
+print(f"  b'Hello' == b'Hello': {b'Hello' == b'Hello'}")  # True
+print(f"  b'Hello' > b'World': {b'Hello' > b'World'}")    # False
+
+# in 检查: bytes 中查的是字节子序列
+b = "Hello中文".encode('utf-8')
+
+# str 中用字符查找
+print(f"  '中' in 'Hello中文': {'中' in 'Hello中文'}")    # True
+
+# bytes 中不能用 str 查找
+# '中' in b  # TypeError: a bytes-like object is required
+
+# 必须用字节序列查找
+print(f"  '中'.encode() in bytes: {'中'.encode('utf-8') in b}")  # True
+```
+
+#### 3.5.7 文件读写模式
+
+Python 文件读写有两种模式，分别对应 `str` 和 `bytes`：
+
+```python
+import io
+
+print("文件读写模式:")
+
+# 文本模式 (r/w): 返回/接收 str
+print("  文本模式 (r/w):")
+with io.StringIO() as f:
+    f.write("Hello中文\n")
+    f.seek(0)
+    content = f.read()
+    print(f"    读出: '{content.strip()}' (类型: {type(content).__name__})")
+# 读出: 'Hello中文' (类型: str)
+
+# 二进制模式 (rb/wb): 返回/接收 bytes
+print("  二进制模式 (rb/wb):")
+with io.BytesIO() as f:
+    f.write("Hello中文".encode('utf-8'))
+    f.seek(0)
+    raw = f.read()
+    print(f"    读出: {raw} (类型: {type(raw).__name__})")
+    # 二进制模式需要手动 decode
+    decoded = raw.decode('utf-8')
+    print(f"    解码: '{decoded}'")
+# 读出: b'Hello\xe4\xb8\xad\xe6\x96\x87' (类型: bytes)
+# 解码: 'Hello中文'
+```
+
+实际使用 `open()` 时，文本模式会自动按系统默认编码（或指定编码）处理 decode/encode。但二进制模式不做任何编码处理，你完全自己控制。
+
+### 3.6 BOM — 字节序标记
+
+BOM（Byte Order Mark）是 Unicode 字符 `U+FEFF`，用在字节流的开头来标识编码方式和字节序。
+
+#### 3.6.1 BOM 的几种形式
+
+```python
+print("BOM 的几种形式:")
+
+# UTF-8 BOM: 3 字节 EF BB BF
+print(f"  UTF-8 BOM:    {list(b'\xef\xbb\xbf')} → EF BB BF")
+
+# UTF-16 LE BOM: 2 字节 FF FE (小端序)
+print(f"  UTF-16 LE BOM: {list(b'\xff\xfe')} → FF FE")
+
+# UTF-16 BE BOM: 2 字节 FE FF (大端序)
+print(f"  UTF-16 BE BOM: {list(b'\xfe\xff')} → FE FF")
+```
+
+BOM 的核心作用是标识**字节序**——多字节编码（如 UTF-16）需要知道高位字节在前还是低位字节在前。
+
+#### 3.6.2 UTF-16 的字节序问题
+
+UTF-16 用 2 字节表示 BMP 字符，但"高位在前还是低位在前"在不同 CPU 架构上不同：
+
+```python
+print("UTF-16 字节序:")
+text = "AB"
+
+# UTF-16-LE: 小端序，低字节在前
+le_bytes = text.encode('utf-16-le')
+print(f"  UTF-16-LE: {list(le_bytes)} (A→41 00, B→42 00)")
+
+# UTF-16-BE: 大端序，高字节在前
+be_bytes = text.encode('utf-16-be')
+print(f"  UTF-16-BE: {list(be_bytes)} (A→00 41, B→00 42)")
+
+# 不指定字节序时，UTF-16 会自动加 BOM
+u16_bytes = text.encode('utf-16')
+print(f"  UTF-16 (含BOM): {list(u16_bytes)} (FF FE 是LE的BOM)")
+```
+
+Python 的 `utf-16` 默认使用小端序（LE），并在开头添加 BOM。接收方看到 `FF FE` 就知道这是小端序。UTF-8 没有字节序问题——它是按字节顺序处理的，所以 UTF-8 的 BOM 没有字节序标识的意义，仅用于标识"这是一份 UTF-8 文件"。
+
+#### 3.6.3 UTF-8 的 BOM 处理
+
+UTF-8 的 BOM 是 `EF BB BF`，不代表字节序，只是一个标记。有些编辑器（如 Windows Notepad）会在 UTF-8 文件开头自动加 BOM，可能导致读取时出现多余字符：
+
+```python
+print("UTF-8 BOM 检测与处理:")
+
+# 制造一个带 BOM 的 UTF-8 字节序列
+text_with_bom = "Hello中文"
+bom_bytes = b'\xef\xbb\xbf'  # UTF-8 BOM
+utf8_with_bom = bom_bytes + text_with_bom.encode('utf-8')
+
+print(f"  带BOM的UTF-8字节: {list(utf8_with_bom[:6])}...")
+print(f"  前三字节 = BOM? {utf8_with_bom[:3] == b'\\xef\\xbb\\xbf'}")
+
+# 方法1: 手动去除 BOM 后解码
+if utf8_with_bom[:3] == b'\xef\xbb\xbf':
+    clean = utf8_with_bom[3:].decode('utf-8')
+    print(f"  去除BOM解码: '{clean}'")  # 'Hello中文'
+```
+
+Python 提供了 `utf-8-sig` 编码——编码时自动加 BOM，解码时自动去 BOM，省去手动处理：
+
+```python
+print("\nutf-8-sig 自动处理 BOM:")
+
+# encode: utf-8-sig 会在开头添加 BOM
+encoded_sig = "Hello中文".encode('utf-8-sig')
+print(f"  encode('utf-8-sig'): {list(encoded_sig[:6])}... (含BOM)")
+
+# 对比普通 utf-8 (无BOM)
+encoded_plain = "Hello中文".encode('utf-8')
+print(f"  encode('utf-8'):    {list(encoded_plain[:6])}... (无BOM)")
+
+# decode: utf-8-sig 自动去 BOM
+print(f"  utf-8-sig 解码: '{encoded_sig.decode('utf-8-sig')}'")   # Hello中文
+
+# 普通 utf-8 也能处理带 BOM 的数据（Python 自动跳过 BOM）
+print(f"  utf-8 解码BOM版: '{encoded_sig.decode('utf-8')}'")      # Hello中文
+```
+
+#### 3.6.4 中文乱码场景分析
+
+将三种最典型的中文乱码场景汇总：
+
+```text
+场景                       编码  解码    现象
+──────────────────────────────────────────────────
+GBK 编码 + UTF-8 解码       GBK   UTF-8  解码失败 (GBK 字节不符合 UTF-8 规则)
+UTF-8 编码 + GBK 解码       UTF-8 GBK    乱码 '浣犲ソ' (6 字节解析为 3 个 GBK 字符)
+UTF-8 编码 + Latin-1 解码   UTF-8 Latin-1 乱码 'ä½ å¥½' (每字节当一个 Latin-1 字符)
+```
+
+```python
+# 场景1: GBK编码 + UTF-8解码 → 解码失败
+original = "你好"
+gbk_encoded = original.encode('gbk')
+print(f"  场景1: GBK编码 + UTF-8解码")
+print(f"    原文: '{original}'")
+print(f"    GBK字节: {list(gbk_encoded)}")
+try:
+    garbled = gbk_encoded.decode('utf-8')
+    print(f"    乱码: '{garbled}'")
+except UnicodeDecodeError:
+    print(f"    解码失败")
+
+# 场景2: UTF-8编码 + GBK解码 → 阉字乱码
+utf8_encoded = original.encode('utf-8')
+print(f"  场景2: UTF-8编码 + GBK解码")
+print(f"    原文: '{original}'")
+print(f"    UTF-8字节: {list(utf8_encoded)}")
+garbled = utf8_encoded.decode('gbk', errors='replace')
+print(f"    乱码: '{garbled}'")
+
+# 场景3: UTF-8编码 + Latin-1解码 → 西欧乱码
+print(f"  场景3: UTF-8编码 + Latin-1解码 (HTTP常见问题)")
+garbled = utf8_encoded.decode('latin-1')
+print(f"    原文: '{original}'")
+print(f"    乱码: '{garbled}'")
+# 修复: 重新编码再正确解码
+fixed = garbled.encode('latin-1').decode('utf-8')
+print(f"    修复: '{fixed}'")
+```
+
+#### 3.6.5 综合编码检测与修复工具
+
+结合 BOM 检测、逐个尝试和兜底策略，实现一个实用的编码检测工具：
+
+```python
+def detect_and_decode(raw_bytes):
+    """检测编码并安全解码字节序列"""
+    # 1. 检查 BOM
+    if raw_bytes[:3] == b'\xef\xbb\xbf':
+        return raw_bytes[3:].decode('utf-8'), 'UTF-8 (BOM)'
+    if raw_bytes[:2] == b'\xff\xfe':
+        return raw_bytes[2:].decode('utf-16-le'), 'UTF-16 LE'
+    if raw_bytes[:2] == b'\xfe\xff':
+        return raw_bytes[2:].decode('utf-16-be'), 'UTF-16 BE'
+
+    # 2. 尝试 UTF-8 (最严格, 能成功基本就是 UTF-8)
+    try:
+        return raw_bytes.decode('utf-8'), 'UTF-8'
+    except UnicodeDecodeError:
+        pass
+
+    # 3. 尝试 GBK
+    try:
+        return raw_bytes.decode('gbk'), 'GBK'
+    except UnicodeDecodeError:
+        pass
+
+    # 4. 尝试 Big5
+    try:
+        return raw_bytes.decode('big5'), 'Big5'
+    except UnicodeDecodeError:
+        pass
+
+    # 5. 退化: Latin-1 不会失败
+    return raw_bytes.decode('latin-1'), 'Latin-1 (fallback)'
+```
+
+测试检测工具：
+
+```python
+test_data = [
+    (b'\xef\xbb\xbf' + "Hello".encode('utf-8'), "UTF-8 with BOM"),
+    ("你好".encode('utf-8'), "Pure UTF-8"),
+    ("你好".encode('gbk'), "GBK"),
+    ("你好".encode('big5'), "Big5"),
+    (b'\xff\xfe' + "你好".encode('utf-16-le'), "UTF-16 LE with BOM"),
+]
+
+print("编码检测测试:")
+for raw, expected in test_data:
+    result, detected = detect_and_decode(raw)
+    print(f"  期望:{expected:<20} → 检测:{detected:<20} → '{result}'")
 
 # 输出:
-#   [INFO ] 2024-01-15 08:30:00 → System started
-#   [WARN ] 2024-01-15 08:32:45 → Cache hit rate below 60%
-#   [ERROR] 2024-01-15 08:33:10 → Database connection timeout
-#   [ERROR] 2024-01-15 08:35:20 → Authentication failed
+#   期望:UTF-8 with BOM        → 检测:UTF-8 (BOM)           → 'Hello'
+#   期望:Pure UTF-8            → 检测:UTF-8                 → '你好'
+#   期望:GBK                   → 检测:GBK                   → '你好'
+#   期望:Big5                  → 检测:Big5                  → '你好'
+#   期望:UTF-16 LE with BOM   → 检测:UTF-16 LE            → '你好'
 ```
 
-#### 2.5.3 URL 解析器
-
-综合使用 `partition` / `rpartition` / `split` 链式解析 URL：
+#### 3.6.6 安全读写中文文件
 
 ```python
-def parse_url(url):
-    """将 URL 解析为各组成部分"""
-    result = {}
-    protocol, _, rest = url.partition("://")
-    if _:
-        result["protocol"] = protocol
-    else:
-        rest = protocol
-        result["protocol"] = ""
+import io
 
-    host_port, _, path = rest.partition("/")
-    if _:
-        result["path"] = "/" + path
-    else:
-        host_port = rest
-        result["path"] = ""
+print("安全读写中文文件:")
+content = "这是一段中文内容\n包含多行文本\n第三行"
 
-    host, sep, port = host_port.partition(":")
-    result["host"] = host
-    result["port"] = port if sep else ""
+# 写入: 始终使用 UTF-8
+with io.StringIO() as f:
+    f.write(content)
+    f.seek(0)
+    raw = f.read().encode('utf-8')
+    print(f"  写入内容: '{content}'")
+    print(f"  UTF-8字节: {list(raw[:20])}...")
 
-    path_part, _, query = result["path"].partition("?")
-    result["path"] = path_part
-    result["params"] = {}
-    if _:
-        for pair in query.split("&"):
-            k, s, v = pair.partition("=")
-            if s:
-                result["params"][k] = v
-            else:
-                result["params"][k] = ""
-    return result
-
-url = "https://www.example.com:8080/api/v1?id=1&name=alice"
-parsed = parse_url(url)
-print(f"协议: {parsed['protocol']}")
-print(f"主机: {parsed['host']}")
-print(f"端口: {parsed['port']}")
-print(f"路径: {parsed['path']}")
-print(f"参数: {parsed['params']}")
-
-# 输出:
-# 协议: https
-# 主机: www.example.com
-# 端口: 8080
-# 路径: /api/v1
-# 参数: {'id': '1', 'name': 'alice'}
+# 读取: 自动检测编码
+result, encoding = detect_and_decode(raw)
+print(f"  读取结果: '{result}' (用 {encoding} 解码)")
 ```
 
-#### 2.5.4 代码行统计工具
+#### 3.6.7 Python 源文件编码声明
 
-综合使用 `splitlines` + `split` 统计 Python 代码行信息：
+Python 3 默认使用 UTF-8 编码源文件，不需要在文件顶部声明编码。但在某些特殊场景（如旧系统兼容）中需要显式声明：
 
 ```python
-def analyze_code(code_text):
-    """分析 Python 代码行统计信息"""
-    lines = code_text.splitlines()
-    stats = {
-        "总行数": len(lines),
-        "代码行": 0,
-        "注释行": 0,
-        "空行": 0,
-        "函数定义": 0,
-        "类定义": 0,
-    }
-    for line in lines:
-        stripped = line.strip()
-        if not stripped:
-            stats["空行"] += 1
-        elif stripped.startswith("#"):
-            stats["注释行"] += 1
-        else:
-            stats["代码行"] += 1
-            if stripped.startswith("def "):
-                stats["函数定义"] += 1
-            elif stripped.startswith("class "):
-                stats["类定义"] += 1
-    return stats
+# 以下声明方式都是合法的:
+#   # -*- coding: utf-8 -*-    (Emacs 风格)
+#   # coding: utf-8           (简洁风格)
+#   # coding=utf-8            (等号风格)
 
-sample_code = """class Calculator:
-    def add(self, a, b):
-        return a + b
-
-    def subtract(self, a, b):
-        # 减法运算
-        return a - b
-
-# 使用示例
-calc = Calculator()
-result = calc.add(10, 5)"""
-
-stats = analyze_code(sample_code)
-for key, value in stats.items():
-    print(f"  {key}: {value}")
-
-# 输出:
-#   总行数: 10
-#   代码行: 6
-#   注释行: 2
-#   空行: 2
-#   函数定义: 2
-#   类定义: 1
+# Python 3 默认源文件编码: UTF-8
+# 不需要显式声明编码
+# 中文可以作为变量名 (不推荐)
 ```
 
-#### 2.5.5 四种分割方法对比一览
+Python 2 默认使用 ASCII 编码源文件，所以 Python 2 的 `.py` 文件中如果有中文，必须在顶部加 `# -*- coding: utf-8 -*-`。Python 3 改为默认 UTF-8，基本不需要再声明。
 
-```python
-text = "name=alice&age=30&city=beijing"
+## 4. 设计决策与权衡
 
-print(f"原始: '{text}'")
-print()
+### 4.1 为什么 Python 3 用 str + bytes 而不是 Python 2 的 str + unicode
 
-# split() 不带参数
-print(f"split():               {text.split()}")
-# ['name=alice&age=30&city=beijing']
+| 维度 | Python 2 (str + unicode) | Python 3 (str + bytes) |
+|------|--------------------------|------------------------|
+| 默认字符串类型 | `str`（字节串） | `str`（Unicode） |
+| Unicode 类型 | `unicode`（独立类型） | `str`（就是 Unicode） |
+| 字节串 | `str` | `bytes`（独立类型） |
+| 自动转换 | `str` 与 `unicode` 自动转换 | `str` 与 `bytes` 严格隔离 |
+| 隐式拼接 | `str + unicode` 会隐式 encode | 抛出 `TypeError` |
 
-# split 指定分隔符
-print(f"split('&'):            {text.split('&')}")
-# ['name=alice', 'age=30', 'city=beijing']
+Python 2 的设计问题：`str` 本质是字节序列，但在很多 API 中被当作字符串使用。当字符串只有 ASCII 字符时一切正常；一旦出现非 ASCII 字符，自动隐式转换就会触发 `UnicodeDecodeError`。
 
-# rsplit 从右限 1 刀
-print(f"rsplit('&', 1):        {text.rsplit('&', 1)}")
-# ['name=alice&age=30', 'city=beijing']
+Python 3 的改进：明确分离"文本"（`str`，Unicode）和"数据"（`bytes`，字节序列）。`str` 就是 Unicode 文本，`bytes` 就是原始字节，两者不能隐式转换，必须显式 `encode()` / `decode()`。这使得编码问题在开发阶段就暴露出来，而不是在生产环境随机出现。
 
-# partition 拆第一个 =
-before, _, after = text.partition("=")
-print(f"partition('='):        ('{before}', '{after}')")
-# ('name', 'alice&age=30&city=beijing')
+### 4.2 为什么 UTF-8 是最佳默认选择
 
-# rpartition 拆最后一个 =
-before, _, after = text.rpartition("=")
-print(f"rpartition('='):       ('{before}', '{after}')")
-# ('name=alice&age=30&city', 'beijing')
-```
+| 维度 | UTF-8 | UTF-16 | UTF-32 |
+|------|-------|--------|--------|
+| ASCII 兼容 | 完全兼容 | 不兼容 | 不兼容 |
+| 英文存储 | 1 字节 | 2 字节 | 4 字节 |
+| 中文存储 | 3 字节 | 2 字节 | 4 字节 |
+| Emoji 存储 | 4 字节 | 4 字节 | 4 字节 |
+| 字节序问题 | 无 | 有 (LE/BE) | 有 (LE/BE) |
+| 自同步性 | 有 | 无 | 无 |
+| Web 使用率 | ~98% | ~少量 | 几乎不用 |
 
-## 3. 最佳实践
+UTF-8 的核心优势：
 
-### 3.1 选择正确的分割方法
+- **ASCII 兼容性**：纯英文的 ASCII 文件就是合法的 UTF-8 文件，保证了向后兼容
+- **无字节序问题**：按字节顺序处理，不需要 BOM，跨平台无忧
+- **自同步性**：从字节流的任意位置开始扫描，只要遇到非延续字节（不以 `10` 开头），就能找到下一个字符的起始位置。这使得 UTF-8 在截断、拼接、搜索时具有天然优势
+- **节省空间**：对于以英文为主的文本，UTF-8 比 UTF-16 节省一半空间
 
-| 需求 | 推荐方法 | 原因 |
+UTF-16 对中文存储略优（2 字节 vs 3 字节），但多出的字节序复杂性和 ASCII 不兼容问题使得它在 Web 上的收益远不抵成本。
+
+### 4.3 GBK 等区域编码的局限性
+
+GBK、Big5、Shift-JIS 等区域编码各自定义了本语言的字符编码，但它们彼此不兼容：
+
+| 问题 | 说明 |
+|------|------|
+| 互不兼容 | GBK 编码的文件在 Big5 环境下会乱码，反之亦然 |
+| 覆盖范围有限 | GBK 只支持中文 + ASCII，不支持日文、韩文等 |
+| 不支持 Emoji | GBK 编码空间没有 Emoji 的位置 |
+| 自定义扩展混乱 | 各厂商对 GBK 有不同扩展（微软 GBK vs 标准 GBK） |
+| 国际化困难 | 日文系统读取中文文件会乱码 |
+
+Unicode 和 UTF-8 的出现解构了这些问题——统一码点空间 + 可变字节编码，一套编码覆盖全世界。现代系统应该一律使用 UTF-8，GBK 等区域编码仅用于兼容遗留数据。
+
+### 4.4 errors 参数的设计权衡
+
+`errors` 参数体现了 Python 的一个设计理念——**让开发者选择失败策略**，而不是强制一种方式：
+
+| 策略 | 适合场景 | 代价 |
 |------|---------|------|
-| 按空白拆分（自动合并） | `split()` | 不带参数，连续空白自动合并 |
-| 按固定分隔符全量拆分 | `split(sep)` | 简单直接，返回列表 |
-| 只拆前 N 段（保留剩余整体） | `split(sep, N)` | `maxsplit` 限制分割次数 |
-| 只拆后 N 段 | `rsplit(sep, N)` | 从右限制分割次数 |
-| 按行拆分（跨平台安全） | `splitlines()` | 正确处理 `\n`、`\r\n`、`\r` |
-| 拆键值对（前后两部分） | `partition(sep)` | 固定返回三元素，不报错 |
-| 从右找分隔符拆两部分 | `rpartition(sep)` | 如提取文件扩展名 |
-| 多行文本逐行处理 | `splitlines()` | 末尾换行不产生空串 |
+| `strict`（默认） | 需要严格保证数据完整性的场景 | 遇到错误就终止 |
+| `ignore` | 可以接受少量数据丢失 | 数据静默丢失，开发者可能不自知 |
+| `replace` | 可视化展示（如日志显示） | 替换字符有歧义 |
+| `xmlcharrefreplace` | 生成 HTML/XML | 增加文件体积 |
+| `backslashreplace` | 调试和日志 | 转义序列不易阅读 |
+| `surrogateescape` | 处理操作系统路径名 | 保持原始字节，可无损往返 |
 
-### 3.2 推荐 vs 不推荐写法
+默认 `strict` 的选择：编码错误通常是 bug 的信号（如文件编码不一致、网络数据处理不当），默认抛异常能让问题在开发阶段暴露。但在特定场景（如 OS 路径名解码）中，`strict` 会导致正常文件读取失败，此时 `surrogateescape` 可以无损处理未知字节。
 
-```python
-# ---- 按行分割 ----
+### 4.5 UTF-8 自同步特性的价值
 
-# 推荐：splitlines() 跨平台安全
-for line in text.splitlines():
-    process(line)
-
-# 不推荐：split("\n") 不能处理 \r\n，末尾产生空串
-for line in text.split("\n"):
-    if line:  # 需要额外过滤空串
-        process(line)
-
-# ---- 解析键值对 ----
-
-# 推荐：partition 天然安全，总返回三元素
-key, sep, value = line.partition("=")
-if sep:
-    print(f"{key}={value}")
-
-# 不推荐：split 需要检查列表长度
-parts = line.split("=", 1)
-if len(parts) == 2:
-    key, value = parts
-else:
-    key = parts[0]
-    value = None
-
-# ---- 提取文件扩展名 ----
-
-# 推荐：rsplit(".", 1) 一行搞定
-name, ext = "report.tar.gz".rsplit(".", 1)
-
-# 不推荐：split(".") + 取最后一个，不够直观
-parts = "report.tar.gz".split(".")
-ext = parts[-1]
-name = ".".join(parts[:-1])
-
-# ---- 限制分割次数 ----
-
-# 推荐：用 maxsplit 只拆第一刀
-key, value = config_line.split("=", 1)
-
-# 不推荐：不用 maxsplit，值中的 = 被错误拆分
-key, value = config_line.split("=")  # 如果值中有 = 就多了
-
-# ---- 读取文件行 ----
-
-# 推荐：rstrip 去掉行尾换行
-with open("data.txt") as f:
-    for line in f:
-        line = line.rstrip("\n")
-        process(line)
-
-# 也可以：splitlines 统一处理
-with open("data.txt") as f:
-    for line in f.read().splitlines():
-        process(line)
-
-# 不推荐：切片去换行，\r\n 会有残留
-for line in f:
-    line = line[:-1]  # 如果行尾是 \r\n，\r 会残留
-```
-
-### 3.3 综合推荐 vs 不推荐对照表
-
-| 场景 | 推荐写法 | 不推荐写法 | 原因 |
-|------|---------|-----------|------|
-| 按行拆分 | `text.splitlines()` | `text.split("\n")` | `splitlines` 跨平台安全 |
-| 键值对解析 | `s.partition("=")` | `s.split("=", 1)` + 检查长度 | `partition` 天然三元素 |
-| 提取扩展名 | `s.rsplit(".", 1)` | `s.split(".")[-1]` | `rsplit` 更直观 |
-| 只拆前 N 段 | `s.split(sep, N)` | 全拆后取前 N 个 | `maxsplit` 更高效 |
-| 按空白拆分 | `s.split()` | `s.split(" ")` | 不带参数自动合并空白 |
-| 文件行处理 | `line.rstrip()` | `line[:-1]` | `rstrip` 安全处理换行 |
-
-### 3.4 常见错误与注意事项
-
-**`split()` 不带参数和 `split(" ")` 完全不同**
-
-```python
-text = "  a   b  "
-
-# 不带参数：空白自动合并
-print(text.split())
-# ['a', 'b']
-
-# 指定空格：每个空格都是独立分隔符
-print(text.split(" "))
-# ['', '', 'a', '', '', 'b', '', '']
-```
-
-**`split("\n")` 不能正确处理 Windows 换行**
-
-```python
-# Windows 换行 \r\n
-text = "line1\r\nline2"
-
-# split("\n") 会留下 \r
-print(text.split("\n"))
-# ['line1\r', 'line2']  ← \r 残留
-
-# 用 splitlines() 或 rstrip
-print(text.splitlines())
-# ['line1', 'line2']
-```
-
-**`partition` 分隔符不存在时的方向差异**
-
-```python
-text = "no-separator"
-
-# partition: 内容在第一个位置
-print(text.partition(","))
-# ('no-separator', '', '')
-
-# rpartition: 内容在最后一个位置
-print(text.rpartition(","))
-# ('', '', 'no-separator')
-```
-
-**`split` 的 `maxsplit` 与结果元素数量的关系**
-
-```python
-# maxsplit=2 意味着切 2 刀，得到 3 个元素
-print("a-b-c-d".split("-", 2))
-# ['a', 'b', 'c-d']  ← 3 个元素
-
-# maxsplit 不是"分成几个元素"，而是"切几刀"
-# 如果想要 2 个元素，maxsplit 应该设为 1
-print("a-b-c-d".split("-", 1))
-# ['a', 'b-c-d']  ← 2 个元素
-```
-
-## 4. 原理
-
-### 4.1 `split` 的两种模式的底层差异
-
-`split` 不带参数和带参数在 CPython 内部走的是完全不同的代码路径：
+UTF-8 的字节前缀规则带来了一个关键特性——**自同步性**（self-synchronization）。从字节流的任意位置开始，遇到以 `0` 或 `11` 开头的字节就是一个字符的起始字节；遇到以 `10` 开头的字节就是延续字节。
 
 ```text
-split() 不带参数:
-  ├─ 调用 split_whitespace() 专用路径
-  ├─ 使用 PyUnicode_ISSPACE() 判断空白字符
-  ├─ 连续空白自动跳过（循环跳过空白找到下一个非空白起点）
-  └─ 首尾空白自动跳过
+字节流: [E4 B8 AD] 41 [C3 A9] ...
 
-split(sep) 带参数:
-  ├─ 调用 split_char() 或 split() 通用路径
-  ├─ 逐个字符与 sep 比较
-  ├─ 每个匹配位置都是分割点
-  └─ 连续分隔符产生空字符串元素
+从位置 0 开始:
+  E4 (1110xxxx) → 3 字节字符的起始 → 读取 E4 B8 AD → '中'
+  41 (0xxxxxxx) → 1 字节字符的起始 → 读取 41 → 'A'
+  C3 (110xxxxx) → 2 字节字符的起始 → 读取 C3 A9 → 'é'
+
+从位置 1 开始 (误入 '中' 的中间):
+  B8 (10xxxxxx) → 续字节，跳过一个 → 下一个 10xxxxxx → 继续跳过
+  AD (10xxxxxx) → 续字节，跳过
+  41 (0xxxxxxx) → 1 字节字符起始 → 正确恢复同步
 ```
 
-这就解释了为什么两种模式的行为差异如此之大——它们是不同的实现逻辑，而非简单地去掉了"合并空白"的功能。
+这个特性的实际价值：
+- **随机访问**：从文件中间开始读取，几个字节内就能找到字符边界
+- **截断安全**：截断字节流不会产生半个字符的乱码
+- **错误隔离**：一个字节损坏只会影响当前字符，不会波及后续
 
-### 4.2 `splitlines` 的行边界检测
-
-`splitlines` 在 CPython 底层使用 Unicode 标准的行边界检测。Python 的 C 层面有一个 `Py_UNICODE_ISLINEBREAK` 宏来判断一个字符是否是行边界：
-
-```text
-被识别为行边界的字符：
-
-  \n   (U+000A) 换行
-  \r   (U+000D) 回车
-  \r\n        回车+换行（作为一对处理）
-  \v   (U+000B) 垂直制表符
-  \f   (U+000C) 换页符
-  \x1C (U+001C) 文件分隔符
-  \x1D (U+001D) 组分隔符
-  \x1E (U+001E) 记录分隔符
-  \x85 (U+0085) 下一行
-  \u2028      行分隔符
-  \u2029      段分隔符
-```
-
-`\r\n` 被视为一个行边界而非两个——这就是为什么 `"a\r\nb".splitlines()` 返回 `['a', 'b']` 而非 `['a', '', 'b']`。
-
-### 4.3 `partition` 的设计哲学
-
-`partition` 在 Python 2.5 中引入（PEP 358），设计目标是为"键值对解析"这类场景提供一种比 `split` 更安全的方式。
-
-`split` 的核心问题在于返回值类型——它返回列表，列表长度可变。调用者必须检查 `len(result)` 来确定分割是否成功：
-
-```python
-# split 方式：需要检查列表长度
-parts = "key=value".split("=", 1)
-# parts 可能是 ['key', 'value']（长度 2）
-# 也可能是 ['novalue']（长度 1），需要 if len(parts) == 2 来判断
-```
-
-`partition` 通过固定返回三元组解决了这个问题——无论分隔符是否存在，总是返回三个元素：
-
-```python
-# partition 方式：总返回三个元素，解包天然安全
-before, sep, after = "key=value".partition("=")
-# before='key', sep='=', after='value'
-
-before, sep, after = "novalue".partition("=")
-# before='novalue', sep='', after=''
-# 通过 sep 是否为空即可判断是否分割成功
-```
-
-这种设计让代码更简洁、更不易出错——尤其在链式解析（如 URL）时，每一步解包都不需要条件检查。
-
-### 4.4 `maxsplit` 的工作原理
-
-`maxsplit` 在底层控制的是"分割计数器"——每次找到分隔符并完成一次分割后，计数器递减。当计数器归零时，剩余部分不再扫描，直接作为最后一个元素：
-
-```text
-split("-", 2) 处理 "a-b-c-d-e" 的过程：
-
-  扫描到 '-' (位置 1) → 分割: ['a']  计数: 1/2
-  扫描到 '-' (位置 3) → 分割: ['a', 'b']  计数: 2/2
-  计数归零 → 剩余 "c-d-e" 作为最后一个元素
-  结果: ['a', 'b', 'c-d-e']
-```
-
-`rsplit` 的 `maxsplit` 逻辑相同，但扫描方向从右向左——先定位最后一个分隔符，再往左找倒数第二个，以此类推。
+UTF-16 没有这个特性——截断 2 字节序列可能产生半个字符，后续解析可能全部出错。
 
 ## 5. 总结
 
-本文围绕 Python 字符串的分割方法展开，主要介绍了以下内容：
+本文深入讲解了 Python 字符串与字符编码的底层原理，主要介绍了以下内容：
 
-- **`split()` 方法**：不带参数时按任意空白字符分割（连续空白自动合并、首尾空白忽略）；指定 `sep` 时按分隔符逐个分割（连续分隔符产生空串）；`maxsplit` 参数控制最大分割次数（切几刀就多一个元素）
-- **`rsplit()` 方法**：不带 `maxsplit` 时与 `split` 完全相同；带 `maxsplit` 时从右向左计数，适合从右提取少量元素（如文件扩展名、顶级域名）
-- **`splitlines()` 方法**：按通用换行符分割，正确处理 `\n`、`\r\n`、`\r` 及 Unicode 行分隔符；末尾换行不产生空串；`keepends=True` 可保留换行符用于精确重组
-- **`partition()` / `rpartition()` 方法**：固定返回三元素三元组，分隔符不存在时不报错（`partition` 内容在第一个位置，`rpartition` 在最后一个）；比 `split` + 长度检查更安全，适合键值对解析和链式结构化文本解析
-- **最佳实践**：按行拆分用 `splitlines`，键值对解析用 `partition`，提取后缀用 `rsplit`，限制分割次数用 `maxsplit`，按空白拆分用不带参数的 `split()`
-- **底层原理**：`split` 不带参数和带参数走不同的 CPython 代码路径；`splitlines` 使用 Unicode 行边界检测；`partition` 通过固定三元素返回值设计解决了 `split` 返回列表长度不确定的安全性问题
+- **ASCII 编码**：7 位编码标准，128 个字符覆盖英文；通过 `ord()` 和 `chr()` 可以查看字符与码点的对应关系
+- **Unicode 码点空间**：统一的世界字符集，码点范围 U+0000 ~ U+10FFFF，Python 3 的 `str` 直接存储 Unicode 码点，每个字符是 `str` 的独立元素
+- **UTF-8 编码原理**：UTF-8 是变长编码方案（1~4 字节），向下兼容 ASCII，无字节序问题，有自同步特性；通过字节前缀规则（`0` / `110` / `1110` / `11110`）区分字符边界
+- **encode() / decode()**：`encode()` 将 `str` 编码为 `bytes`，`decode()` 将 `bytes` 解码为 `str`；`errors` 参数控制编解码错误行为（`strict` / `ignore` / `replace` 等）
+- **bytes 与 str 的区别**：`str` 是 Unicode 字符序列（`len()` 返回字符数），`bytes` 是字节序列（`len()` 返回字节数）；两者不能直接拼接，必须通过 `encode()` / `decode()` 转换
+- **BOM 与字节序**：UTF-16 有字节序问题（LE/BE），需要 BOM 标识；UTF-8 无字节序问题；`utf-8-sig` 编码自动处理 BOM
+- **中文乱码**：乱码的根源是编码不一致（编码用 A、解码用 B）；UTF-8 编码 + GBK 解码产生阉字乱码，UTF-8 编码 + Latin-1 解码产生西欧乱码；通过"逐个尝试"策略可以安全解码未知编码的数据
+- **设计决策**：Python 3 明确分离 `str`（文本）和 `bytes`（数据），避免了 Python 2 的隐式转换问题；UTF-8 是最佳默认编码（ASCII 兼容、无字节序问题、自同步性）；GBK 等区域编码应仅用于兼容遗留数据

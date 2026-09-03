@@ -3,741 +3,858 @@ group:
   title: 【03】字符串深度剖析
   order: 3
 order: 7
-title: 字符串变形与清洗方法
+title: f-string 与字符串格式化
 nav:
   title: Python基础
   order: 1
 ---
 
-# 字符串变形与清洗方法
+# f-string 与字符串格式化
 
 ## 1. 介绍
 
-### 1.1 什么是字符串变形与清洗方法
+### 1.1 什么是字符串格式化
 
-字符串变形与清洗方法是 Python `str` 类中用于"改变字符串外观"的一组内置方法。它们不改变字符串的内容语义，而是对字符串的字符进行去除、转换或对齐操作——去掉多余的空白、统一大小写、填充对齐到固定宽度。这些方法是数据清洗、格式化输出、用户输入处理中最常用的工具集。
+字符串格式化是将变量、表达式或对象的值"嵌入"到字符串模板中，生成最终字符串的过程。无论是输出用户信息、生成报表、拼接日志——都离不开字符串格式化。Python 提供了三种字符串格式化方式，代表了语言演进的三个阶段：
 
 ```python
-# 清洗：去除首尾空白
-raw = "  Hello Python  "
-print(raw.strip())  # Hello Python
+# 方式一：% 旧式格式化（Python 最初的格式化方式）
+name = "Alice"
+print("姓名: %s, 年龄: %d" % (name, 30))
+# 姓名: Alice, 年龄: 30
 
-# 变形：大小写转换
-print("hello world".upper())    # HELLO WORLD
-print("HELLO WORLD".title())    # Hello World
+# 方式二：str.format() 方法（Python 2.6 引入）
+print("姓名: {}, 年龄: {}".format("Alice", 30))
+# 姓名: Alice, 年龄: 30
 
-# 对齐：填充到固定宽度
-print("42".zfill(5))            # 00042
-print("Python".center(10, "*")) # **Python**
+# 方式三：f-string（Python 3.6 引入，推荐方式）
+age = 30
+print(f"姓名: {name}, 年龄: {age}")
+# 姓名: Alice, 年龄: 30
 ```
 
-变形与清洗方法可以分成三大族：
+三种方式的设计目标和使用场景各有侧重：
 
-| 族 | 方法 | 核心用途 | 典型场景 |
-|----|------|---------|---------|
-| 清洗族 | `strip`、`lstrip`、`rstrip` | 去除首尾指定字符 | 用户输入清洗、文件行处理 |
-| 变形族 | `upper`、`lower`、`swapcase`、`capitalize`、`title`、`casefold` | 改变大小写形式 | 不区分大小写比较、格式标准化 |
-| 对齐族 | `zfill`、`rjust`、`ljust`、`center` | 填充对齐到固定宽度 | 编号补零、表格输出、标题居中 |
+| 方式 | 引入版本 | 核心机制 | 可读性 | 推荐程度 |
+|------|---------|---------|--------|---------|
+| `%` 格式化 | Python 1 | C 语言风格的占位符 | 参数多时差 | 仅用于维护旧代码 |
+| `str.format()` | Python 2.6 | 花括号 `{}` 占位 + `format()` 方法 | 较好 | 兼容性场景使用 |
+| f-string | Python 3.6 | 字符串前缀 `f` + `{}` 内嵌表达式 | 最佳 | 新代码首选 |
 
 ### 1.2 最简示例
 
 ```python
-# 清洗族：去掉用户输入的首尾空格
-user_input = "   alice@example.com   "
-print(user_input.strip())  # alice@example.com
+# % 格式化：占位符 + 元组传参
+print("价格: %.2f 元" % 9.999)
+# 价格: 9.99 元
 
-# 变形族：统一邮箱为小写
-email = "Alice@Example.COM"
-print(email.lower())  # alice@example.com
+# str.format()：花括号占位 + format 方法
+print("价格: {:.2f} 元".format(9.999))
+# 价格: 9.99 元
 
-# 对齐族：编号补零
-for i in range(3):
-    print(f"ORDER-{str(i).zfill(4)}")
-# ORDER-0000
-# ORDER-0001
-# ORDER-0002
+# f-string：直接在花括号中写变量和表达式
+price = 9.999
+print(f"价格: {price:.2f} 元")
+# 价格: 9.99 元
+
+# f-string 支持任意表达式
+items = [10, 20, 30]
+print(f"总数: {len(items)}, 合计: {sum(items)}, 平均: {sum(items)/len(items):.1f}")
+# 总数: 3, 合计: 60, 平均: 20.0
 ```
 
-这三族方法覆盖了日常开发中最高频的字符串外观处理需求——"去掉多余的空白""统一大小写""对齐到固定宽度"。理解每种方法的行为细节和陷阱，能让你在数据清洗、格式化输出、用户输入处理等任务中写出简洁可靠的代码。
+三种方式覆盖了从简单变量替换到复杂格式控制的全部需求。理解每种方式的语法、格式说明符和适用场景，能让你在任何 Python 版本和项目中都写出清晰、高效的格式化代码。
 
 ## 2. 核心内容
 
-### 2.1 清洗族：`strip()` / `lstrip()` / `rstrip()`
+### 2.1 `%` 旧式格式化
 
-#### 2.1.1 `strip()` 去除首尾空白
+`%` 格式化是 Python 最早的字符串格式化方式，语法源自 C 语言的 `printf`。虽然在现代 Python 中已被 f-string 取代，但在维护旧代码、阅读第三方库源码时仍会频繁遇到。
 
-`strip()` 是最常用的字符串清洗方法。不带参数时，去除字符串首尾所有空白字符——包括空格、制表符 `\t`、换行符 `\n`、回车符 `\r` 等。
+#### 2.1.1 基本占位符
+
+`%` 格式化的核心是"占位符"——以 `%` 开头的特殊标记，表示"在这个位置插入一个某种类型的值"：
+
+| 占位符 | 含义 | 示例 |
+|--------|------|------|
+| `%s` | 字符串（任何类型，自动调用 `str()`） | `"%s" % "hello"` |
+| `%d` / `%i` | 整数 | `"%d" % 42` |
+| `%f` | 浮点数（默认 6 位小数） | `"%f" % 3.14` |
+| `%e` / `%E` | 科学计数法 | `"%e" % 123456` |
+| `%x` / `%X` | 十六进制（小写/大写） | `"%x" % 255` |
+| `%o` | 八进制 | `"%o" % 255` |
+| `%c` | 字符（Unicode 码点转字符） | `"%c" % 65` |
+| `%r` | 原始表示（调用 `repr()`） | `"%r" % "hi"` |
+| `%%` | 百分号本身 | `"%d%%" % 50` |
 
 ```python
-# 去除首尾空格
-text = "   Hello Python   "
-print(f"'{text.strip()}'")
-# 'Hello Python'
+# %s — 字符串占位符
+print("姓名: %s" % "Alice")
+# 姓名: Alice
 
-# 去除制表符和换行符
-messy = "\t  \nHello World\n  \t"
-print(f"'{messy.strip()}'")
-# 'Hello World'
+# %d — 整数占位符
+print("年龄: %d" % 30)
+# 年龄: 30
 
-# 空字符串 strip 后仍然是空串
-print(f"'{''.strip()}'")
-# ''
+# %f — 浮点数占位符
+print("Pi: %f" % 3.14159265)
+# Pi: 3.141593
+
+# %x / %o — 进制转换
+num = 255
+print("十六进制: %x" % num)  # ff
+print("八进制: %o" % num)    # 377
+# 注意：% 格式化不支持 %b（二进制），需用 bin()
+print("二进制: %s" % bin(num))  # 0b11111111
 ```
 
-`strip()` 去除的是**首尾两端**的空白，字符串中间的空白不受影响：
+**注意**：`%s` 是最通用的占位符——它可以接收任何类型，自动调用 `str()` 转换：
 
 ```python
-text = "  Hello   World  "
-print(f"'{text.strip()}'")
-# 'Hello   World'  ← 中间空格保留
+print("对象: %s" % [1, 2, 3])   # 对象: [1, 2, 3]
+print("对象: %s" % {"a": 1})    # 对象: {'a': 1}
+print("对象: %s" % None)        # 对象: None
+print("对象: %s" % True)        # 对象: True
 ```
 
-#### 2.1.2 `strip(chars)` 去除指定字符集合
+#### 2.1.2 多参数与元组传参
 
-`strip(chars)` 接收一个字符串参数——但注意，它去除的不是"子串"，而是"字符集合"。`strip` 会从字符串两端逐字符检查，只要当前字符出现在 `chars` 中就去除，直到遇到不在 `chars` 中的字符为止。
+当字符串中有多个占位符时，`%` 右侧需要传入一个**元组**——即使只有一个参数也要注意元组语法：
 
 ```python
-# 去除首尾的 'x'
-text = "xxxHello Pythonxxx"
-print(text.strip("x"))
-# Hello Python
+name = "Alice"
+age = 30
+score = 95.5
 
-# 去除首尾的斜杠
-url = "https://www.example.com///"
-print(url.strip("/"))
-# https://www.example.com
+# 多参数：用元组传入
+print("姓名: %s, 年龄: %d, 分数: %.1f" % (name, age, score))
+# 姓名: Alice, 年龄: 30, 分数: 95.5
 ```
 
-`chars` 可以是多个字符的集合——`strip("abc")` 会去除首尾所有 `a`、`b`、`c` 字符，顺序不影响：
+**常见陷阱**——单参数元组的括号问题：
 
 ```python
-text = "xyzzzHello xyz Python yzx"
-print(text.strip("xyz"))
-# Hello xyz Python
+# 正常：单个字符串参数不需要元组
+print("姓名: %s" % "Alice")
+
+# 但如果参数本身是元组，需要额外括号防歧义
+items = (1, 2, 3)
+print("元组: %s" % (items,))  # 元组: (1, 2, 3)
+# 不加额外括号也可正常工作，但加括号更明确
+print("元组: %s" % items)     # 元组: (1, 2, 3)
 ```
 
-注意中间的 `xyz` 没有被去除——`strip` 只作用于两端。这是最容易误解的一点。
+#### 2.1.3 宽度、对齐与精度
 
-#### 2.1.3 `strip` 的"字符集合"陷阱
-
-`strip("abc")` 不是去除子串 `"abc"`，而是去除首尾所有属于 `{a, b, c}` 的字符。这个区别在某些情况下会暴露出来：
+`%` 格式化通过在占位符中插入数字来控制宽度、对齐和精度：
 
 ```python
-# 误解：以为 strip("abc") 是去子串
-text = "abcHelloabcXYZabc"
+# %10d — 宽度 10，右对齐
+print("[%10d]" % 42)
+# [        42]
 
-# 如果是去子串，结果应该是 "HelloabcXYZ"
-# 但实际是 "HelloabcXYZ"——因为 strip 从两端逐字符去除
-print(text.strip("abc"))
-# HelloabcXYZ
+# %-10d — 宽度 10，左对齐（- 表示左对齐）
+print("[%-10d]" % 42)
+# [42        ]
+
+# %010d — 宽度 10，右对齐，用 0 填充
+print("[%010d]" % 42)
+# [0000000042]
+
+# %.2f — 保留 2 位小数
+print("价格: %.2f 元" % 9.999)
+# 价格: 9.99 元
+
+# %10.2f — 宽度 10，保留 2 位小数
+print("[%10.2f]" % 3.14159)
+# [      3.14]
 ```
 
-更明显的例子，展现"字符集合"而非"子串"的行为：
+格式结构的完整语法是 `%[flags][width][.precision]type`：
 
-```python
-text = "aabccHelloccbbaa"
-# 左侧：去掉所有 a、b、c → 停在 'H'
-# 右侧：去掉所有 a、b、c → 停在 'o'
-# 中间的 cc 不受影响
-print(text.strip("abc"))
-# Hello
+```text
+%d       → 整数
+%10d     → 宽度 10，右对齐
+%-10d    → 宽度 10，左对齐
+%010d    → 宽度 10，用 0 填充
+%.2f     → 保留 2 位小数
+%10.2f   → 宽度 10，保留 2 位小数
+
+flags:  - 左对齐    0 用零填充    + 显示正负号    (空格) 正数前加空格
+width:  最小宽度
+precision: 对于浮点数是小数位数，对于字符串是最大字符数
+type:   s/d/f/x/o/e 等
 ```
 
-如果需要去除的是一个固定子串，应该用 `replace` 或正则表达式，而非 `strip`。
+#### 2.1.4 字典键名引用
 
-#### 2.1.4 `lstrip()` 和 `rstrip()` 单侧去除
-
-`lstrip()` 只去除左侧（开头）的字符，`rstrip()` 只去除右侧（结尾）的字符。
+`%` 格式化支持通过 `%(key)type` 语法用字典键名引用值，避免位置参数的顺序混乱：
 
 ```python
-text = "   Hello Python   "
+data = {"name": "Bob", "age": 25, "city": "Beijing"}
+print("姓名: %(name)s, 年龄: %(age)d, 城市: %(city)s" % data)
+# 姓名: Bob, 年龄: 25, 城市: Beijing
 
-# 只去左侧
-print(f"'{text.lstrip()}'")
-# 'Hello Python   '
-
-# 只去右侧
-print(f"'{text.rstrip()}'")
-# '   Hello Python'
+# 同一个键可以引用多次
+print("%(name)s 来自 %(city)s，%(name)s 很喜欢 %(city)s" % data)
+# Bob 来自 Beijing，Bob 很喜欢 Beijing
 ```
 
-**典型应用——去除行尾换行符**：读取文件时每行末尾通常带有 `\n` 或 `\r\n`，用 `rstrip()` 清除：
+#### 2.1.5 `%` 格式化的常见陷阱
 
 ```python
-lines = ["第一行\n', "第二行\r\n", "第三行\n']
-for line in lines:
-    clean_line = line.rstrip()
-    print(f"'{clean_line}'")
-# '第一行'
-# '第二行'
-# '第三行'
+# 陷阱 1: 百分号本身需要用 %% 转义
+progress = 85
+print("进度: %d%%" % progress)
+# 进度: 85%
+
+# 陷阱 2: %s vs %r 的区别
+text = "Hello\nWorld"
+print("str: %s" % text)   # str: Hello（换行）World
+print("repr: %r" % text)  # repr: 'Hello\nWorld'  ← 显示转义符
+
+# 陷阱 3: 参数数量不匹配会报错
+# print("%s %s" % ("Alice",))  # TypeError: not enough arguments
 ```
 
-**指定字符的单侧去除**：
+### 2.2 `str.format()` 方法
+
+`str.format()` 是 Python 2.6 引入的格式化方法，用花括号 `{}` 作为占位符，通过 `format()` 方法传入参数。它解决了 `%` 格式化的参数顺序混乱问题，并提供了更灵活的引用方式。
+
+#### 2.2.1 基本用法
 
 ```python
-# 去除左侧的 ./（文件路径前缀）
-filename = ".../.../report.csv"
-print(filename.lstrip("./"))
-# report.csv
+# 位置参数（按顺序填入花括号）
+print("姓名: {}, 年龄: {}".format("Alice", 30))
+# 姓名: Alice, 年龄: 30
 
-# 去除右侧的逗号（CSV 尾部空字段）
-csv_line = "apple,banana,cherry,,,,"
-print(csv_line.rstrip(","))
-# apple,banana,cherry
+# 索引引用（可重复使用同一参数）
+print("{0} 来自 {1}，{0} 很喜欢 {1}".format("Alice", "Beijing"))
+# Alice 来自 Beijing，Alice 很喜欢 Beijing
+
+# 交换顺序
+print("{1} {0}".format("hello", "world"))
+# world hello
+
+# 关键字参数
+print("姓名: {name}, 年龄: {age}".format(name="Bob", age=25))
+# 姓名: Bob, 年龄: 25
 ```
 
-#### 2.1.5 实际应用——CSV 数据清洗
+#### 2.2.2 宽度、对齐与填充
+
+`str.format()` 使用冒号 `:` 后的格式说明符控制对齐和填充——语法是 `{:[fill][align][width]}`：
+
+| 对齐符 | 含义 | 示例 |
+|--------|------|------|
+| `<` | 左对齐（字符串默认） | `"{:<10}"` |
+| `>` | 右对齐（数字默认） | `"{:>10}"` |
+| `^` | 居中 | `"{:^10}"` |
+| `=` | 填充在符号和数字之间（仅数值） | `"{:=10}"` |
 
 ```python
-raw_csv = """  name , age , email
-  Alice , 30 , alice@example.com
-  Bob , 25 , bob@example.com  """
+# 宽度 10，默认左对齐（字符串）
+print("[{:10}]".format("hello"))
+# [hello     ]
 
-rows = raw_csv.strip().split("\n")
-for row in rows:
-    fields = [f.strip() for f in row.split(",")]
-    print(fields)
+# 右对齐
+print("[{:>10}]".format("hello"))
+# [     hello]
 
-# 输出:
-# ['name', 'age', 'email']
-# ['Alice', '30', 'alice@example.com']
-# ['Bob', '25', 'bob@example.com']
+# 居中
+print("[{:^10}]".format("hello"))
+# [  hello   ]
+
+# 自定义填充字符（写在 < > ^ 前面）
+print("[{:*^10}]".format("hello"))
+# [**hello***]
+
+# 用 0 填充右对齐
+print("[{:0>10}]".format(42))
+# [0000000042]
 ```
 
-每行先用 `strip()` 去除首尾空白，分割后再对每个字段 `strip()`，确保 CSV 数据干净整齐。
-
-### 2.2 变形族：大小写转换方法
-
-#### 2.2.1 `upper()` 全部转大写
-
-`upper()` 将字符串中所有有大小写属性的字母转换为大写。数字、标点、中文等没有大小写属性的字符不受影响。
+#### 2.2.3 精度与类型
 
 ```python
-print("hello world".upper())
-# HELLO WORLD
+# 精度控制
+print("{:.2f}".format(3.14159))  # 3.14
+print("{:.4f}".format(3.14159))  # 3.1416
+print("[{:10.2f}]".format(3.14159))  # [      3.14]
 
-print("Python 3.12!".upper())
-# PYTHON 3.12!
+# 有效数字（g 格式）
+print("{:.3g}".format(1234567.89))  # 1.23e+06
 
-print("你好 Hello".upper())
-# 你好 HELLO
+# 整数进制
+print("二进制: {:b}".format(255))   # 11111111
+print("八进制: {:o}".format(255))   # 377
+print("十六进制: {:x}".format(255))  # ff
+
+# 带前缀（加 # 号）
+print("{:#b}".format(42))  # 0b101010
+print("{:#o}".format(42))  # 0o52
+print("{:#x}".format(42))  # 0x2a
+
+# 千分位
+print("{:,}".format(1234567890))      # 1,234,567,890
+print("{:,.2f}".format(1234567.891))  # 1,234,567.89
+
+# 百分比
+print("{:.1%}".format(0.8525))  # 85.2%
+print("{:.0%}".format(0.8525))  # 85%
+
+# 科学计数法
+print("{:e}".format(123456.789))   # 1.234568e+05
+print("{:.2e}".format(123456.789))  # 1.23e+05
 ```
 
-`upper()` 也能正确处理 Unicode 字符中的大小写对应：
+#### 2.2.4 访问对象属性和字典键
+
+`str.format()` 支持直接访问对象的属性和字典的键值，通过点号 `.` 和方括号 `[]` 语法：
 
 ```python
-print("straße".upper())  # 德语 ß 的大写
-# STRASSE
+# 访问对象属性
+class Person:
+    def __init__(self, name, age):
+        self.name = name
+        self.age = age
+
+p = Person("Alice", 30)
+print("姓名: {0.name}, 年龄: {0.age}".format(p))
+# 姓名: Alice, 年龄: 30
+
+# 访问字典键
+data = {"name": "Bob", "age": 25}
+# 方式 1：用 ** 解包
+print("姓名: {name}, 年龄: {age}".format(**data))
+
+# 方式 2：用方括号语法
+print("姓名: {0[name]}, 年龄: {0[age]}".format(data))
 ```
 
-#### 2.2.2 `lower()` 全部转小写
+#### 2.2.5 嵌套字段引用
 
-`lower()` 将所有有大小写属性的字母转换为小写，与 `upper()` 对称。
+`str.format()` 支持"嵌套字段"——在格式说明符中引用其他参数的值：
 
 ```python
-print("HELLO WORLD".lower())
-# hello world
+# 宽度由第二个参数决定
+print("{0:{1}}".format("hello", 10))
+# hello      （宽度 10）
 
-print("Python 3.12!".lower())
-# python 3.12!
+# 宽度和精度由参数决定
+print("{0:{1}.{2}}".format("Hello World", 15, 5))
+# Hello（宽度 15，截断 5 个字符）
 ```
 
-`lower()` 能处理带重音符号等 Unicode 字符的大小写转换：
+### 2.3 f-string 基本用法
+
+f-string（formatted string literal）是 Python 3.6 引入的字符串格式化方式，也是目前**推荐**的格式化方式。它在字符串前加 `f` 前缀，允许在花括号 `{}` 中直接写 Python 表达式，无需额外的方法调用。
+
+#### 2.3.1 变量与表达式
+
+f-string 的核心优势是"所见即所得"——花括号中直接写变量名或任意表达式：
 
 ```python
-print("CAFÉ".lower())  # É (带锐音符的大写 E) → é
-# café
+name = "Alice"
+age = 30
+
+# 直接嵌入变量
+print(f"姓名: {name}, 年龄: {age}")
+# 姓名: Alice, 年龄: 30
+
+# 嵌入表达式
+print(f"明年 {age + 1} 岁")
+# 明年 31 岁
+
+# 嵌入函数调用
+print(f"姓名大写: {name.upper()}")
+# 姓名大写: ALICE
+
+# 嵌入列表和字典元素
+items = [1, 2, 3]
+print(f"列表: {items}, 第一个: {items[0]}")
+# 列表: [1, 2, 3], 第一个: 1
+
+user = {"name": "Bob", "age": 25}
+print(f"用户: {user['name']}, 年龄: {user['age']}")
+# 用户: Bob, 年龄: 25
 ```
 
-#### 2.2.3 `swapcase()` 大小写互换
+#### 2.3.2 引号规则
 
-`swapcase()` 将大写字母转为小写，小写字母转为大写，其他字符不变。
+f-string 中的花括号内可以使用与外层不同的引号类型（Python 3.12 之前必须不同，3.12+ 可相同）：
 
 ```python
-print("Hello World".swapcase())
-# hELLO wORLD
+# 外层双引号，内层单引号
+d = {"key": "value"}
+print(f"值: {d['key']}")
+# 值: value
 
-print("PyTHON 3".swapcase())
-# pYthon 3
+# 外层单引号，内层双引号
+print(f'列表: {", ".join(["a", "b", "c"])}')
+# 列表: a, b, c
 ```
 
-连续两次 `swapcase` 会回到原文——这是一个可逆操作：
+#### 2.3.3 格式说明符
+
+f-string 使用与 `str.format()` 相同的格式说明符语法——冒号 `:` 后跟格式规范：
 
 ```python
-text = "Hello Python"
-assert text.swapcase().swapcase() == text
-print("swapcase 两次还原:", text)
-# swapcase 两次还原: Hello Python
+# 宽度与对齐
+text = "hello"
+print(f"[{text:10}]")   # [hello     ]
+print(f"[{text:>10}]")  # [     hello]
+print(f"[{text:^10}]")  # [  hello   ]
+
+# 自定义填充字符
+print(f"[{text:*>10}]")  # [*****hello]
+print(f"[{text:*<10}]")  # [hello*****]
+print(f"[{text:*^10}]")  # [**hello***]
+
+# 数值格式化
+pi = 3.14159265
+print(f"{pi:.2f}")       # 3.14
+print(f"{pi:.4f}")       # 3.1416
+print(f"[{pi:10.2f}]")   # [      3.14]
+
+# 整数宽度与填充
+num = 42
+print(f"{num:05d}")  # 00042
+print(f"{num:+d}")   # +42
+print(f"{num: d}")   #  42（正数前加空格）
 ```
 
-#### 2.2.4 `capitalize()` 首字母大写
+#### 2.3.4 完整格式说明符语法
 
-`capitalize()` 将字符串的第一个字符转大写，**其余所有字符转小写**。注意这一点——它不仅仅是首字母大写，还会把后面的字母全部变成小写。
+f-string 和 `str.format()` 共享同一套格式说明符语法，完整结构是：
 
-```python
-print("hello world".capitalize())
-# Hello world
-
-# 后面的字母也会被转为小写！
-print("HELLO WORLD".capitalize())
-# Hello world
-
-# 如果第一个字符不是字母，不会触发大写
-print("123abc".capitalize())
-# 123abc
-
-print(" hello".capitalize())
-#  hello  ← 空格不是字母，不触发
+```text
+{[变量或表达式]:[fill][align][sign][#][0][width][grouping][.precision][type]}
+  ↑               ↑     ↑      ↑    ↑   ↑    ↑      ↑         ↑         ↑
+  表达式         填充  对齐   符号  前缀 零   宽度   分组      精度      类型
 ```
 
-`capitalize` 和 `upper + 手动处理` 的区别在于一次调用完成"首字母大写 + 其余小写"的操作。在只需要句子首字母大写的场景中很有用。
+逐位说明：
 
-#### 2.2.5 `title()` 标题格式
-
-`title()` 将字符串转换为"标题格式"——每个单词的首字母大写，其余字母小写。`title` 的"单词"定义是：非字母字符后的第一个字母。
+| 位置 | 符号 | 作用 | 示例 |
+|------|------|------|------|
+| fill | 任意字符 | 填充字符 | `*`, `-`, `0` |
+| align | `<` `>` `^` `=` | 对齐方式 | `:<10`, `:>10`, `:^10` |
+| sign | `+` `-` `空格` | 正负号显示 | `:+d`, `:-d`, `: d` |
+| `#` | `#` | 进制前缀 | `:#b`, `:#x` |
+| `0` | `0` | 数字零填充 | `:05d` |
+| width | 数字 | 最小宽度 | `:10d` |
+| grouping | `,` `_` | 千分位分隔符 | `:,`, `:_` |
+| precision | `.数字` | 小数位数 | `:.2f` |
+| type | `s` `d` `f` `e` `g` `b` `o` `x` `X` `%` | 类型码 | `:d`, `:f`, `:x` |
 
 ```python
-print("hello world".title())
-# Hello World
+# 各位置的组合示例
+num = 255
+print(f"十进制: {num:d}")      # 十进制: 255
+print(f"十进制补零: {num:08d}")  # 十进制补零: 00000255
+print(f"千分位: {num:,}")       # 千分位: 255 (不够千分位不显示)
 
-print("python programming language".title())
-# Python Programming Language
+big = 1234567
+print(f"千分位: {big:,}")       # 千分位: 1,234,567
+print(f"二进制: {num:b}")       # 二进制: 11111111
+print(f"带前缀hex: {num:#x}")   # 带前缀hex: 0xff
 
-# 非字母字符后的首字母也会大写
-print("hello-python-world".title())
-# Hello-Python-World
-
-print("hello_world".title())
-# Hello_World
-
-print("hello123world".title())
-# Hello123World
+val = 3.14159
+print(f"科学计数: {val:.2e}")   # 科学计数: 3.14e+00
+print(f"百分比: {0.8525:.1%}")  # 百分比: 85.2%
 ```
 
-**`title()` 的撇号陷阱**：`title()` 对含撇号（`'`）的字符串处理不符合预期——撇号后的字母也会被大写：
+#### 2.3.5 对齐符详解
+
+四种对齐符的行为和适用类型：
 
 ```python
-print("it's a test".title())
-# It'S A Test  ← 撇号后的 s 被大写了！
+# < 左对齐（字符串默认）
+print(f"{'hello':<10}|")   # hello     |
+print(f"{42:<10d}|")       # 42        |
 
-print("don't stop".title())
-# Don'T Stop  ← 同样的问题
+# > 右对齐（数值默认）
+print(f"{'hello':>10}|")   #      hello|
+print(f"{42:>10d}|")       #         42|
+
+# ^ 居中
+print(f"{'hello':^10}|")   #   hello   |
+print(f"{'hello':*^10}|")  # **hello***|
+
+# = 填充在符号和数字之间（仅数值类型）
+print(f"{42:=5d}|")    #    42|
+print(f"{-42:=5d}|")   # -  42|
+print(f"{42:=+5d}|")   # +  42|
+# 注意：= 对齐符不支持字符串类型
 ```
 
-这是因为 `title` 将撇号视为"非字母字符"，其后的字母视为新单词的首字母。如果需要正确处理英文撇号，需要用正则或其他方式替代。
-
-#### 2.2.6 大小写变换方法对比
+#### 2.3.6 符号显示
 
 ```python
-cases = [
-    ("hello world", "原始小写"),
-    ("HELLO WORLD", "原始大写"),
-    ("Hello World", "原始标题"),
-    ("hELLO wORLD", "反标题"),
-]
+# 默认：正数不显示 +，负数显示 -
+print(f"{42:d}")   # 42
+print(f"{-42:d}")  # -42
 
-print(f"{'原始':<16} {'upper':<16} {'lower':<16} {'swapcase':<16} {'capitalize':<16} {'title'}")
-print("-" * 96)
-for text, desc in cases:
-    print(f"{text:<16} {text.upper():<16} {text.lower():<16} {text.swapcase():<16} {text.capitalize():<16} {text.title()}")
+# + ：正数和负数都显示符号
+print(f"{42:+d}")   # +42
+print(f"{-42:+d}")  # -42
+
+# 空格：正数前加空格，负数前加 -
+# 用于对齐正负数
+print(f"{42: d}")   #  42
+print(f"{-42: d}")  # -42
+```
+
+#### 2.3.7 进制转换
+
+f-string 支持所有常用进制转换，`#` 前缀可添加进制标识：
+
+```python
+num = 255
+print(f"十进制: {num:d}")      # 255
+print(f"二进制: {num:b}")      # 11111111
+print(f"八进制: {num:o}")      # 377
+print(f"小写hex: {num:x}")     # ff
+print(f"大写hex: {num:X}")     # FF
+
+# 带前缀
+print(f"带前缀: {num:#b}")     # 0b11111111
+print(f"带前缀: {num:#o}")     # 0o377
+print(f"带前缀: {num:#x}")     # 0xff
+# 大写前缀 + 大写字母需要手动
+print(f"带前缀: {num:#X}")     # 0XFF
+```
+
+#### 2.3.8 千分位与百分比
+
+```python
+# 千分位分隔符
+big = 1234567890
+print(f"{big:,}")      # 1,234,567,890
+print(f"{big:_}")      # 1_234_567_890 (下划线也是合法千分位符)
+
+price = 1234567.891
+print(f"{price:,.2f}")  # 1,234,567.89
+print(f"{price:_.2f}")  # 1_234_567.89
+
+# 百分比（自动乘 100 并加 %）
+ratio = 0.8525
+print(f"进度: {ratio:.1%}")  # 进度: 85.2%
+print(f"进度: {ratio:.0%}")  # 进度: 85%
+print(f"进度: {ratio:.2%}")  # 进度: 85.25%
+```
+
+#### 2.3.9 调试输出符号 `=`
+
+Python 3.8 引入了 f-string 调试语法 `{var=}`，自动输出变量名和值：
+
+```python
+x = 42
+y = "Alice"
+
+# {var=} 自动显示 "var = value"
+print(f"{x = }")
+# x = 42
+
+# 可以加格式说明符
+print(f"{x = :05d}")
+# x = 00042
+
+# 多变量同时调试
+print(f"{x = }, {y = }")
+# x = 10, y = 'Alice'
+
+# !r 显示 repr 形式
+data = "Hello\nWorld"
+print(f"{data = !r}")
+# data = 'Hello\nWorld'
+
+# !s 显示 str 形式
+print(f"{data = !s}")
+# data = Hello（换行）World
+```
+
+### 2.4 f-string 高级用法
+
+#### 2.4.1 日期时间格式化
+
+f-string 支持在冒号后使用 `strftime` 格式化日期，通过 `__format__` 协议实现：
+
+```python
+import datetime
+
+now = datetime.datetime.now()
+
+# 常用日期格式
+print(f"日期: {now:%Y-%m-%d}")      # 2024-01-15
+print(f"时间: {now:%H:%M:%S}")       # 14:30:45
+print(f"日期时间: {now:%Y-%m-%d %H:%M:%S}")
+
+# 中文日期
+print(f"中文: {now:%Y年%m月%d日}")    # 2024年01月15日
+
+# 星期
+print(f"星期: {now:%A}")             # Monday
+print(f"星期缩写: {now:%a}")         # Mon
+
+# 12小时制
+print(f"12小时制: {now:%I:%M:%S %p}")  # 02:30:45 PM
+
+# 时间戳
+print(f"时间戳: {now:%s}")           # 1705290645
+
+# 构造特定日期
+dt = datetime.datetime(2024, 6, 15, 10, 30)
+print(f"自定义: {dt:%Y-%m-%d %H:%M}")
+# 自定义: 2024-06-15 10:30
+```
+
+常用 `strftime` 格式符速查表：
+
+| 格式符 | 含义 | 示例 |
+|--------|------|------|
+| `%Y` | 四位年份 | 2024 |
+| `%m` | 两位月份 | 01 |
+| `%d` | 两位日期 | 15 |
+| `%H` | 两位小时（24h） | 14 |
+| `%M` | 两位分钟 | 30 |
+| `%S` | 两位秒 | 45 |
+| `%A` | 星期全名 | Monday |
+| `%a` | 星期缩写 | Mon |
+| `%I` | 两位小时（12h） | 02 |
+| `%p` | AM/PM | PM |
+| `%s` | Unix 时间戳 | 1705290645 |
+
+#### 2.4.2 嵌套表达式与动态宽度
+
+f-string 的花括号中可以嵌套任意 Python 表达式——包括在格式说明符中：
+
+```python
+# 用变量控制宽度
+width = 15
+text = "Hello"
+print(f"[{text:{width}}]")
+# [Hello          ]
+
+# 用表达式动态控制宽度
+items = ["Apple", "Banana", "Cherry"]
+max_len = max(len(item) for item in items)
+for item in items:
+    print(f"{item:{max_len}} | {'*' * len(item)}")
+# Apple   | *****
+# Banana  | ******
+# Cherry  | ******
+
+# 动态精度
+precision = 3
+pi = 3.14159265
+print(f"Pi: {pi:.{precision}f}")
+# Pi: 3.142
+
+# 条件表达式
+score = 85
+print(f"结果: {'及格' if score >= 60 else '不及格'}")
+# 结果: 及格
+```
+
+#### 2.4.3 多行 f-string
+
+f-string 可以跨多行使用，配合三引号字符串生成复杂模板：
+
+```python
+name = "Alice"
+age = 30
+city = "Beijing"
+
+profile = f"""
+=== 用户信息 ===
+姓名: {name}
+年龄: {age}
+城市: {city}
+"""
+print(profile)
+# === 用户信息 ===
+# 姓名: Alice
+# 年龄: 30
+# 城市: Beijing
+```
+
+#### 2.4.4 自定义 `__format__` 方法
+
+f-string 和 `str.format()` 底层都调用对象的 `__format__` 方法。自定义类可以实现 `__format__` 来支持自定义格式说明符：
+
+```python
+class Temperature:
+    def __init__(self, celsius):
+        self.celsius = celsius
+
+    def __format__(self, format_spec):
+        if format_spec == "f":
+            return f"{self.celsius * 9 / 5 + 32:.1f}F"
+        elif format_spec == "k":
+            return f"{self.celsius + 273.15:.1f}K"
+        else:
+            return f"{self.celsius:.1f}C"
+
+temp = Temperature(25)
+print(f"摄氏: {temp}")      # 摄氏: 25.0C
+print(f"华氏: {temp:f}")    # 华氏: 77.0F
+print(f"开尔文: {temp:k}")  # 开尔文: 298.1K
+```
+
+更完整的自定义格式化示例——货币类：
+
+```python
+class Money:
+    def __init__(self, amount, currency="CNY"):
+        self.amount = amount
+        self.currency = currency
+
+    def __format__(self, format_spec):
+        if format_spec == "cn":
+            return f"￥{self.amount:,.2f}"
+        elif format_spec == "us":
+            return f"${self.amount:,.2f}"
+        else:
+            return f"{self.currency} {self.amount:,.2f}"
+
+price = Money(1234567.89)
+print(f"默认: {price}")     # 默认: CNY 1,234,567.89
+print(f"人民币: {price:cn}")  # 人民币: ￥1,234,567.89
+print(f"美元: {price:us}")    # 美元: $1,234,567.89
+```
+
+#### 2.4.5 `!s` / `!r` / `!a` 转换标志
+
+f-string 花括号中可以使用 `!s`、`!r`、`!a` 转换标志，分别调用 `str()`、`repr()`、`ascii()` 函数：
+
+```python
+text = "Hello\nWorld"
+
+# 默认：使用 __format__
+print(f"默认: {text}")    # 默认: Hello（换行）World
+
+# !s：强制使用 str()
+print(f"!s: {text!s}")    # !s: Hello（换行）World
+
+# !r：强制使用 repr()
+print(f"!r: {text!r}")    # !r: 'Hello\nWorld'
+
+# !a：强制使用 ascii()（非 ASCII 字符转义）
+cn = "你好"
+print(f"!a: {cn!a}")      # !a: '\u4f60\u597d'
+```
+
+### 2.5 三种方式对比与最佳实践
+
+#### 2.5.1 可读性对比
+
+**场景：生成用户卡片**
+
+```python
+user = {"name": "Alice", "age": 30, "city": "Beijing", "score": 95.5}
+
+# % 方式：参数多时难读
+# 需要在字符串和参数列表之间反复对照
+report_pct = "姓名: %(name)s, 年龄: %(age)d, 城市: %(city)s, 分数: %(score).1f" % user
+
+# format 方式：清晰但不简洁
+# 可以用 ** 解包
+report_fmt = "姓名: {name}, 年龄: {age}, 城市: {city}, 分数: {score:.1f}".format(**user)
+
+# f-string 方式：最直接、最简洁
+report_f = f"姓名: {user['name']}, 年龄: {user['age']}, 城市: {user['city']}, 分数: {user['score']:.1f}"
+```
+
+#### 2.5.2 性能对比
+
+f-string 在运行时性能上通常优于 `%` 格式化和 `str.format()`——因为 f-string在编译时就能解析大部分结构：
+
+```python
+import time
+
+n = 10000
+text = "Hello"
+num = 42
+
+# % 方式
+start = time.perf_counter()
+for _ in range(n):
+    s = "%s %d" % (text, num)
+pct_time = time.perf_counter() - start
+
+# format 方式
+start = time.perf_counter()
+for _ in range(n):
+    s = "{} {}".format(text, num)
+format_time = time.perf_counter() - start
+
+# f-string 方式
+start = time.perf_counter()
+for _ in range(n):
+    s = f"{text} {num}"
+fstring_time = time.perf_counter() - start
+
+print(f"%-style:    {pct_time:.4f}s")
+print(f".format(): {format_time:.4f}s")
+print(f"f-string:   {fstring_time:.4f}s")
+# f-string 通常最快
 ```
 
 **运行结果**：
 
 ```text
-原始             upper            lower            swapcase         capitalize       title
-------------------------------------------------------------------------------------------------
-hello world     HELLO WORLD      hello world      HELLO WORLD      Hello world      Hello World
-HELLO WORLD     HELLO WORLD      hello world      hello world      Hello world      Hello World
-Hello World     HELLO WORLD      hello world      hELLO wORLD      Hello world      Hello World
-hELLO wORLD     HELLO WORLD      hello world      Hello World      Hello world      Hello World
+%-style:    0.0012s
+.format(): 0.0013s
+f-string:   0.0010s
 ```
 
-可以看到，`capitalize` 和 `title` 的区别：`capitalize` 只大写第一个字母，`title` 大写每个单词的首字母。而 `upper` 和 `lower` 是全量转换，`swapcase` 是翻转。
-
-### 2.3 `casefold()` — 比 lower() 更激进的折叠
-
-#### 2.3.1 casefold 的基本行为
-
-`casefold()` 是 Python 3.3 引入的方法，设计目标只有一个——**不区分大小写的字符串比较**。对于 ASCII 字符，`casefold` 和 `lower` 行为完全一致：
-
-```python
-text = "HELLO PYTHON"
-print(f"lower():    {text.lower()}")
-print(f"casefold(): {text.casefold()}")
-# lower():    hello python
-# casefold(): hello python
-```
-
-#### 2.3.2 casefold 和 lower 的核心差异：德语 ß
-
-`casefold` 存在的意义在于处理某些 Unicode 字符的特殊大小写规则。最经典的例子是德语中的 ß（Eszett）——它没有大写形式，`lower()` 不会改变它，但 `casefold()` 会将它扩展为 `"ss"`：
-
-```python
-german_word = "STRAßE"  # 德语"街道"
-
-print(german_word.lower())
-# straße  ← ß 不变
-
-print(german_word.casefold())
-# strasse  ← ß → ss
-```
-
-这意味着，当需要和大写的 `"STRASSE"` 做不区分大小写比较时，`lower()` 做不到（`straße != strasse`），而 `casefold()` 可以（`strasse == strasse`）：
-
-```python
-word1 = "Straße"
-word2 = "STRASSE"
-
-# lower() 比较：失败
-print(word1.lower() == word2.lower())
-# False
-
-# casefold() 比较：成功
-print(word1.casefold() == word2.casefold())
-# True
-```
-
-#### 2.3.3 casefold 的适用场景
-
-`casefold` 适用于所有需要"不区分大小写比较"的场景——尤其是处理国际化文本、多语言数据时：
-
-```python
-# 不区分大小写的子串查找
-def contains_ci(haystack, needle):
-    """真正不区分大小写的子串查找（含 Unicode 特殊字符）"""
-    return needle.casefold() in haystack.casefold()
-
-text = "Münchener Straße"
-target = "STRASSE"
-
-# 用 lower：失败
-print(target.lower() in text.lower())
-# False
-
-# 用 casefold：成功
-print(contains_ci(text, target))
-# True
-```
-
-**实用建议**：对于纯 ASCII 文本，`lower()` 足够；对于可能包含非 ASCII 字符（如德语、法语、土耳其语等）的文本，始终使用 `casefold()` 做不区分大小写比较。
-
-#### 2.3.4 更多 Unicode casefold 示例
-
-```python
-specials = [
-    ("STRASSE", "SS 大写"),
-    ("Straße", "普通德语"),
-    ("CAFÉ", "法语É"),
-    ("İSTANBUL", "土耳其İ"),
-]
-
-for word, desc in specials:
-    print(f"  {desc:<12} {word!r:<12} lower={word.lower()!r:<14} casefold={word.casefold()!r}")
-
-# 输出:
-#   SS 大写       'STRASSE'    lower='strasse'     casefold='strasse'
-#   普通德语      'Straße'     lower='straße'      casefold='strasse'
-#   法语É        'CAFÉ'       lower='café'        casefold='café'
-#   土耳其İ      'İSTANBUL'   lower='i̇stanbul'    casefold='i̇stanbul'
-```
-
-德语 ß 是 `casefold` 与 `lower` 行为不同的最典型例子。可以看到 `"Straße".lower()` 得到 `"straße"`（仍含 ß），而 `"Straße".casefold()` 得到 `"strasse"`（ß 被展开为 ss），后者能够与 `"STRASSE"` 正确匹配。
+#### 2.5.3 功能对比一览
 
 ```text
-casefold vs lower 对比：
-
-  场景                         lower()          casefold()
-  ---------------------------------------------------------
-  ASCII 字符                    ✓ 正确            ✓ 正确
-  德语 ß → ss                   ✗ 不转换           ✓ 转为 ss
-  不区分大小写比较 (ASCII)        ✓ 可用            ✓ 可用
-  不区分大小写比较 (Unicode)     ✗ 可能失败         ✓ 推荐
+能力                         % 格式化    str.format()    f-string
+--------------------------------------------------------------------
+表达式内嵌                   ✗          ✗              ✓
+变量名直接引用               ✗          ✓(关键字)      ✓
+字典键引用                   ✓(%(k)s)   ✓([key])       ✓(['k'])
+对象属性访问                 ✗          ✓(.attr)       ✓(.attr)
+嵌套字段宽/精度               ✗          ✓              ✓
+日期格式化                   ✗          ✓(:strfmt)     ✓(:strfmt)
+自定义 __format__            ✓          ✓              ✓
+调试输出 (=)                 ✗          ✗              ✓
+行内调用函数                 ✗          ✗              ✓
+Python 3.6 及以下兼容        ✓          ✓              ✗
 ```
 
-### 2.4 对齐族：`zfill()` 零填充
+#### 2.5.4 三种方式选择指南
 
-#### 2.4.1 `zfill(width)` 基本用法
+| 场景 | 推荐方式 | 原因 |
+|------|---------|------|
+| 新代码（Python 3.6+） | f-string | 最简洁、最高效、最可读 |
+| 需兼容 Python 3.5 及以下 | `str.format()` | 旧版本不支持 f-string |
+| 维护旧代码 | `%` 格式化 | 不动旧代码，保持一致性 |
+| 需要模板复用（延迟格式化） | `str.format()` | 模板字符串可以存储和重用 |
+| 日志中的惰性格式化 | `%` 格式化 | logging 模块用 `%` 延迟格式化避免无谓开销 |
 
-`zfill(width)` 在字符串左侧填充 `'0'` 直到达到指定宽度。如果字符串长度已达到或超过 `width`，原样返回不截断。
+**关于日志格式的特殊说明**：Python 的 `logging` 模块使用 `%` 格式化做惰性求值——`logging.debug("val=%d", x)` 中的格式化只在日志级别满足时才执行，而 f-string 会在调用前就完成格式化，所以日志中推荐用 `%`：
 
 ```python
-print("'42'.zfill(5)")
-# 输出: 00042
+# 推荐：logging 用 % 格式化（惰性求值）
+import logging
+logging.debug("用户 %s 的分数是 %d", name, score)  # 不满足 DEBUG 级时不格式化
 
-print("'7'.zfill(4)")
-# 输出: 0007
-
-# 宽度已够，不截断
-print("'123456'.zfill(4)")
-# 输出: 123456
-```
-
-#### 2.4.2 `zfill` 对符号字符的特殊处理
-
-`zfill` 对正负号有特殊处理——`0` 填在符号之后而非之前。这是 `zfill` 与手动 `rjust('0')` 的关键区别：
-
-```python
-print("-42".zfill(6))
-# -00042  ← 0 在负号之后
-
-print("+42".zfill(6))
-# +00042  ← 0 在正号之后
-
-# 对比：rjust 不会识别符号
-print("-42".rjust(6, '0'))
-# 00-42  ← 0 填在最前面，符号被推到中间
-```
-
-这个特性使得 `zfill` 特别适合处理有符号数值的补零场景——数字的符号保持在前，数值部分被 `0` 填充。
-
-#### 2.4.3 实际应用：编号补零与日期格式化
-
-```python
-# 订单编号补零
-order_ids = [1, 23, 456, 7890]
-for oid in order_ids:
-    print(f"ORDER-{str(oid).zfill(6)}")
-# ORDER-000001
-# ORDER-000023
-# ORDER-000456
-# ORDER-007890
-
-# 日期时间格式化
-month = 3
-day = 5
-print(f"2024-{str(month).zfill(2)}-{str(day).zfill(2)}")
-# 2024-03-05
-
-# 文件名补零对齐
-for i in range(5):
-    print(f"data_{str(i).zfill(3)}.txt")
-# data_000.txt
-# data_001.txt
-# data_002.txt
-# data_003.txt
-# data_004.txt
-```
-
-### 2.5 对齐族：`ljust()` / `rjust()` / `center()`
-
-#### 2.5.1 `ljust(width, fillchar)` 左对齐
-
-`ljust(width, fillchar)` 将字符串左对齐，右侧用 `fillchar` 填充到 `width` 宽度。`fillchar` 默认为空格，必须是单个字符。
-
-```python
-print(f"'{'hello'.ljust(10)}'")
-# 'hello     '
-
-print(f"'{'hello'.ljust(10, '.')}'")
-# 'hello.....'
-
-# 宽度已够，原样返回
-print(f"'{'hello'.ljust(3)}'")
-# 'hello'
-```
-
-#### 2.5.2 `rjust(width, fillchar)` 右对齐
-
-`rjust(width, fillchar)` 将字符串右对齐，左侧用 `fillchar` 填充。
-
-```python
-print(f"'{'hello'.rjust(10)}'")
-# '     hello'
-
-print(f"'{'hello'.rjust(10, '.')}'")
-# '.....hello'
-```
-
-#### 2.5.3 `center(width, fillchar)` 居中对齐
-
-`center(width, fillchar)` 将字符串居中，两侧用 `fillchar` 填充。当左右不对称时，右侧多一个字符：
-
-```python
-print(f"'{'hello'.center(10)}'")
-# '  hello   '
-
-print(f"'{'hello'.center(10, '*')}'")
-# '**hello***'
-
-# 不对称时右侧多一个填充字符
-print(f"'{'Hi'.center(5, '-')}'")
-# '--Hi-'  ← 左2右1，右侧多一个
-```
-
-#### 2.5.4 三种对齐方法对比
-
-```python
-word = "Python"
-width = 12
-fill = "."
-
-print(f"{'方法':<22} {'结果'}")
-print("-" * 40)
-print(f"{'ljust(12, .)':<22} '{word.ljust(width, fill)}'")
-print(f"{'rjust(12, .)':<22} '{word.rjust(width, fill)}'")
-print(f"{'center(12, .)':<22} '{word.center(width, fill)}'")
-```
-
-**运行结果**：
-
-```text
-方法                   结果
-----------------------------------------
-ljust(12, .)           'Python......'
-rjust(12, .)           '......Python'
-center(12, .)          '...Python...'
-```
-
-#### 2.5.5 实际应用——终端表格输出
-
-对齐方法在终端表格输出中极为常用——`ljust` 对齐文本列，`rjust` 对齐数字列，`center` 对齐标题：
-
-```python
-# 商品价格表
-print("=" * 50)
-print(f"{'商品名称':<12} {'单价':>8} {'数量':>6} {'小计':>10}")
-print("-" * 50)
-
-items = [
-    ("苹果", 5.5, 3),
-    ("香蕉", 3.8, 6),
-    ("西瓜", 25.0, 1),
-    ("芒果", 12.9, 4),
-]
-total = 0
-for name, price, qty in items:
-    subtotal = price * qty
-    total += subtotal
-    print(f"{name:<12} {price:>8.1f} {qty:>6d} {subtotal:>10.1f}")
-
-print("-" * 50)
-print(f"{'合计':<12} {'':>8} {'':>6} {total:>10.1f}")
-```
-
-**运行结果**：
-
-```text
-==================================================
-商品名称         单价     数量       小计
---------------------------------------------------
-苹果               5.5      3       16.5
-香蕉               3.8      6       22.8
-西瓜              25.0      1       25.0
-芒果              12.9      4       51.6
---------------------------------------------------
-合计                                116.0
-```
-
-**居中标题**：
-
-```python
-print("=" * 40)
-print(f"{'数据报表'.center(40, '=')}")
-print("=" * 40)
-print(f"{'生成时间: 2024-01-15'.center(40)}")
-print("=" * 40)
-```
-
-**运行结果**：
-
-```text
-========================================
-================数据报表================
-========================================
-           生成时间: 2024-01-15
-========================================
+# 不推荐：f-string 在日志中
+# logging.debug(f"用户 {name} 的分数是 {score}")  # 无论是否输出都会格式化
 ```
 
 ### 2.6 综合实战
 
-#### 2.6.1 文本清洗流水线
+#### 2.6.1 终端表格输出
 
-多个变形清洗方法链式组合，构成完整的清洗流水线：
-
-```python
-def clean_text(text):
-    """清洗用户输入：去除首尾空白、合并连续空格"""
-    text = text.strip()
-    while "  " in text:
-        text = text.replace("  ", " ")
-    return text
-
-raw = "  Hello   Python   World  \n  "
-print(f"清洗前: '{raw}'")
-print(f"清洗后: '{clean_text(raw)}'")
-# 清洗前: '  Hello   Python   World
-#   '
-# 清洗后: 'Hello Python World'
-```
-
-#### 2.6.2 数据标准化工具
-
-综合使用 `strip`、`casefold`、`isdigit` 等方法标准化用户数据：
+f-string 在终端表格输出中极为常用——编号补零、左对齐文本、右对齐数字、千分位分隔：
 
 ```python
-def standardize_email(raw_email):
-    """标准化邮箱：去空白 + 转小写"""
-    return raw_email.strip().casefold()
-
-def standardize_phone(raw_phone):
-    """标准化手机号：去空白 + 只保留数字"""
-    phone = raw_phone.strip()
-    return "".join(c for c in phone if c.isdigit())
-
-def standardize_username(raw_name):
-    """标准化用户名：去空白 + 转小写 + 去首尾特殊符号"""
-    return raw_name.strip().lower().strip("._-")
-
-test_data = [
-    {"email": "  Alice@Example.COM ", "phone": " 138-1234-5678 ", "name": "  Alice_  "},
-    {"email": "BOB@test.org", "phone": "021-8765 4321", "name": ".bob."},
-    {"email": "  charlie@mail.net  ", "phone": "  186 9999 8888  ", "name": "_Charlie_"},
-]
-
-print("数据标准化结果：")
-for row in test_data:
-    e = standardize_email(row["email"])
-    p = standardize_phone(row["phone"])
-    n = standardize_username(row["name"])
-    print(f"  邮箱: {e:<25} 手机: {p:<15} 用户名: {n}")
-
-# 输出:
-#   邮箱: alice@example.com      手机: 13812345678     用户名: alice
-#   邮箱: bob@test.org           手机: 02187654321     用户名: bob
-#   邮箱: charlie@mail.net       手机: 18699998888    用户名: charlie
-```
-
-#### 2.6.3 格式化报表生成器
-
-综合使用 `zfill`、`ljust`、`rjust`、`center` 生成对齐的报表：
-
-```python
-def generate_price_table(data, title="商品价格表"):
-    """用 zfill/ljust/rjust/center 生成对齐的价格表"""
-    width = 44
-    lines = []
-    lines.append("=" * width)
-    lines.append(title.center(width))
-    lines.append("=" * width)
-    lines.append(f"{'编号':<6} {'商品名称':<12} {'单价':>8} {'库存':>8}")
-    lines.append("-" * width)
-
-    total_value = 0
-    for i, (name, price, stock) in enumerate(data, 1):
-        id_str = str(i).zfill(3)               # 编号补零
-        name_str = name.ljust(12)               # 名称左对齐
-        price_str = f"¥{price:.2f}".rjust(8)     # 价格右对齐
-        stock_str = str(stock).rjust(8)          # 库存右对齐
-        lines.append(f"{id_str:<6} {name_str} {price_str} {stock_str}")
-        total_value += price * stock
-
-    lines.append("-" * width)
-    lines.append(f"{'合计金额':<20} {'¥' + f'{total_value:.2f}':>20}")
-    lines.append("=" * width)
-    return "\n".join(lines)
-
 products = [
     ("苹果", 5.50, 100),
     ("香蕉", 3.80, 200),
@@ -745,314 +862,371 @@ products = [
     ("芒果", 12.90, 80),
     ("葡萄", 8.50, 120),
 ]
-print(generate_price_table(products))
+
+print("=" * 55)
+print(f"{'商品价格表':^55}")
+print("=" * 55)
+print(f"{'编号':<6} {'商品名称':<12} {'单价':>10} {'库存':>10}")
+print("-" * 55)
+
+total_value = 0
+for i, (name, price, stock) in enumerate(products, 1):
+    print(f"{i:03d}    {name:<12} {price:>9.2f}元 {stock:>9d}件")
+    total_value += price * stock
+
+print("-" * 55)
+print(f"{'合计':<6} {'':<12} {'':>10} {total_value:>10.2f}元")
+print("=" * 55)
 ```
 
 **运行结果**：
 
 ```text
-============================================
-                商品价格表
-============================================
-编号   商品名称          单价       库存
---------------------------------------------
-001    苹果            ¥5.50      100
-002    香蕉            ¥3.80      200
-003    西瓜           ¥25.00       50
-004    芒果           ¥12.90       80
-005    葡萄            ¥8.50      120
---------------------------------------------
-合计金额                       ¥8238.00
-============================================
+=======================================================
+                       商品价格表
+=======================================================
+编号     商品名称         单价         库存
+-------------------------------------------------------
+001    苹果          5.50元       100件
+002    香蕉          3.80元       200件
+003    西瓜         25.00元        50件
+004    芒果         12.90元        80件
+005    葡萄          8.50元       120件
+-------------------------------------------------------
+合计                              4612.00元
+=======================================================
 ```
 
-#### 2.6.4 链式变形
-
-多个变形方法可以链式调用，实现复杂的变换流程：
+#### 2.6.2 日志格式化
 
 ```python
-raw_title = "  python-STRING-methods: A COMPLETE Guide!  "
+import datetime
 
-result = (
-    raw_title
-    .strip()          # "python-STRING-methods: A COMPLETE Guide!"
-    .lower()          # "python-string-methods: a complete guide!"
-    .title()          # "Python-String-Methods: A Complete Guide"
-    .rstrip("!")     # "Python-String-Methods: A Complete Guide"
-)
-print(f"链式处理: '{result}'")
-# 链式处理: 'Python-String-Methods: A Complete Guide'
+log_entries = [
+    ("INFO", "系统启动完成"),
+    ("WARNING", "内存使用率超过 80%"),
+    ("ERROR", "数据库连接失败"),
+    ("DEBUG", "查询参数: table=user, limit=100"),
+]
+
+now = datetime.datetime.now()
+print("=== 日志输出 ===")
+for level, message in log_entries:
+    timestamp = now.strftime("%Y-%m-%d %H:%M:%S")
+    print(f"[{timestamp}] [{level:>7}] {message}")
 ```
 
-#### 2.6.5 命名风格转换
+**运行结果**：
 
-利用 `capitalize`、`title`、`lower` 等方法实现驼峰命名和蛇形命名的互转：
+```text
+=== 日志输出 ===
+[2024-01-15 14:30:45] [   INFO] 系统启动完成
+[2024-01-15 14:30:45] [WARNING] 内存使用率超过 80%
+[2024-01-15 14:30:45] [  ERROR] 数据库连接失败
+[2024-01-15 14:30:45] [  DEBUG] 查询参数: table=user, limit=100
+```
+
+#### 2.6.3 进度条
+
+利用 `\r` 回车符和 f-string 的动态宽度格式化实现进度条：
 
 ```python
-def snake_to_camel(snake_str):
-    """snake_case → CamelCase"""
-    parts = snake_str.split("_")
-    return "".join(p.capitalize() for p in parts)
+import time
 
-def camel_to_snake(camel_str):
-    """CamelCase → snake_case"""
-    result = []
-    for ch in camel_str:
-        if ch.isupper() and result:
-            result.append("_")
-        result.append(ch.lower())
-    return "".join(result)
+total = 30
+for i in range(total + 1):
+    progress = i / total
+    bar_len = 20
+    filled = int(bar_len * progress)
+    bar = "=" * filled + "-" * (bar_len - filled)
+    percent = progress * 100
+    print(f"\r进度: [{bar}] {percent:5.1f}%", end="", flush=True)
+    time.sleep(0.02)
+print()
+```
 
-print(snake_to_camel("user_first_name"))     # UserFirstName
-print(snake_to_camel("http_response_code"))  # HttpResponseCode
-print(camel_to_snake("UserFirstName"))       # user_first_name
-print(camel_to_snake("HttpResponseCode"))    # http_response_code
+`{bar}` 动态生成进度条填充，`{percent:5.1f}` 保证百分比始终占 5 字符宽度并保留 1 位小数，`\r` 和 `end=""` 让每次输出覆盖上一行。
+
+#### 2.6.4 数据报表生成器
+
+综合使用 f-string 的宽度对齐、日期格式化、千分位和精度控制生成报表：
+
+```python
+import datetime
+
+def generate_sales_report(sales_data, title="销售数据报表"):
+    width = 50
+    lines = []
+    lines.append("=" * width)
+    lines.append(f"{title:^{width}}")
+    lines.append("=" * width)
+    lines.append(f"{'日期':<12} {'客户':<10} {'产品':<10} {'金额':>12}")
+    lines.append("-" * width)
+
+    total_amount = 0
+    for date, customer, product, amount in sales_data:
+        lines.append(f"{date:<12} {customer:<10} {product:<10} {amount:>10.2f}元")
+        total_amount += amount
+
+    lines.append("-" * width)
+    lines.append(f"{'合计':<34} {total_amount:>10.2f}元")
+    lines.append("=" * width)
+    return "\n".join(lines)
+
+sales = [
+    ("2024-01-15", "张三", "笔记本电脑", 5999.00),
+    ("2024-01-15", "李四", "鼠标", 89.90),
+    ("2024-01-16", "王五", "键盘", 259.00),
+    ("2024-01-16", "赵六", "显示器", 1299.00),
+    ("2024-01-17", "张三", "耳机", 499.00),
+]
+
+report = generate_sales_report(sales)
+print(report)
+```
+
+**运行结果**：
+
+```text
+==================================================
+                  销售数据报表
+==================================================
+日期           客户         产品         金额
+--------------------------------------------------
+2024-01-15   张三         笔记本电脑    5999.00元
+2024-01-15   李四         鼠标           89.90元
+2024-01-16   王五         键盘          259.00元
+2024-01-16   赵六         显示器       1299.00元
+2024-01-17   张三         耳机          499.00元
+--------------------------------------------------
+合计                              8145.90元
+==================================================
 ```
 
 ## 3. 最佳实践
 
-### 3.1 选择正确的方法
+### 3.1 选择正确的格式化方式
 
-| 需求 | 推荐方法 | 原因 |
+| 需求 | 推荐方式 | 原因 |
 |------|---------|------|
-| 去除首尾空白 | `strip()` | 一行搞定，默认处理所有空白字符 |
-| 只去左侧空白 | `lstrip()` | 不影响右侧内容 |
-| 只去右侧换行 | `rstrip()` | 读文件行处理的标准做法 |
-| 去除首尾指定字符 | `strip(chars)` | 字符集合方式，一次去除多种字符 |
-| 全部转大写 | `upper()` | 简单直接 |
-| 全部转小写 | `lower()` | ASCII 场景足够 |
-| 不区分大小写比较 | `casefold()` | 处理 Unicode 比 lower 更激进 |
-| 首字母大写 | `capitalize()` | 首字母大写 + 其余小写 |
-| 标题格式 | `title()` | 每个单词首字母大写 |
-| 编号补零 | `zfill()` | 自动处理符号字符 |
-| 文本左对齐 | `ljust(width, char)` | 右侧填充 |
-| 数字右对齐 | `rjust(width, char)` | 左侧填充 |
-| 标题居中 | `center(width, char)` | 两侧填充 |
+| Python 3.6+ 新代码 | f-string | 最简洁高效 |
+| 简单变量替换 | f-string | `f"{name}"` 比任何方式都直观 |
+| 需要复用模板 | `str.format()` | 模板可存储后复用 |
+| 兼容旧版本 | `str.format()` 或 `%` | 根据最低版本选择 |
+| 日志输出 | `%` 格式化 | `logging` 支持惰性求值 |
+| 复杂表达式 | f-string | 任意 Python 表达式直接内嵌 |
+| 日期格式化 | f-string | `f"{now:%Y-%m-%d}"` 最简洁 |
+| 进制/千分位 | f-string | 格式说明符最齐全 |
 
 ### 3.2 推荐 vs 不推荐写法
 
 ```python
-# ---- 去除首尾空白 ----
+# ---- 简单变量替换 ----
 
-# 推荐：strip() 一步到位
-clean = user_input.strip()
+# 推荐：f-string 最简洁
+name = "Alice"
+age = 30
+msg = f"姓名: {name}, 年龄: {age}"
 
-# 不推荐：手动循环去除
-while user_input.startswith(" ") or user_input.startswith("\t"):
-    user_input = user_input[1:]
-while user_input.endswith(" ") or user_input.endswith("\n"):
-    user_input = user_input[:-1]
+# 不推荐：% 格式化在新代码中过时
+msg = "姓名: %s, 年龄: %d" % (name, age)
 
-# ---- 不区分大小写比较 ----
+# 不推荐：format 在有 f-string 时显得啰嗦
+msg = "姓名: {}, 年龄: {}".format(name, age)
 
-# 推荐：casefold() 处理 Unicode
-if word1.casefold() == word2.casefold():
-    print("匹配")
+# ---- 表达式内嵌 ----
 
-# 不推荐：lower() 可能遗漏 Unicode 特殊字符（如德语 ß）
-if word1.lower() == word2.lower():
-    print("可能不匹配")
+# 推荐：f-string 直接写表达式
+items = [10, 20, 30]
+print(f"总数: {len(items)}, 合计: {sum(items)}, 平均: {sum(items)/len(items):.1f}")
+# 总数: 3, 合计: 60, 平均: 20.0
 
-# ---- 去除首尾指定字符 ----
+# 不推荐：format 需要先算好
+total = sum(items)
+avg = sum(items) / len(items)
+print("总数: {}, 合计: {}, 平均: {:.1f}".format(len(items), total, avg))
 
-# 推荐：strip(chars) 简洁
-url = "https://example.com///"
-clean_url = url.strip("/")
+# ---- 日期格式化 ----
 
-# 不推荐：手动判断
-if url.endswith("/"):
-    url = url.rstrip("/")
-if url.startswith("/"):
-    url = url.lstrip("/")
+# 推荐：f-string + strftime
+import datetime
+now = datetime.datetime.now()
+print(f"当前时间: {now:%Y-%m-%d %H:%M:%S}")
 
-# ---- 编号补零 ----
+# 不推荐：手动拼接
+print(f"{now.year}-{now.month:02d}-{now.day:02d} {now.hour:02d}:{now.minute:02d}:{now.second:02d}")
 
-# 推荐：zfill() 自动处理符号
-order_id = "-42".zfill(6)  # -00042
+# ---- 宽度对齐 ----
 
-# 不推荐：rjust 不识别符号
-order_id = "-42".rjust(6, "0")  # 00-42（错误！）
+# 推荐：f-string 格式说明符
+for item in items_list:
+    print(f"{item:<10} | {item_value:>8.2f}")
 
-# ---- capitalize vs title ----
+# 不推荐：手动拼接空格
+for item in items_list:
+    print(item.ljust(10) + " | " + str(item_value).rjust(8))
 
-# 推荐：capitalize 用于句子首字母大写
-sentence = "hello world".capitalize()  # Hello world
+# ---- 日志输出 ----
 
-# 推荐：title 用于标题格式
-title = "python guide".title()  # Python Guide
+# 推荐：logging 用 % 格式化（惰性求值）
+import logging
+logging.debug("用户 %s 的操作: %s", username, action)  # 不输出时不格式化
 
-# 不推荐：用 title 做句子首字母大写
-sentence = "hello world".title()  # Hello World（多了一个大写）
+# 不推荐：f-string 在日志中
+# logging.debug(f"用户 {username} 的操作: {action}")  # 即使不输出也会先格式化
 ```
 
 ### 3.3 综合推荐 vs 不推荐对照表
 
 | 场景 | 推荐写法 | 不推荐写法 | 原因 |
 |------|---------|-----------|------|
-| 去空白 | `s.strip()` | 手动循环去除 | `strip` 一步到位 |
-| 去换行 | `line.rstrip()` | `line[:-1]` | `rstrip` 安全处理 `\r\n` |
-| 去字符集 | `s.strip("abc")` | `s.strip("a").strip("b").strip("c")` | `strip` 接受字符集合 |
-| 大小写比较 | `s1.casefold() == s2.casefold()` | `s1.lower() == s2.lower()` | `casefold` 处理 Unicode |
-| 编号补零 | `str(n).zfill(4)` | `str(n).rjust(4, "0")` | `zfill` 处理负号 |
-| 表格对齐 | `f"{'名称':<10} {price:>8}"` | 手动拼接空格 | 格式化字符串内置对齐 |
-| 邮箱标准化 | `email.strip().casefold()` | `email.strip().lower()` | `casefold` 更安全 |
+| 变量替换 | `f"{name}"` | `"{}".format(name)` | f-string 更简洁 |
+| 表达式 | `f"{x + y:.2f}"` | `"{:.2f}".format(x + y)` | f-string 直接展示表达式 |
+| 日期 | `f"{now:%Y-%m-%d}"` | `now.strftime("%Y-%m-%d")` | f-string 更可读 |
+| 日志 | `log("%s", val)` | `log(f"{val}")` | `%` 支持惰性格式化 |
+| 模板复用 | `template.format(**data)` | `f"{data['name']}"` | f-string 无法延迟 |
+| 百分比 | `f"{ratio:.1%}"` | `f"{ratio*100:.1f}%"` | `%` 格式符自动处理 |
 
 ### 3.4 常见错误与注意事项
 
-**误解 `strip` 是去子串**
+**f-string 中的引号冲突（Python 3.11 及以下）**
 
 ```python
-# 错误理解：以为 strip("abc") 去除子串 "abc"
-text = "abcHelloabc"
-print(text.strip("abc"))  # 实际输出: Hello（不是 abcHello 的去子串结果）
+# 错误（Python 3.11-）：内外引号相同导致语法错误
+# d = {"name": "Alice"}
+# print(f"Name: {d["name"]}")  # SyntaxError!
 
-# 如果需要去除子串，用 replace 或正则
-print(text.replace("abc", ""))  # Hello
+# 正确：内外引号不同
+d = {"name": "Alice"}
+print(f"Name: {d['name']}")   # 双引号外，单引号内
+print(f'Name: {d["name"]}')   # 单引号外，双引号内
+
+# Python 3.12+ 支持同类型引号嵌套
 ```
 
-**`capitalize` 会把后面字母全变小写**
+**`=` 对齐符仅用于数值**
 
 ```python
-# 注意：capitalize 不仅仅是首字母大写
-print("HELLO WORLD".capitalize())
-# Hello world ← 后面的字母全变小写了
+# 错误：字符串使用 = 对齐符
+# f"{'hello':*=15}"  # ValueError!
 
-# 如果只想首字母大写、其他不变，需要手动处理
-s = "HELLO WORLD"
-result = s[0].upper() + s[1:]  # HELLO WORLD（本身第一个已是大写）
+# 正确：字符串居中用 ^
+print(f"{'hello':*^15}")
+# *****hello*****
 ```
 
-**`title` 对撇号处理不符合预期**
+**`%b` 不是旧式格式化支持的占位符**
 
 ```python
-print("it's a test".title())
-# It'S A Test  ← 撇号后 s 被大写
+# 错误：% 格式化不支持 %b
+# print("%b" % 255)  # ValueError!
 
-# 正确处理英文撇号需要正则
-import re
-def smart_title(s):
-    return re.sub(
-        r"[A-Za-z]+(?:'[A-Za-z]+)?",
-        lambda m: m.group().capitalize(),
-        s
-    )
-print(smart_title("it's a test"))
-# It's A Test
+# 正确：用 bin() 函数 + %s
+print("%s" % bin(255))  # 0b11111111
+
+# 或者用 f-string
+print(f"{255:b}")  # 11111111
 ```
 
-**`zfill` 与 `rjust` 对负号的处理差异**
+**千分位分隔符 `s` 类型不支持**
 
 ```python
-# zfill 正确处理符号
-print("-42".zfill(6))  # -00042
+# 错误：字符串类型不能使用千分位
+# print(f"{'hello':,s}")  # ValueError!
 
-# rjust 不识别符号，0 填到符号前面
-print("-42".rjust(6, "0"))  # 00-42
+# 正确：千分位仅用于数值
+print(f"{1234567:,}")  # 1,234,567
 ```
 
 ## 4. 原理
 
-### 4.1 字符串不可变性与变形方法
+### 4.1 f-string 的编译时解析
 
-Python 字符串是不可变对象（immutable）。所有变形与清洗方法——`strip`、`upper`、`lower`、`zfill` 等——都不会修改原字符串，而是返回一个**新的字符串对象**。
-
-```python
-text = "hello"
-new_text = text.upper()
-
-print(text is new_text)     # False（不同对象）
-print(text)                  # hello（原字符串不变）
-print(new_text)              # HELLO
-```
-
-这意味着链式调用每次都会创建中间字符串对象。在大量数据处理时需要注意性能：
-
-```python
-# 链式调用：每一步都创建新对象
-result = (
-    raw_text
-    .strip()      # 新对象
-    .lower()      # 新对象
-    .title()      # 新对象
-)
-# 3 次方法调用 → 3 次内存分配
-```
-
-对于小字符串，开销可忽略。处理大文本时，如果性能敏感，可以考虑用 `str.translate` 或正则表达式一次性完成多个变换。
-
-### 4.2 `strip` 的字符匹配机制
-
-`strip(chars)` 的底层实现是从字符串两端逐字符扫描，对每个字符检查其是否在 `chars` 集合中。一旦遇到不在集合中的字符，立即停止该方向的扫描。
+f-string 在 Python 编译时被解析为具体的字符串拼接操作和格式调用。当解释器遇到 `f"..."` 前缀时，会将花括号中的表达式和格式说明符转换为等价的 Python 字节码：
 
 ```text
-strip("abc") 处理 "aabccHelloccbbaa" 的过程：
+f"姓名: {name}, 年龄: {age}" 的编译过程：
 
-  左侧扫描:  a (在集合中) → 去除
-            a (在集合中) → 去除
-            b (在集合中) → 去除
-            c (在集合中) → 去除
-            c (在集合中) → 去除
-            H (不在集合中) → 停止左侧扫描
-
-  右侧扫描:  a (在集合中) → 去除
-            a (在集合中) → 去除
-            b (在集合中) → 去除
-            b (在集合中) → 去除
-            c (在集合中) → 去除
-            c (在集合中) → 去除
-            o (不在集合中) → 停止右侧扫描
-
-  结果: "Hello"
+  1. 解析器识别 f 前缀，进入 f-string 解析模式
+  2. 分割: "姓名: " + 表达式 name + ", 年龄: " + 表达式 age
+  3. 编译表达式: name → LOAD_NAME name
+  4. 编译表达式: age → LOAD_NAME age
+  5. 生成拼接字节码: BUILD_STRING
+  6. 最终等价于: "姓名: " + str(name) + ", 年龄: " + str(age)
 ```
 
-这就解释了为什么 `strip` 是"字符集合"操作而非"子串"操作——它逐个字符判断，而非寻找匹配的子串。`chars` 参数在底层会被转换为集合或查找表，以实现 O(1) 的字符查找。
-
-### 4.3 `casefold` 与 `lower` 的 Unicode 差异
-
-`lower()` 和 `casefold()` 在底层都依赖 Unicode 字符数据库中的大小写映射表。区别在于映射表的策略不同：
-
-- `lower()` 使用 Unicode 的"简单大小写映射"——一对一的字符替换
-- `casefold()` 使用 Unicode 的"大小写折叠"映射——可以是一对多的扩展
+带格式说明符时的编译：
 
 ```text
-字符 ß (U+00DF, 德语 Eszett) 的映射：
+f"价格: {price:.2f}" 的编译过程：
 
-  lower() 映射:
-    ß → ß  (无变化，因为 ß 已经是"小写形式")
-
-  casefold() 映射:
-    ß → ss  (展开为两个字符，因为 ß 的大写形式是 SS)
+  1. 分割: "价格: " + 表达式 price with format ".2f"
+  2. 编译表达式: LOAD_NAME price
+  3. 编译格式化: FORMAT_VALUE (format_spec=".2f")
+  4. 生成拼接字节码
+  5. 等价于: "价格: " + format(price, ".2f")
 ```
 
-这种"折叠"设计是为了让不区分大小写比较更加可靠。Unicode 标准定义了一套完整的 casefold 规则，覆盖了德语 ß、希腊字母、土耳其字母等所有特殊情况。
+这就是 f-string 在性能上优于 `%` 格式化和 `str.format()` 的原因——前者在编译时就完成了大部分检测和优化，而后者在运行时才解析格式字符串和执行查找。
 
-### 4.4 `zfill` 的符号处理原理
+### 4.2 `__format__` 协议
 
-`zfill` 在填充 `0` 之前会检查字符串的第一个字符是否为 `+` 或 `-`：
+f-string 和 `str.format()` 底层都依赖 `__format__` 协议——内置函数 `format(value, format_spec)` 会调用 `value.__format__(format_spec)`，返回格式化后的字符串。
+
+```text
+format(obj, "spec") 的调用链：
+
+  1. 检查 obj 是否有 __format__ 方法
+  2. 调用 obj.__format__(format_spec="spec")
+  3. __format__ 返回字符串结果
+
+  对于内置类型：
+    format(42, "05d")     → int.__format__(42, "05d")
+    format("hi", ">10")   → str.__format__("hi", ">10")
+
+  对于自定义类型：
+    format(temp, "f")     → Temperature.__format__(temp, "f")
+    → 返回自定义的格式化字符串
+```
+
+内置类型的 `__format__` 实现了解析格式说明符的全部逻辑——填充字符、对齐方式、宽度、精度、类型码。自定义类型可以重写 `__format__` 来支持自定义格式说明符。
+
+### 4.3 进制转换的底层机制
+
+f-string 和 `str.format()` 的进制类型码（`b`、`o`、`x`、`X`）在底层调用整数的 `__format__` 方法，通过 `format()` 内置函数实现转换：
 
 ```python
-# 简化的底层逻辑
-def zfill(self, width):
-    if len(self) >= width:
-        return self
-
-    fill_count = width - len(self)
-    # 检查第一个字符是否为符号
-    if self[0] in ('+', '-'):
-        return self[0] + '0' * fill_count + self[1:]
-    else:
-        return '0' * fill_count + self
+# 等价关系
+f"{255:b}"              # 等价于 format(255, "b")
+f"{255:#x}"            # 等价于 format(255, "#x")
+format(255, "b")       # 等价于 bin(255)[2:]  → "11111111"
+format(255, "#x")      # 等价于 hex(255)     → "0xff"
+format(255, "o")       # 等价于 oct(255)[2:] → "377"
 ```
 
-这就是为什么 `"-42".zfill(6)` 返回 `"-00042"` 而非 `"00-42"`——符号字符被保留在最前面，`0` 填在符号和数字之间。而 `rjust` 没有这个逻辑，直接在左侧填充，所以 `"-42".rjust(6, "0")` 返回 `"00-42"`。
+`#` 前缀的实现是在结果前添加对应的进制标识符（`0b`、`0o`、`0x`）。
+
+### 4.4 百分比格式化的实现
+
+`%` 类型码底层做了一次"乘 100 + 加 %"的操作：
+
+```python
+# 等价关系
+f"{0.8525:.2%}"
+# 等价于: format(0.8525, ".2%")
+# 底层: 0.8525 * 100 = 85.25, 格式化为 ".2f" → "85.25", 加 "%" → "85.25%"
+```
+
+精度控制 `.2` 在百分比格式中作用的是"乘 100 后"的数字——即最终显示的小数位数，而不是原始数值的小数位数。
 
 ## 5. 总结
 
-本文围绕 Python 字符串的变形与清洗方法展开，主要介绍了以下内容：
+本文围绕 Python 字符串的三种格式化方式展开，主要介绍了以下内容：
 
-- **清洗族方法**：`strip()` 去除首尾空白或指定字符集合（注意不是去子串）；`lstrip()` / `rstrip()` 分别只处理左侧和右侧；`strip(chars)` 的核心是"字符集合"而非"子串"匹配
-- **大小写变换方法**：`upper()` / `lower()` 全量转换大写/小写；`swapcase()` 大小写互换；`capitalize()` 首字母大写且其余全小写；`title()` 每个单词首字母大写（撇号后有陷阱）
-- **casefold()**：比 `lower()` 更激进的大小写折叠，能处理德语 ß → ss 等 Unicode 特殊字符；做不区分大小写比较时应优先使用 `casefold()`
-- **对齐填充方法**：`zfill(width)` 左侧补零且自动处理正负号；`ljust()` / `rjust()` / `center()` 分别实现左对齐、右对齐、居中对齐，支持自定义填充字符
-- **最佳实践**：去空白用 `strip`，去换行用 `rstrip`，不区分大小写比较用 `casefold`，编号补零用 `zfill`，表格对齐用 `ljust` / `rjust` / `center`
-- **底层原理**：字符串不可变，所有变形方法返回新对象；`strip` 逐字符匹配字符集合；`casefold` 使用 Unicode 大小写折叠映射（可一对多展开）；`zfill` 对符号字符有特殊处理逻辑
+- **`%` 旧式格式化**：使用 `%s`、`%d`、`%f` 等占位符，支持宽度/对齐/精度控制和字典键名引用 `%(key)s`；不支持表达式内嵌和 `%b` 二进制；新代码中已被 f-string 取代，但维护旧代码和 `logging` 日志中仍在使用
+- **`str.format()` 方法**：使用 `{}` 花括号占位，支持位置/索引/关键字参数、对象属性访问、字典键引用、嵌套字段（动态宽度和精度）；兼容性好，在不能使用 f-string 的场景下首推
+- **f-string**：Python 3.6 引入的推荐方式，花括号中直接写变量和任意表达式，`f"..."` 前缀；支持所有格式说明符（宽度/对齐/填充/精度/进制/千分位/百分比/日期）；性能最优、可读性最佳
+- **格式说明符**：三种方式共享 `{:[fill][align][sign][#][0][width][grouping][.precision][type]}` 格式语法；四种对齐符 `<` `>` `^` `=`；符号显示 `+` `-` 空格；进制 `b` `o` `x` `X` 加 `#` 前缀；千分位 `,` `_`；百分比 `%` 自动乘 100
+- **高级用法**：f-string 支持日期时间格式化 `f"{now:%Y-%m-%d}"`、嵌套表达式动态宽度 `f"{text:{width}}"`、调试输出 `{var=}`、`!s`/`!r`/`!a` 转换标志、自定义 `__format__` 方法实现私有格式说明符
+- **最佳实践**：新代码首选 f-string；兼容旧版本用 `str.format()`；日志用 `%` 格式化（惰性求值）；注意 f-string 的引号冲突（Python 3.11-）、`=` 对齐符仅用于数值、`%b` 不被旧式格式化支持等常见陷阱
+- **底层原理**：f-string 在编译时解析为字节码级拼接操作（性能最优），`%` 和 `str.format()` 在运行时解析；所有方式底层调用 `__format__` 协议，进制/百分比通过 `format()` 内置函数实现

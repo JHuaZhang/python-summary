@@ -3,1028 +3,990 @@ group:
   title: 【03】字符串深度剖析
   order: 3
 order: 9
-title: 字符串替换方法
+title: 字符串与正则表达式
 nav:
   title: Python基础
   order: 1
 ---
 
-# 字符串替换方法
+# 字符串与正则表达式
 
 ## 1. 介绍
 
-### 1.1 什么是字符串替换方法
+### 1.1 什么是正则表达式
 
-字符串替换方法是 Python `str` 类中用于"将字符串中的某些内容替换为其他内容"的一组内置方法。它们不修改原字符串，而是返回一个替换后的新字符串。Python 提供了两种替换途径——`replace` 按子串匹配替换，`translate` 按字符映射替换，各有适用场景。
-
-```python
-# replace：按子串替换
-text = "I like cats"
-print(text.replace("cats", "dogs"))
-# I like dogs
-
-# translate：按字符映射批量替换
-table = str.maketrans("abc", "123")
-print("abcabc".translate(table))
-# 123123
-```
-
-两种方法的核心差异：
-
-| 方法 | 匹配方式 | 返回值 | 核心特点 |
-|------|---------|--------|---------|
-| `replace` | 子串匹配 | 新字符串 | 替换连续的字符串片段 |
-| `translate` | 字符映射 | 新字符串 | 逐字符映射，一次扫描完成所有替换 |
-
-### 1.2 最简示例
+正则表达式（Regular Expression，简称 regex）是一种描述字符串模式的微型语言。它用一套特殊的元字符和语法，精确定义"什么样的字符串符合要求"——比如"以数字开头""包含 @ 符号""恰好 11 位手机号"。Python 通过内置的 `re` 模块提供正则表达式支持。
 
 ```python
-# replace——替换单个子串
-url = "https://www.example.com///"
-clean_url = url.rstrip("/")
-print(clean_url)
-# https://www.example.com
+import re
 
-# replace——限制替换次数
-text = "a-b-c-d-e"
-print(text.replace("-", "+", 2))
-# a+b+c-d-e
+# 验证手机号格式
+phone = "13812345678"
+if re.match(r'1[3-9]\d{9}$', phone):
+    print("手机号有效")
 
-# translate——批量替换多个不同字符
-table = str.maketrans("aeiou", "12345")
-print("Hello World".translate(table))
-# H2ll4 W4rld
+# 从文本中提取所有邮箱
+text = "联系: alice@example.com 或 bob@test.org"
+emails = re.findall(r'[\w.]+@[\w.]+\.\w+', text)
+print(emails)  # ['alice@example.com', 'bob@test.org']
 
-# translate——同时替换和删除
-table_del = str.maketrans("ae", "12", "x")
-print("aexbxc".translate(table_del))
-# 12bc  ← a→1, e→2, x 被删除
+# 替换敏感词
+cleaned = re.sub(r'[垃圾骗局]', lambda m: '*' * len(m.group()), '这个游戏真垃圾')
+print(cleaned)  # 这个游戏真**
 ```
 
-`replace` 和 `translate` 覆盖了字符串替换的核心需求——"把某个子串换成另一个"和"同时替换/删除多个不同字符"。理解它们的差异和陷阱，能让你在数据清洗、文本处理、字符编码转换等场景中选择正确的工具。
+### 1.2 正则表达式解决了什么问题
+
+字符串的 `str.find()`、`str.replace()` 只能处理固定的子串，而正则表达式处理的是"模式"——一类字符串的共同特征。当需求从"找到 hello"变成"找到以 h 开头、以 o 结尾、中间至少一个字母的单词"时，`str` 方法就力不从心了。
+
+| 需求 | `str` 方法 | 正则表达式 |
+|------|-----------|-----------|
+| 找到 "hello" | `"hello world".find("hello")` | `re.search(r'hello', 'hello world')` |
+| 找到任意数字 | 需手动遍历每个字符 | `re.findall(r'\d+', text)` |
+| 验证邮箱格式 | 几乎不可能 | `re.match(r'[\w.]+@[\w.]+\.\w+', email)` |
+| 替换所有数字 | 需多次 replace | `re.sub(r'\d', 'X', text)` |
+| 按多种分隔符分割 | 需多次 split 或循环 | `re.split(r'[,;|]', text)` |
+
+### 1.3 re 模块方法速览
+
+Python `re` 模块提供三组核心函数：
+
+| 函数 | 作用 | 返回值 |
+|------|------|--------|
+| `re.match` | 从字符串开头匹配 | `Match` 对象或 `None` |
+| `re.search` | 在任意位置搜索第一个匹配 | `Match` 对象或 `None` |
+| `re.fullmatch` | 要求整个字符串完全匹配 | `Match` 对象或 `None` |
+| `re.findall` | 找到所有匹配 | 字符串列表或元组列表 |
+| `re.finditer` | 找到所有匹配 | `Match` 对象迭代器 |
+| `re.sub` | 替换匹配 | 替换后的字符串 |
+| `re.subn` | 替换并计数 | `(替换后字符串, 替换次数)` |
+| `re.split` | 按正则分割 | 字符串列表 |
+| `re.compile` | 编译正则 | 编译后的 Pattern 对象 |
 
 ## 2. 核心内容
 
-### 2.1 `replace()` 按子串替换
+### 2.1 匹配与搜索：match / search / fullmatch
 
-#### 2.1.1 `replace(old, new)` 基本用法
+#### 2.1.1 `re.match` 从开头匹配
 
-`replace(old, new)` 将字符串中所有匹配 `old` 的子串替换为 `new`，返回一个新字符串。`old` 可以是单个字符，也可以是多字符的子串。
+`re.match(pattern, string)` 从字符串**开头**尝试匹配，如果开头不匹配则返回 `None`。返回 `Match` 对象表示匹配成功。
 
 ```python
-# 替换所有匹配项
-text = "I like cats and cats are cute"
-result = text.replace("cats", "dogs")
-print(result)
-# I like dogs and dogs are cute
+import re
 
-# 替换为空串 = 删除指定子串
-url = "https://www.example.com///"
-cleaned = url.replace("/", "")
-print(cleaned)
-# https:www.example.com
+# 开头匹配成功
+result = re.match(r'Hello', 'Hello World')
+print(result)  # <re.Match object; span=(0, 5), match='Hello'>
+print(result.group())  # Hello
+print(result.span())    # (0, 5)
 
-# old 可以是多字符子串
-log = "2024-01-15|INFO|System started"
-formatted = log.replace("|", " ")
-print(formatted)
-# 2024-01-15 INFO System started
+# 开头不匹配 → 返回 None
+result = re.match(r'World', 'Hello World')
+print(result)  # None
 ```
 
-`replace` 找不到匹配子串时，原样返回不报错：
+`match` 只检查开头——即使模式在字符串后面出现了，只要开头不匹配就返回 `None`。
+
+#### 2.1.2 `re.search` 任意位置搜索
+
+`re.search(pattern, string)` 在字符串**任意位置**搜索第一个匹配，找到就返回 `Match` 对象。
 
 ```python
-text = "Hello Python"
-result = text.replace("Java", "C++")
-print(result)
-# Hello Python  ← 原样返回
+# match 找不到（不在开头），search 能找到
+result = re.search(r'World', 'Hello World')
+print(result)  # <re.Match object; span=(6, 11), match='World'>
+print(result.group())  # World
+print(result.span())    # (6, 11)
+
+# 找不到时返回 None
+result = re.search(r'Python', 'Hello World')
+print(result)  # None
 ```
 
-#### 2.1.2 `count` 参数：限制替换次数
+#### 2.1.3 `re.fullmatch` 完全匹配
 
-`replace(old, new, count)` 的第三个参数 `count` 控制最多替换几处——只替换前 `count` 个匹配项，剩余部分不变。
+`re.fullmatch(pattern, string)` 要求**整个字符串**完全匹配模式，多了或少了都不行。
 
 ```python
-text = "a-b-c-d-e"
+# 完全匹配
+result = re.fullmatch(r'Hello World', 'Hello World')
+print(result)  # <re.Match object; span=(0, 11), match='Hello World'>
 
-# 不限制：替换所有
-print(text.replace("-", "+"))
-# a+b+c+d+e
-
-# 只替换前 2 个
-print(text.replace("-", "+", 2))
-# a+b+c-d-e
-
-# count=0：不替换任何项
-print(text.replace("-", "+", 0))
-# a-b-c-d-e
+# 不完全匹配
+result = re.fullmatch(r'Hello', 'Hello World')
+print(result)  # None
 ```
 
-**典型应用——只替换第一次出现的品牌名**：
+#### 2.1.4 三种匹配方式对比
 
 ```python
-article = "iPhone 15 发布了。iPhone 15 Pro 也有更新。iPhone 15 Pro Max 是顶配。"
-updated = article.replace("iPhone 15", "Phone-A", 1)
-print(updated)
-# Phone-A 发布了。iPhone 15 Pro 也有更新。iPhone 15 Pro Max 是顶配。
+text = "Hello World"
+
+# match: 从开头匹配
+print(re.match(r'Hello', text))   # 匹配成功
+print(re.match(r'World', text))   # None（不在开头）
+
+# search: 任意位置搜索
+print(re.search(r'Hello', text)) # 匹配成功
+print(re.search(r'World', text)) # 匹配成功
+
+# fullmatch: 完全匹配
+print(re.fullmatch(r'Hello World', text))  # 匹配成功
+print(re.fullmatch(r'Hello', text))        # None（不完全匹配）
 ```
 
-**模板渲染——只替换第一个占位符**：
+**选择指南**：
+
+| 需求 | 推荐方法 |
+|------|---------|
+| 验证字符串是否以某模式开头 | `re.match` |
+| 验证字符串整体格式（如邮箱、手机号） | `re.fullmatch` |
+| 在文本中搜索某个模式 | `re.search` |
+
+#### 2.1.5 Match 对象的常用方法
+
+匹配成功后，`Match` 对象提供了多种方法获取匹配信息：
 
 ```python
-template = "Hello {name}, welcome {name}!"
-rendered = template.replace("{name}", "Alice", 1)
-print(rendered)
-# Hello Alice, welcome {name}!  ← 第二个占位符保留
+m = re.search(r'(\w+)@(\w+)\.(\w+)', '联系我: alice@example.com 或 bob@test.org')
+
+print(m.group())      # alice@example.com（整个匹配）
+print(m.group(0))     # alice@example.com（同上）
+print(m.group(1))     # alice（第 1 组）
+print(m.group(2))     # example（第 2 组）
+print(m.group(3))     # com（第 3 组）
+print(m.groups())     # ('alice', 'example', 'com')
+print(m.start())      # 5（匹配起始位置）
+print(m.end())        # 22（匹配结束位置）
+print(m.span())       # (5, 22)
 ```
 
-#### 2.1.3 `replace` 不修改原字符串
+### 2.2 re.findall 与 re.finditer
 
-Python 字符串是不可变对象，`replace` 返回的是一个新字符串对象，原字符串保持不变：
+#### 2.2.1 `re.findall` 找到所有匹配
+
+`re.findall(pattern, string)` 返回所有匹配的列表。无分组时返回匹配的字符串列表，有分组时返回元组列表。
 
 ```python
-original = "Hello World"
-new_str = original.replace("World", "Python")
+# 无分组：返回匹配的字符串列表
+results = re.findall(r'\d+', '电话: 13812345678, 邮编: 200001')
+print(results)  # ['13812345678', '200001']
 
-print(original)   # Hello World  ← 原字符串不变
-print(new_str)    # Hello Python ← 新字符串
-print(original is new_str)  # False ← 不同对象
+# 两个分组：返回元组列表
+results = re.findall(r'(\w+)@(\w+)\.com', 'alice@example.com 和 bob@test.org')
+print(results)  # [('alice', 'example'), ('bob', 'test')]
 ```
 
-#### 2.1.4 `replace` 的链式调用
+**分组对 findall 返回值的影响**：
 
-多次 `replace` 链式调用可以实现多步替换。每次调用都返回新字符串，原对象不变：
+| 正则中有分组 | 返回值 |
+|------------|--------|
+| 无分组 | 匹配的完整字符串列表 |
+| 1 个分组 | 该组内容的字符串列表 |
+| 多个分组 | 各组内容的元组列表 |
+
+#### 2.2.2 `re.finditer` 返回 Match 迭代器
+
+`re.finditer` 返回 `Match` 对象的迭代器，可以获取每次匹配的位置信息：
 
 ```python
-# 去掉方括号
-log = "[2024-01-15] INFO: System started"
-cleaned = log.replace("[", "").replace("]", "")
-print(cleaned)
-# 2024-01-15 INFO: System started
+for m in re.finditer(r'\d+', '价格: 100元, 200元, 350元'):
+    print(f"  匹配: '{m.group()}' 位置: {m.span()}")
+# 匹配: '100' 位置: (4, 7)
+# 匹配: '200' 位置: (10, 13)
+# 匹配: '350' 位置: (16, 19)
 ```
 
-**链式调用的顺序依赖陷阱**——前一次替换的结果可能被后一次匹配，导致意外替换：
+`findall` 拿不到位置信息（只返回字符串），`finditer` 可以拿到完整的 `Match` 对象。
+
+### 2.3 正则元字符与字符类
+
+#### 2.3.1 基本元字符
+
+正则表达式用特殊的元字符描述模式：
 
 ```python
-text = "把 a 换成 b，把 b 换成 c"
+# . 匹配任意单个字符（除换行符）
+re.findall(r'c.t', 'cat cot cut c t')  # ['cat', 'cot', 'cut', 'c t']
 
-# 目标：a→b，b→c
-# 但先执行 a→b 后，原来的 a 已经变成了 b
-# 再执行 b→c 时，原来的 a 和原来的 b 都变成了 c
-wrong = text.replace("a", "b").replace("b", "c")
-print(wrong)
-# 把 c 换成 c，把 c 换成 c  ← 全变成 c 了！
+# \d 匹配数字（0-9），\D 匹配非数字
+re.findall(r'\d+', 'abc123def456')  # ['123', '456']
 
-# 正确做法：用 translate 一次性映射，互不干扰
-correct = text.translate(str.maketrans("ab", "bc"))
-print(correct)
-# 把 b 换成 c，把 c 换成 c  ← a→b, b→c，互不干扰
+# \w 匹配字母数字下划线，\W 匹配非字母数字下划线
+re.findall(r'\w+', 'hello_world 123!@#')  # ['hello_world', '123']
+
+# \s 匹配空白字符，\S 匹配非空白
+re.findall(r'\S+', 'hello world  python')  # ['hello', 'world', 'python']
 ```
 
-这个陷阱是 `replace` 和 `translate` 的核心差异之一——`replace` 链式调用有顺序依赖，`translate` 一次性映射无顺序依赖。
+常用元字符速查表：
 
-#### 2.1.5 实际应用——敏感词过滤
+| 元字符 | 含义 | 示例 | 匹配 |
+|--------|------|------|------|
+| `.` | 任意单个字符（除换行） | `c.t` | `cat`、`cot` |
+| `\d` | 数字 0-9 | `\d+` | `123` |
+| `\D` | 非数字 | `\D+` | `abc` |
+| `\w` | 字母数字下划线 | `\w+` | `hello_123` |
+| `\W` | 非字母数字下划线 | `\W+` | `!@#` |
+| `\s` | 空白字符 | `\s+` | `  \t\n` |
+| `\S` | 非空白 | `\S+` | `hello` |
+| `\b` | 单词边界 | `\bcat\b` | `cat`（不匹配 `catfish`） |
+| `^` | 字符串开头 | `^Hello` | `Hello World` |
+| `$` | 字符串结尾 | `World$` | `Hello World` |
+| `\` | 转义字符 | `\.` | `.` 字面量 |
+
+#### 2.3.2 字符集合 `[...]`
+
+方括号定义字符集合，匹配集合中的任意一个字符：
 
 ```python
-def filter_sensitive_words(text, words):
-    """用 replace 过滤敏感词，替换为等长星号"""
-    for word in words:
-        text = text.replace(word, "*" * len(word))
-    return text
+# 匹配集合中的任意字符
+re.findall(r'[aeiou]', 'Hello World')  # ['e', 'o', 'o']
 
-comment = "这个游戏真垃圾，客服态度差，简直就是骗局"
-sensitive = ["垃圾", "骗局", "差"]
-cleaned = filter_sensitive_words(comment, sensitive)
-print(cleaned)
-# 这个游戏真**，客服态度*，简直就是**
+# 范围匹配
+re.findall(r'[0-9]+', 'a1b22c333')  # ['1', '22', '333']
+re.findall(r'[a-z]+', 'Hello World')  # ['ello', 'orld']
+
+# 取反：[^...] 匹配不在集合中的字符
+re.findall(r'[^aeiou]', 'Hello')  # ['H', 'l', 'l']
 ```
 
-每个敏感词替换为等长星号，既过滤了内容又保持了文本结构。
+#### 2.3.3 或运算 `|`
 
-#### 2.1.6 实际应用——模板渲染
+`|` 匹配左边或右边的模式：
 
 ```python
-def render_template(template, variables):
-    """用 replace 实现简单的模板渲染"""
-    result = template
-    for key, value in variables.items():
-        result = result.replace("{" + key + "}", str(value))
-    return result
+re.findall(r'cat|dog', 'I have a cat and a dog')  # ['cat', 'dog']
 
-email_template = """Dear {name},
-
-Your order #{order_id} has been confirmed.
-Total amount: {amount}
-
-Thank you for shopping with {store_name}!"""
-
-rendered = render_template(email_template, {
-    "name": "Alice",
-    "order_id": "20240115",
-    "amount": 299.00,
-    "store_name": "Python Shop",
-})
-print(rendered)
-# Dear Alice,
-#
-# Your order #20240115 has been confirmed.
-# Total amount: 299.0
-#
-# Thank you for shopping with Python Shop!
+# 多个选择
+re.findall(r'apple|banana|cherry', 'apple pie and banana cake')  # ['apple', 'banana']
 ```
 
-`replace` 的模板渲染实现简单直观。注意如果变量值中包含另一个变量的占位符，会产生意外替换——对于复杂的模板场景，应使用 `str.format()` 或专门的模板引擎。
+#### 2.3.4 单词边界 `\b`
 
-### 2.2 `translate()` 按字符映射替换
-
-#### 2.2.1 `str.maketrans()` 创建映射表
-
-`maketrans` 是 `translate` 的配套方法，用于创建字符映射表。`translate` 根据映射表对字符串中的每个字符进行替换或删除。
-
-`maketrans` 有两种参数形式：
-
-**形式一：两个等长字符串**
-
-`str.maketrans(x, y)` —— `x` 中的每个字符分别映射到 `y` 中对应位置的字符。两个字符串长度必须相等。
+`\b` 匹配单词和空格（或字符串首尾）之间的位置，用于精确匹配单词：
 
 ```python
-# 'a'→'1', 'b'→'2', 'c'→'3'
-table = str.maketrans("abc", "123")
-print(table)
-# {97: 49, 98: 50, 99: 51}
-# 97 是 'a' 的 Unicode 码点，49 是 '1' 的码点
+# 不加 \b：catfish 和 concatenate 中的 cat 也会匹配
+re.findall(r'cat', 'cat catfish concatenate')  # ['cat', 'cat', 'cat']
 
-text = "abcabc"
-print(text.translate(table))
-# 123123
+# 加 \b：只匹配独立的单词 cat
+re.findall(r'\bcat\b', 'cat catfish concatenate')  # ['cat']
 ```
 
-**形式三：三个字符串（含删除字符集合）**
+### 2.4 量词
 
-`str.maketrans(x, y, z)` —— 前两个参数同上，第三个参数 `z` 中的字符将被删除：
+量词控制前一个元素匹配多少次：
+
+#### 2.4.1 基本量词
 
 ```python
- # 替换 a→1, b→2, c→3，同时删除空格
-table = str.maketrans("abc", "123", " ")
-text = "abc abc"
-print(text.translate(table))
-# 123123  ← 空格被删除
+# * 匹配 0 次或多次
+re.findall(r'ab*', 'a ab abb abbb')  # ['a', 'ab', 'abb', 'abbb']
+
+# + 匹配 1 次或多次
+re.findall(r'ab+', 'a ab abb abbb')  # ['ab', 'abb', 'abbb']
+
+# ? 匹配 0 次或 1 次
+re.findall(r'colou?r', 'color colour')  # ['color', 'colour']
 ```
 
-**形式二：字典**
-
-`str.maketrans(dict)` —— 字典的键是字符，值是替换内容（字符串）或 `None`（表示删除）：
+#### 2.4.2 精确量词 `{n}`, `{n,}`, `{n,m}`
 
 ```python
-# 键为字符，值为替换字符串（可以是多字符）或 None（删除）
-table = str.maketrans({
-    "a": "1",
-    "b": "2",
-    "c": "3",
-    " ": None,  # 删除空格
-})
-text = "abc abc"
-print(text.translate(table))
-# 123123
+# {n} 恰好 n 次
+re.findall(r'\d{3}', '12 123 1234 12345')  # ['123', '123', '123']
+
+# {n,} 至少 n 次
+re.findall(r'\d{2,}', '1 12 123 1234')  # ['12', '123', '1234']
+
+# {n,m} n 到 m 次
+re.findall(r'\d{2,4}', '1 12 123 1234 12345')  # ['12', '123', '1234', '1234']
 ```
 
-字典形式独有的能力——将一个字符映射为多字符子串：
+#### 2.4.3 量词速查表
+
+| 量词 | 匹配次数 | 等价形式 |
+|------|---------|---------|
+| `*` | 0 次或多次 | `{0,}` |
+| `+` | 1 次或多次 | `{1,}` |
+| `?` | 0 次或 1 次 | `{0,1}` |
+| `{n}` | 恰好 n 次 | |
+| `{n,}` | 至少 n 次 | |
+| `{n,m}` | n 到 m 次 | |
+
+### 2.5 分组与断言
+
+#### 2.5.1 捕获组 `(...)`
+
+用圆括号将模式的一部分分组，分组的内容可以被提取和反向引用：
 
 ```python
-# 两个等长字符串形式只能做 1:1 映射
-# 只有字典形式支持单字符→多字符映射
-table = str.maketrans({
-    "1": "one",
-    "2": "two",
-    "3": "three",
-})
-text = "I have 1 cat and 2 dogs"
-print(text.translate(table))
-# I have one cat and two dogs
+m = re.search(r'(\d{4})-(\d{2})-(\d{2})', '日期: 2024-01-15')
+print(m.group(1))  # 2024
+print(m.group(2))  # 01
+print(m.group(3))  # 15
+print(m.groups())   # ('2024', '01', '15')
 ```
 
-注意：两个等长字符串形式的 `maketrans` 只能做 1:1 的字符映射。如果两个字符串长度不等，会抛出 `ValueError`：
+#### 2.5.2 命名分组 `(?P<name>...)`
+
+命名分组用 `(?P<name>...)` 给分组取名字，比数字索引更直观：
 
 ```python
-# 错误：两个字符串长度不等
-# str.maketrans("12", "onetwo")  # ValueError!
-# 它会尝试 1:1 映射，但 "12" 有 2 个字符，"onetwo" 有 6 个字符，长度不匹配
-
-# 正确：如果只想做 1:1 映射，两个字符串长度必须相等
-table = str.maketrans("12", "on")  # '1'→'o', '2'→'n'
-print("12".translate(table))
-# on
+m = re.search(r'(?P<year>\d{4})-(?P<month>\d{2})-(?P<day>\d{2})', '2024-01-15')
+print(m.group('year'))   # 2024
+print(m.group('month'))  # 01
+print(m.groupdict())      # {'year': '2024', 'month': '01', 'day': '15'}
 ```
 
-#### 2.2.2 `translate(table)` 基本用法
+#### 2.5.3 非捕获组 `(?:...)`
 
-`translate` 根据映射表，对字符串中的每个字符进行替换或删除。核心优势是**一次扫描完成所有字符的替换和删除**，不需要多次遍历字符串。
+非捕获组用 `(?:...)` 表示只分组不捕获——`findall` 不会返回它的内容：
 
 ```python
- # 一次替换多个不同的字符
-table = str.maketrans("aeiou", "12345")
-print("beautiful".translate(table))
-# b2a5t3f5l  ← 所有元音同时替换
+# 普通分组：findall 返回分组内容
+re.findall(r'(\d{4})-(\d{2})-(\d{2})', '2024-01-15')
+# [('2024', '01', '15')]
 
-# 对比：用 replace 需要链式调用 5 次
-result = "beautiful"
-for old, new in [("a", "1"), ("e", "2"), ("i", "3"), ("o", "4"), ("u", "5")]:
-    result = result.replace(old, new)
-print(result)
-# b2a5t3f5l  ← 结果相同，但扫描了 5 次
+# 非捕获组：findall 返回完整匹配
+re.findall(r'(?:\d{4})-(?:\d{2})-(?:\d{2})', '2024-01-15')
+# ['2024-01-15']
 ```
 
-#### 2.2.3 `translate` 删除字符
+非捕获组的优势——不需要提取内容时，用非捕获组避免 `findall` 返回分组内容，同时性能略优。
 
-`maketrans` 的第三参数和字典中的 `None` 值都能实现字符删除：
+#### 2.5.4 反向引用
+
+在正则表达式中用 `\1` 或 `(?P=name)` 引用前面的分组——检查重复内容：
 
 ```python
-import string
+# \1 引用第 1 个分组，找出连续重复的单词
+re.findall(r'\b(\w+)\s+\1\b', 'hello hello world world test pass')
+# ['hello', 'world']
 
-# 删除所有标点符号
-table = str.maketrans("", "", string.punctuation)
-text = "Hello, World! How's it going?"
-print(text.translate(table))
-# Hello World Hows it going
+# 命名反向引用
+m = re.search(r'(?P<word>\w+)\s+(?P=word)', 'hello hello world')
+print(m.group('word'))  # hello
 
-# 删除所有空白字符
-table_ws = str.maketrans("", "", " \t\n")
-text2 = "  Hello   World\t\n"
-print(text2.translate(table_ws))
-# HelloWorld
+# 匹配成对的引号
+re.findall(r'(["\']).*?\1', "他说\"你好\", 她说'再见'")
+# ['"', "'"]
 ```
 
-#### 2.2.4 替换与删除同时进行
+#### 2.5.5 零宽断言（Lookaround）
 
-`translate` 可以在一次调用中同时完成替换和删除：
+零宽断言检查某个位置前后是否满足条件，但**不消耗字符**——匹配的位置是"边界"而非内容。
+
+| 断言 | 语法 | 含义 |
+|------|------|------|
+| 正向预查 | `(?=...)` | 后面跟着 X |
+| 负向预查 | `(?!...)` | 后面不跟着 X |
+| 正向后顾 | `(?<=...)` | 前面是 X |
+| 负向后顾 | `(?<!...)` | 前面不是 X |
 
 ```python
- # 替换元音为数字，同时删除空格
-text = "Hello Beautiful World"
-table = str.maketrans("aeiou", "12345", " ")
-print(text.translate(table))
-# H2ll4B24t3f5lW4rld
+# 正向预查：提取"元"前面的数字
+re.findall(r'\d+(?=元)', '价格: 100元, 200美元, 350元')
+# ['100', '350']
 
-# 等价的字典形式
-table_dict = str.maketrans({
-    "a": "1", "e": "2", "i": "3", "o": "4", "u": "5",
-    " ": None,
-})
-print(text.translate(table_dict))
-# H2ll4B24t3f5lW4rld
+# 正向后顾：提取"￥"后面的数字
+re.findall(r'(?<=￥)\d+', '￥100, $200, ￥350')
+# ['100', '350']
 ```
 
-这是 `translate` 的核心优势——`replace` 需要多次调用才能完成替换+删除的组合操作，而 `translate` 只需要一次扫描。
-
-#### 2.2.5 `translate` 不可变性
-
-和所有字符串方法一样，`translate` 不修改原字符串，返回新对象：
+**实际应用——URL 解析**：
 
 ```python
-original = "Hello World"
-table = str.maketrans("helo", "HELO")
-result = original.translate(table)
-
-print(original)  # Hello World ← 不变
-print(result)    # HELLO WOrLd ← 新字符串
-```
-
-#### 2.2.6 实际应用——ROT13 加密
-
-`translate` 天然适合"逐字符映射"的场景。ROT13 是一种简单的字母位移加密——每个字母在字母表中移动 13 位，加密解密用同一个映射表：
-
-```python
-def rot13(text):
-    """ROT13 加密：字母位移 13 位，两次 ROT13 还原"""
-    table = str.maketrans(
-        "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ",
-        "nopqrstuvwxyzabcdefghijklmNOPQRSTUVWXYZABCDEFGHIJKLM",
-    )
-    return text.translate(table)
-
-message = "Hello Python Secret"
-encrypted = rot13(message)
-decrypted = rot13(encrypted)
-
-print(f"原文:   {message}")
-print(f"加密后: {encrypted}")
-print(f"解密后: {decrypted}")
-# 原文:   Hello Python Secret
-# 加密后: Urybb Clguba Frperg
-# 解密后: Hello Python Secret
-```
-
-`translate` 一次完成所有字母的位移，代码简洁高效。
-
-#### 2.2.7 实际应用——全角转半角
-
-中文环境中常有全角字符（如 `Ｈｅｌｌｏ`），用 `translate` 可以批量转换为半角：
-
-```python
-full_to_half = str.maketrans(
-    "０１２３４５６７８９ａｂｃｄｅｆｇｈｉｊｋｌｍｎｏｐｑｒｓｔｕｖｗｘｙｚＡＢＣＤＥＦＧＨＩＪＫＬＭＮＯＰＱＲＳＴＵＶＷＸＹＺ",
-    "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ",
+url_pattern = re.compile(
+    r'(?P<protocol>https?)://'
+    r'(?P<domain>[\w.]+)'
+    r'(?::(?P<port>\d+))?'
+    r'(?P<path>/[^\s]*)?'
 )
 
-full_text = "Ｈｅｌｌｏ Ｗｏｒｌｄ ２０２４"
-half_text = full_text.translate(full_to_half)
-print(f"全角: {full_text}")
-print(f"半角: {half_text}")
-# 全角: Ｈｅｌｌｏ Ｗｏｒｌｄ ２０２４
-# 半角: Hello World 2024
-```
-
-#### 2.2.8 实际应用——去除重音符号
-
-处理多语言文本时，常需要将带重音的字母转换为基本字母（如 `café` → `cafe`）：
-
-```python
-accent_map = str.maketrans(
-    "àáâãäåæçèéêëìíîïðñòóôõöøùúûüýþÿÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜÝÞŸ",
-    "aaaaaaaceeeeiiiidnoooooouuuuytyAAAAAAACEEEEIIIIDNOOOOOOUUUUYTY",
-)
-
-names = ["Café", "Hôtel", "Naïve", "Résumé", "Zoë"]
-for name in names:
-    print(f"  {name:<12} → {name.translate(accent_map)}")
+url = 'http://api.test.org:8080/v1/users'
+m = url_pattern.search(url)
+if m:
+    d = m.groupdict()
+    print(f"  协议: {d.get('protocol')}")
+    print(f"  域名: {d.get('domain')}")
+    print(f"  端口: {d.get('port')}")
+    print(f"  路径: {d.get('path')}")
 
 # 输出:
-#   Café         → Cafe
-#   Hôtel        → Hotel
-#   Naïve        → Naive
-#   Résumé       → Resume
-#   Zoë          → Zoe
+#   协议: http
+#   域名: api.test.org
+#   端口: 8080
+#   路径: /v1/users
 ```
 
-#### 2.2.9 实际应用——HTML 转义
+### 2.6 贪婪与非贪婪
 
-HTML 中的特殊字符需要转义——`<` → `&lt;`，`>` → `&gt;`，`&` → `&amp;`，`"` → `&quot;`。这是单字符映射为多字符子串的场景，用字典形式的 `maketrans` 实现：
+#### 2.6.1 贪婪模式（默认）
+
+默认情况下，量词尽可能多地匹配——这就是"贪婪"模式：
 
 ```python
-def escape_html(text):
-    """用 translate 批量替换 HTML 特殊字符"""
-    table = str.maketrans({
-        "<": "&lt;",
-        ">": "&gt;",
-        "&": "&amp;",
-        '"': "&quot;",
-    })
-    return text.translate(table)
+text = '<div>内容1</div><div>内容2</div>'
 
-raw_html = '<div class="content">Tom & Jerry</div>'
-escaped = escape_html(raw_html)
-print(escaped)
-# &lt;div class=&quot;content&quot;&gt;Tom &amp; Jerry&lt;/div&gt;
+# 贪婪 .* 从第一个 <div> 匹配到最后一个 </div>
+greedy = re.findall(r'<div>.*</div>', text)
+print(greedy)
+# ['<div>内容1</div><div>内容2</div>']  ← 一口气匹配到最后
 ```
 
-字典形式的 `translate` 支持单字符→多字符映射，这是两等长字符串形式做不到的。
+#### 2.6.2 非贪婪模式
 
-### 2.3 `replace` 与 `translate` 对比
-
-#### 2.3.1 匹配方式对比
-
-`replace` 按**子串**匹配——它寻找连续的字符串片段进行替换；`translate` 按**字符**映射——它对每个字符独立查表替换。这是两者最根本的差异。
+在量词后加 `?` 使其变为非贪婪——尽可能少地匹配：
 
 ```python
-# replace：替换子串 "hello" → "hi"
-text = "hello world"
-print(text.replace("hello", "hi"))
-# hi world
-
-# translate：只能映射单个字符，不能映射子串
-# translate 无法实现 "hello" → "hi"
+# 非贪婪 .*? 遇到第一个 </div> 就停止
+lazy = re.findall(r'<div>.*?</div>', text)
+print(lazy)
+# ['<div>内容1</div>', '<div>内容2</div>']  ← 每个标签单独匹配
 ```
+
+三种量词的非贪婪形式：
+
+| 贪婪 | 非贪婪 | 含义 |
+|------|--------|------|
+| `*` | `*?` | 0 或多次，尽可能少 |
+| `+` | `+?` | 1 或多次，尽可能少 |
+| `?` | `??` | 0 或 1 次，尽可能少 |
+
+#### 2.6.3 贪婪与非贪婪的典型陷阱
 
 ```python
-# translate：批量替换多个不同字符
-text = "abcdefg"
-# 用 translate 一次完成
-print(text.translate(str.maketrans("abc", "123")))
-# 123defg
+text = '"name":"Alice","age":30,"city":"Beijing"'
 
-# 用 replace 需要多次调用
-result = text.replace("a", "1").replace("b", "2").replace("c", "3")
-print(result)
-# 123defg
+# 贪婪：从第一个引号匹配到最后一个引号
+re.findall(r'"(.*)"', text)
+# ['name":"Alice","age":30,"city":"Beijing']  ← 错误！
+
+# 非贪婪：每个引号对单独匹配
+re.findall(r'"(.*?)"', text)
+# ['name', 'Alice', 'age', 'city', 'Beijing']  ← 正确
 ```
 
-#### 2.3.2 顺序依赖对比
+**秒记**：提取成对标记的内容时，用 `.*?`（非贪婪）比 `.*`（贪婪）更安全。
 
-`replace` 链式调用有顺序依赖——前一次替换的结果可能被后一次匹配。`translate` 一次性映射，所有字符同时替换，互不干扰：
+### 2.7 re.compile 编译预编译
+
+#### 2.7.1 为什么要编译
+
+`re.compile(pattern)` 将正则表达式编译为 `Pattern` 对象，避免每次调用都重新编译：
 
 ```python
-text = "a b c"
+# 不编译：每次调用都重新解析正则
+re.findall(r'\d+', '电话: 13812345678')
+re.findall(r'\d+', '邮编: 200001')
 
-# replace 链式：a→b 后，原来的 a 变成了 b
-# 再执行 b→c 时，原来的 a 和原来的 b 都变成了 c
-print(text.replace("a", "b").replace("b", "c"))
-# c c c  ← 全变成 c
-
-# translate：a→b 和 b→c 同时映射，互不影响
-print(text.translate(str.maketrans("ab", "bc")))
-# b c c  ← a→b, b→c，互不干扰
+# 编译一次，复用多次
+digit_pattern = re.compile(r'\d+')
+digit_pattern.findall('电话: 13812345678')
+digit_pattern.findall('邮编: 200001')
 ```
 
-#### 2.3.3 性能对比
+编译后的 `Pattern` 对象拥有与 `re` 模块相同的方法（`match`、`search`、`findall`、`sub`、`split` 等）。
 
-`translate` 在批量替换多个不同字符时性能优于 `replace`——`translate` 只扫描一次字符串，而 `replace` 链式调用每替换一个字符就要完整扫描一遍字符串：
+#### 2.7.2 编译标志（Flags）
+
+`re.compile` 的第二个参数可以传标志，控制正则的行为：
 
 ```python
-import time
+# re.IGNORECASE (re.I): 忽略大小写
+p = re.compile(r'hello', re.I)
+p.search('HELLO')  # 匹配成功
+p.search('HeLLo')  # 匹配成功
 
-large_text = "The quick brown fox jumps over the lazy dog. " * 10000
+# re.DOTALL (re.S): 让 . 匹配包括换行符
+p = re.compile(r'.+', re.DOTALL)
+p.match('line1\nline2').group()  # 'line1\nline2'
 
-# replace：替换 5 个元音，需要 5 次完整扫描
-start = time.perf_counter()
-for _ in range(100):
-    result = large_text
-    for old, new in [("a", "1"), ("e", "2"), ("i", "3"), ("o", "4"), ("u", "5")]:
-        result = result.replace(old, new)
-replace_time = time.perf_counter() - start
+# re.MULTILINE (re.M): ^ 和 $ 匹配每一行的首尾
+p = re.compile(r'^\w+', re.MULTILINE)
+p.findall('line1\nline2\nline3')  # ['line1', 'line2', 'line3']
 
-# translate：一次扫描完成所有 5 个替换
-start = time.perf_counter()
-table = str.maketrans("aeiou", "12345")
-for _ in range(100):
-    result = large_text.translate(table)
-translate_time = time.perf_counter() - start
-
-print(f"replace 5次链式 (x100): {replace_time:.4f}s")
-print(f"translate 1次     (x100): {translate_time:.4f}s")
-print(f"translate 快了约 {replace_time / translate_time:.1f} 倍")
+# re.VERBOSE (re.X): 允许在正则中添加注释和空格
+p = re.compile(r"""
+    \d{4}      # 年
+    -          # 分隔符
+    \d{2}      # 月
+    -          # 分隔符
+    \d{2}      # 日
+""", re.VERBOSE)
+p.search('2024-01-15').group()  # '2024-01-15'
 ```
 
-**运行结果**：
+标志速查表：
 
-```text
-replace 5次链式 (x100): 0.0729s
-translate 1次     (x100): 0.0383s
-translate 快了约 1.9 倍
-```
+| 标志 | 缩写 | 作用 |
+|------|------|------|
+| `re.IGNORECASE` | `re.I` | 忽略大小写 |
+| `re.DOTALL` | `re.S` | `.` 匹配包括换行符 |
+| `re.MULTILINE` | `re.M` | `^` `$` 匹配每行首尾 |
+| `re.VERBOSE` | `re.X` | 允许注释和空格 |
 
-实际倍数受文本内容和替换次数影响，但 `translate` 在批量替换场景下始终更快——原因是单次扫描 vs 多次扫描的本质差异。
+多个标志可以用 `|` 组合：`re.compile(pattern, re.I | re.M)`。
 
-#### 2.3.4 功能对比一览
+### 2.8 re.sub 替换
 
-```text
-能力              replace                    translate
----------------------------------------------------------------------------
-替换子串            支持                       不支持（只能映射单字符）
-同时替换多个字符     需多次链式调用                一次调用完成
-删除字符            替换为空串                   maketrans 第三参数或字典 None
-单字符→多字符       支持（replace("a", "abc")）  字典形式支持
-无顺序依赖          有顺序依赖                   无顺序依赖
-count 参数         支持                        不支持
-性能（多替换）      较慢（多次扫描）              较快（单次扫描）
-适用场景           替换单个或少量子串             批量字符映射/删除
-```
+#### 2.8.1 基本替换
 
-#### 2.3.5 场景选择指南
+`re.sub(pattern, repl, string, count=0)` 将匹配替换为 `repl`：
 
 ```python
-# 场景 1：替换单个子串 → replace
-print("hello world".replace("world", "python"))
-# hello python
+# 替换所有匹配
+re.sub(r'\d+', 'N', '电话: 13812345678, 邮编: 200001')
+# '电话: N, 邮编: N'
 
-# 场景 2：限制替换次数 → replace with count
-print("a-b-c-d".replace("-", "+", 2))
-# a+b+c-d
+# count 参数：只替换前 N 个
+re.sub(r'\d+', 'N', '1-2-3-4-5', count=2)
+# 'N-N-3-4-5'
 
-# 场景 3：批量替换单字符 → translate
-table = str.maketrans("aeiou", "12345")
-print("beautiful".translate(table))
-# b2a5t3f5l
-
-# 场景 4：删除特定字符 → translate with delete
-table = str.maketrans("", "", " \t\n")
-print("  a b c  ".translate(table))
-# abc
-
-# 场景 5：单字符映射为多字符 → translate with dict
-table = str.maketrans({"1": "one", "2": "two"})
-print("1+2=3".translate(table))
-# one+two=3
+# 替换为空串 = 删除
+re.sub(r'[\d,]', '', '1,000,000')
+# ''
 ```
 
-### 2.4 综合实战
+#### 2.8.2 反向引用替换
 
-#### 2.4.1 文本标准化流水线
-
-综合使用 `replace` + `translate` 清洗和标准化文本：
+在替换字符串中用 `\1` 或 `\g<name>` 引用分组：
 
 ```python
-def standardize_text(text):
-    """综合使用 replace + translate 标准化文本"""
-    # Step 1: replace 逐个替换全角标点为半角
-    punct_map = {
-        "，": ",", "。": ".", "！": "!", "？": "?",
-        "；": ";", "：": ":", "（": "(", "）": ")",
-        "【": "[", "】": "]", "\u2018": "'", "\u2019": "'",
-        "\u201c": '"', "\u201d": '"',
+# \1 \2 引用分组
+re.sub(r'(\w+)@(\w+)\.com', r'\2.\1@org.cn', '联系: alice@example.com')
+# '联系: example.alice@org.cn'
+
+# 日期格式转换 YYYY-MM-DD → DD/MM/YYYY
+re.sub(r'(\d{4})-(\d{2})-(\d{2})', r'\3/\2/\1', '日期: 2024-01-15')
+# '日期: 15/01/2024'
+```
+
+#### 2.8.3 函数替换
+
+`repl` 可以是一个函数，接收 `Match` 对象，返回替换字符串：
+
+```python
+# 敏感词替换为等长星号
+def replace_sensitive(match):
+    return '*' * len(match.group())
+
+re.sub(r'[垃圾骗局]', replace_sensitive, '这个游戏真垃圾，很骗局')
+# '这个游戏真**，很**'
+
+# 数字千分位格式化
+def add_commas(match):
+    return f'{int(match.group()):,}'
+
+re.sub(r'\d+', add_commas, '价格: 1234567 元, 运费: 89 元')
+# '价格: 1,234,567 元, 运费: 89 元'
+```
+
+#### 2.8.4 `re.subn` 替换并计数
+
+`re.subn` 与 `re.sub` 用法相同，但额外返回替换次数：
+
+```python
+result, count = re.subn(r'\d+', 'N', 'a1b2c3d4')
+print(result)  # aNbNcNdN
+print(count)   # 4
+```
+
+### 2.9 re.split 分割
+
+#### 2.9.1 基本分割
+
+`re.split(pattern, string, maxsplit=0)` 按正则匹配的位置分割字符串：
+
+```python
+# 按白色分割
+re.split(r'\s+', 'hello   world  python')
+# ['hello', 'world', 'python']
+
+# 多种分隔符
+re.split(r'[,;|]', 'a,b;c|d')
+# ['a', 'b', 'c', 'd']
+
+# maxsplit 参数
+re.split(r'[,;]', 'a,b;c,d,e', maxsplit=2)
+# ['a', 'b', 'c,d,e']
+```
+
+#### 2.9.2 分组对 split 的影响
+
+`re.split` 中如果模式含分组，分隔符也会出现在结果中：
+
+```python
+# 无分组：分隔符被丢弃
+re.split(r'\s*,\s*', 'a , b , c')
+# ['a', 'b', 'c']
+
+# 有分组：分隔符保留在结果中
+re.split(r'(\s*,\s*)', 'a , b , c')
+# ['a', ' , ', 'b', ' , ', 'c']
+
+# 保留日期中的分隔符
+re.split(r'(-)', '2024-01-15')
+# ['2024', '-', '01', '-', '15']
+```
+
+#### 2.9.3 re.split vs str.split
+
+```python
+text = "hello,,world,,,python"
+
+# str.split: 只能按固定字符串分割，产生空串
+text.split(',')
+# ['hello', '', 'world', '', '', 'python']
+
+# re.split: 用正则 + 匹配连续分隔符，无空串
+re.split(r',+', text)
+# ['hello', 'world', 'python']
+```
+
+`re.split` 支持"一个或多个分隔符"的模式，而 `str.split` 只能按固定字符串分割。
+
+### 2.10 综合实战
+
+#### 2.10.1 邮箱验证与提取
+
+```python
+email_pattern = re.compile(
+    r'^(?P<local>[\w.]+)@(?P<domain>[\w.]+)$'
+)
+
+# 验证
+test_emails = ['alice@example.com', 'invalid-email', '@no-local.com', 'no-domain@']
+for email in test_emails:
+    m = email_pattern.match(email)
+    status = f"有效 ({m.group('local')}@{m.group('domain')})" if m else "无效"
+    print(f"  {email:<25} → {status}")
+
+# 从文本中提取
+text = "联系: alice@example.com 或 bob@test.org, 非邮箱: @invalid"
+re.findall(r'[\w.]+@[\w.]+\.\w+', text)
+# ['alice@example.com', 'bob@test.org']
+```
+
+#### 2.10.2 手机号验证
+
+```python
+phone_pattern = re.compile(r'^1[3-9]\d{9}$')
+
+test_phones = ['13812345678', '19987654321', '12345678901', '1381234567']
+for phone in test_phones:
+    valid = bool(phone_pattern.match(phone))
+    print(f"  {phone:<15} {'有效' if valid else '无效'}")
+# 13812345678     有效
+# 19987654321     有效
+# 12345678901     无效
+# 1381234567      无效
+```
+
+#### 2.10.3 HTML 标签处理
+
+```python
+html = '<div class="header"><h1>标题</h1></div><p class="content">正文</p>'
+
+# 提取所有标签名
+re.findall(r'</?(\w+)[^>]*>', html)
+# ['div', 'h1', 'h1', 'div', 'p', 'p']
+
+# 提取属性键值对
+re.findall(r'(\w+)="([^"]*)"', html)
+# [('class', 'header'), ('class', 'content')]
+
+# 去除所有标签
+re.sub(r'</?[^>]+>', '', html)
+# '标题正文'
+
+# 提取特定标签内容（非贪婪）
+re.search(r'<h1>(.*?)</h1>', html).group(1)
+# '标题'
+```
+
+#### 2.10.4 日志解析
+
+```python
+log_pattern = re.compile(
+    r'\[(?P<date>\d{4}-\d{2}-\d{2})\s+(?P<time>\d{2}:\d{2}:\d{2})\]\s+'
+    r'(?P<level>\w+)\s+\|\s+'
+    r'(?P<service>\w+)\s+\|\s+'
+    r'(?P<message>.*)'
+)
+
+line = '[2024-01-15 10:30:45] INFO  | user_service | User login: id=12345'
+m = log_pattern.match(line)
+print(m.groupdict())
+# {'date': '2024-01-15', 'time': '10:30:45', 'level': 'INFO',
+#  'service': 'user_service', 'message': 'User login: id=12345'}
+
+# 提取日志中的键值对
+re.findall(r'(\w+)=(\S+)', line)
+# [('id', '12345')]
+```
+
+#### 2.10.5 密码强度检查
+
+```python
+def check_password_strength(password):
+    """用正则检查密码各项要求"""
+    checks = {
+        '长度>=8': bool(re.search(r'.{8,}', password)),
+        '包含大写': bool(re.search(r'[A-Z]', password)),
+        '包含小写': bool(re.search(r'[a-z]', password)),
+        '包含数字': bool(re.search(r'\d', password)),
+        '包含特殊字符': bool(re.search(r'[!@#$%^&*(),.?":{}|<>]', password)),
     }
-    for full, half in punct_map.items():
-        text = text.replace(full, half)
+    score = sum(checks.values())
+    levels = ['极弱', '弱', '一般', '中等', '较强', '强']
+    return levels[score], checks
 
-    # Step 2: translate 删除制表符
-    text = text.translate(str.maketrans("", "", "\t"))
-
-    # Step 3: replace 合并连续空格
-    while "  " in text:
-        text = text.replace("  ", " ")
-
-    # Step 4: strip 去首尾
-    text = text.strip()
-
-    # Step 5: replace 统一引号为单引号
-    text = text.replace('"', "'")
-
-    return text
-
-raw = "  这是一个　测试文本，　包含　全角空格和　标点符号。  "
-standardized = standardize_text(raw)
-print(f"原文: '{raw}'")
-print(f"标准化后: '{standardized}'")
-# 原文: '  这是一个　测试文本，　包含　全角空格和　标点符号。  '
-# 标准化后: '这是一个　测试文本,　包含　全角空格和　标点符号.'
-```
-
-这个流水线展示了 `replace` 和 `translate` 的分工——`replace` 处理需要逐个对应的全角标点替换（因为全角标点是特殊字符，用 `replace` 更清晰），`translate` 处理需要批量删除的制表符（一次调用比多次 `replace` 更高效）。
-
-#### 2.4.2 HTML 转义与反转义
-
-```python
-def escape_html(text):
-    """用 translate 批量替换 HTML 特殊字符"""
-    table = str.maketrans({
-        "<": "&lt;",
-        ">": "&gt;",
-        "&": "&amp;",
-        '"': "&quot;",
-    })
-    return text.translate(table)
-
-def unescape_html(text):
-    """用 replace 反转义 HTML 字符"""
-    # 注意：反转义有顺序要求——先转 &amp; 避免二次替换
-    replacements = [
-        ("&amp;", "&"),
-        ("&lt;", "<"),
-        ("&gt;", ">"),
-        ("&quot;", '"'),
-    ]
-    for entity, char in replacements:
-        text = text.replace(entity, char)
-    return text
-
-raw = '<div class="content">Tom & Jerry</div>'
-escaped = escape_html(raw)
-unescaped = unescape_html(escaped)
-
-print(f"原文:   {raw}")
-print(f"转义后: {escaped}")
-print(f"还原后: {unescaped}")
-# 原文:   <div class="content">Tom & Jerry</div>
-# 转义后: &lt;div class=&quot;content&quot;&gt;Tom &amp; Jerry&lt;/div&gt;
-# 还原后: <div class="content">Tom & Jerry</div>
-```
-
-转义时用 `translate`（单字符→多字符映射），反转义时用 `replace`（多字符子串→单字符替换，`translate` 无法按子串匹配）。注意反转义时 `&amp;` 必须最先处理——否则 `&lt;` 中的 `&` 会先被 `&amp;` 替换干扰。
-
-#### 2.4.3 密码脱敏
-
-```python
-def mask_password(password, visible_chars=2):
-    """保留首尾 visible_chars 个字符，中间替换为星号"""
-    if len(password) <= visible_chars * 2:
-        return "*" * len(password)
-
-    middle = password[visible_chars:-visible_chars]
-    # 用 translate 将中间部分的每个字符替换为 *
-    star_table = str.maketrans(middle, "*" * len(middle))
-    middle_masked = middle.translate(star_table)
-    return password[:visible_chars] + middle_masked + password[-visible_chars:]
-
-passwords = ["mypassword123", "P@ssw0rd!", "a1"]
+passwords = ['123', 'abc123', 'Abc123!', 'P@ssw0rd!']
 for pwd in passwords:
-    print(f"  {pwd:<15} → {mask_password(pwd)}")
-
-# 输出:
-#   mypassword123   → my*********23
-#   P@ssw0rd!       → P@*****d!
-#   a1              → **
-```
-
-`translate` 将中间部分的每个字符映射为 `*`，比用 `replace` 逐个替换更高效。
-
-#### 2.4.4 CSV 数据清洗
-
-```python
-def clean_csv_data(records):
-    """综合使用 replace + translate 清洗 CSV 数据"""
-    # translate 删除不可见控制字符
-    invisible_chars = str.maketrans("", "", "\x00\x01\x02\x03\x04\x05")
-
-    cleaned = []
-    for row in records:
-        clean_row = {}
-        for key, value in row.items():
-            if isinstance(value, str):
-                # translate 删除不可见字符
-                value = value.translate(invisible_chars)
-                # replace 统一换行
-                value = value.replace("\r\n", " ").replace("\n", " ")
-                # strip 去首尾空白
-                value = value.strip()
-            clean_row[key] = value
-        cleaned.append(clean_row)
-    return cleaned
-
-raw_records = [
-    {"name": "Alice\x00", "email": "alice@test.com", "bio": "Hello\r\nWorld"},
-    {"name": "Bob\x03", "email": "bob@test.com", "bio": "Python\nDeveloper"},
-]
-
-cleaned_records = clean_csv_data(raw_records)
-for r in cleaned_records:
-    print(f"  {r}")
-
-# 输出:
-#   {'name': 'Alice', 'email': 'alice@test.com', 'bio': 'Hello World'}
-#   {'name': 'Bob', 'email': 'bob@test.com', 'bio': 'Python Developer'}
-```
-
-`translate` 负责删除不可见控制字符（一次扫描批量删除），`replace` 负责将换行符替换为空格（子串替换）。两者分工配合，清洗逻辑清晰。
-
-#### 2.4.5 方法对比总结
-
-```python
-text = "a=1&b=2&c=3"
-
-# replace：替换单个子串
-print(text.replace("&", ", "))
-# a=1, b=2, c=3
-
-# replace with count：只替换第一个
-print(text.replace("&", ", ", 1))
-# a=1, b=2&c=3
-
-# translate：批量替换字符
-table = str.maketrans("=&", ":,")
-print(text.translate(table))
-# a:1,b:2,c:3
-
-# translate：同时替换和删除
-table_del = str.maketrans("=&", ":,", "123")
-print(text.translate(table_del))
-# a:,b:,c:
+    level, _ = check_password_strength(pwd)
+    print(f"  {pwd:<15} → {level}")
+# 123              → 弱
+# abc123           → 一般
+# Abc123!          → 较强
+# P@ssw0rd!        → 强
 ```
 
 ## 3. 最佳实践
 
-### 3.1 选择正确的替换方法
+### 3.1 选择正确的方法
 
 | 需求 | 推荐方法 | 原因 |
 |------|---------|------|
-| 替换单个子串 | `replace(old, new)` | 简单直接 |
-| 限制替换次数 | `replace(old, new, count)` | `count` 参数控制 |
-| 批量替换不同字符 | `translate` | 一次扫描完成 |
-| 删除字符 | `translate` with delete | `maketrans` 第三参数 |
-| 单字符→多字符 | `replace` 或 `translate`（字典形式） | 两者都可以 |
-| 子串→多字符 | `replace(old, new)` | `translate` 无法按子串匹配 |
-| 无顺序依赖的多替换 | `translate` | 同时映射，互不干扰 |
-| 有顺序要求的多替换 | `replace` 链式 | 控制替换顺序 |
+| 验证字符串格式 | `re.fullmatch` | 要求整串完全匹配 |
+| 从开头匹配 | `re.match` | 只匹配开头 |
+| 搜索第一个匹配 | `re.search` | 任意位置 |
+| 找到所有匹配 | `re.findall` | 返回列表，简洁 |
+| 遍历匹配+位置 | `re.finditer` | 需要 Match 对象 |
+| 替换匹配 | `re.sub` | 支持函数/反向引用 |
+| 替换并计数 | `re.subn` | 同时知道改了几处 |
+| 按正则分割 | `re.split` | 支持多分隔符 |
+| 重复使用同一正则 | `re.compile` | 编译一次复用多次 |
 
 ### 3.2 推荐 vs 不推荐写法
 
 ```python
-# ---- 替换单个子串 ----
+# ---- 验证格式 ----
 
-# 推荐：replace 一步到位
-clean = text.replace("old", "new")
+# 推荐：fullmatch 验证整体格式
+if re.fullmatch(r'1[3-9]\d{9}', phone):
+    print("有效")
 
-# 不推荐：手动循环逐字符替换（太啰嗦）
-result = ""
-for ch in text:
-    if text[i:i+3] == "old":
-        result += "new"
-    else:
-        result += ch
+# 不推荐：match + $ 效果相同但语义不如 fullmatch 直观
+if re.match(r'1[3-9]\d{9}$', phone):
+    print("有效")
 
-# ---- 批量替换多个不同字符 ----
+# ---- 提取多个匹配 ----
 
-# 推荐：translate 一次完成
-table = str.maketrans("aeiou", "12345")
-result = text.translate(table)
+# 推荐：findall 简洁
+emails = re.findall(r'[\w.]+@[\w.]+\.\w+', text)
 
-# 不推荐：replace 链式调用（多次扫描 + 顺序依赖风险）
-result = text.replace("a", "1").replace("e", "2").replace("i", "3").replace("o", "4").replace("u", "5")
+# 不推荐：手动 find + 循环
+pos = 0
+emails = []
+while True:
+    m = re.search(r'[\w.]+@[\w.]+\.\w+', text[pos:])
+    if not m:
+        break
+    emails.append(m.group())
+    pos += m.end()
 
-# ---- 删除字符 ----
+# ---- 重复使用同一正则 ----
 
-# 推荐：translate with delete
-result = text.translate(str.maketrans("", "", " \t\n"))
+# 推荐：compile 编译复用
+digit_re = re.compile(r'\d+')
+for line in lines:
+    digits = digit_re.findall(line)
 
-# 不推荐：replace 替换为空串（需要多次调用）
-result = text.replace(" ", "").replace("\t", "").replace("\n", "")
+# 不推荐：每次都重新编译
+for line in lines:
+    digits = re.findall(r'\d+', line)
 
-# ---- 单字符→多字符 ----
+# ---- 提取成对标记内容 ----
 
-# 推荐：translate with dict（一次完成所有映射）
-table = str.maketrans({"<": "&lt;", ">": "&gt;", "&": "&amp;"})
-result = text.translate(table)
+# 推荐：非贪婪 .*?
+re.findall(r'<div>(.*?)</div>', html)
 
-# 不推荐：replace 链式调用（多次扫描 + 顺序依赖）
-result = text.replace("<", "&lt;").replace(">", "&gt;").replace("&", "&amp;")
-# 注意：上面这行还有顺序问题！如果 & 先被替换，&lt; 中的 & 会被二次替换
+# 不推荐：贪婪 .* 跨越多个标签
+re.findall(r'<div>(.*)</div>', html)
 
-# ---- 限制替换次数 ----
+# ---- 只分组不分得内容时 ----
 
-# 推荐：replace with count
-result = text.replace("{name}", "Alice", 1)
+# 推荐：非捕获组 (?:...)
+re.findall(r'(?:\d{4})-(?:\d{2})', text)  # 返回完整匹配
 
-# 不推荐：split + join 手动控制
-parts = text.split("{name}")
-result = parts[0] + "Alice" + "{name}".join(parts[1:])
+# 不推荐：普通分组 (...)
+re.findall(r'(\d{4})-(\d{2})', text)  # 返回分组元组而非完整匹配
 ```
 
 ### 3.3 综合推荐 vs 不推荐对照表
 
 | 场景 | 推荐写法 | 不推荐写法 | 原因 |
 |------|---------|-----------|------|
-| 子串替换 | `s.replace("a", "b")` | 手动循环 | `replace` 一行搞定 |
-| 批量字符替换 | `s.translate(maketrans(...))` | `replace` 链式 | `translate` 单次扫描，无顺序依赖 |
-| 删除字符 | `s.translate(maketrans("", "", chars))` | `s.replace("x", "").replace("y", "")` | `translate` 一次删除所有 |
-| 替换+删除 | `maketrans(x, y, z)` | `replace` 链式 | `translate` 一次完成 |
-| 限制替换次数 | `s.replace(old, new, count)` | `split` + `join` | `count` 参数更直观 |
-| HTML 转义 | `translate` with dict | `replace` 链式 | `translate` 无顺序依赖 |
-| 全角→半角 | `translate` | `replace` 链式 | `translate` 一次完成 |
-| 敏感词过滤 | `replace` | `translate`（不适合） | 敏感词是子串不是单字符 |
+| 验证手机号 | `re.fullmatch(r'1\d{10}', phone)` | 手动检查 `len(phone) == 11 and phone.isdigit()` | 正则一行搞定 |
+| 提取数字 | `re.findall(r'\d+', text)` | 字符遍历 + 累积字符 | 正则简洁 |
+| 替换敏感词 | `re.sub(pattern, '***', text)` | 逐个 replace | 正则支持模式 |
+| 复杂分割 | `re.split(r'[,;|\s]+', text)` | 多次 `str.split` | 一次分割所有 |
+| 重复正则 | `re.compile(pattern)` | 每次调用 `re.search` | 编译复用更快 |
+| 复杂正则可读性 | `re.X` 标志 + 注释 | 单行紧凑正则 | 注释更易维护 |
 
 ### 3.4 常见错误与注意事项
 
-**`replace` 链式调用的顺序依赖**
+**`re.match` 不匹配非开头内容**
 
 ```python
-# 错误：a→b 后再 b→c，原来的 a 变成了 c
-text = "a b c"
-result = text.replace("a", "b").replace("b", "c")
-print(result)
-# c c c  ← 全变成 c
+# 误解：以为 match 会搜索整个字符串
+result = re.match(r'World', 'Hello World')
+print(result)  # None
 
-# 正确：用 translate 一次性映射
-result = text.translate(str.maketrans("ab", "bc"))
-print(result)
-# b c c  ← a→b, b→c，互不干扰
+# match 只从开头匹配，搜索任意位置用 search
+re.search(r'World', 'Hello World')  # 匹配成功
 ```
 
-**`maketrans` 两字符串长度必须相等**
+**`findall` 的分组陷阱**
 
 ```python
-# 错误：长度不等会报 ValueError
-# str.maketrans("ab", "abc")  # ValueError!
+# 期望返回完整匹配，但因为有分组返回了分组内容
+re.findall(r'(\d{4})-(\d{2})', '2024-01')
+# [('2024', '01')]  ← 返回元组而非完整匹配
 
-# 正确：两字符串长度必须相同
-table = str.maketrans("ab", "cd")
-# a→c, b→d
-
-# 多字符映射用字典形式
-table = str.maketrans({"a": "abc", "b": "def"})
+# 如果不需要分组内容，用非捕获组
+re.findall(r'(?:\d{4})-(?:\d{2})', '2024-01')
+# ['2024-01']  ← 完整匹配
 ```
 
-**`translate` 无法替换子串**
+**正则特殊字符需要转义**
 
 ```python
-# translate 只能映射单个字符，不能映射子串
-# 以下无法实现 "hello" → "hi"
-table = str.maketrans("hello", "hi???")  # 长度也不等
+# . 在正则中是"任意字符"
+re.findall(r'price.txt', 'price.txt priceXtxt')
+# ['price.txt', 'priceXtxt']  ← . 匹配了任意字符
 
-# 子串替换必须用 replace
-result = "hello world".replace("hello", "hi")
+# 转义 . 后只匹配字面量
+re.findall(r'price\.txt', 'price.txt priceXtxt')
+# ['price.txt']  ← 只匹配 . 本身
 ```
 
-**HTML 反转义的顺序问题**
+**反斜杠在原始字符串中的处理**
 
 ```python
-# 错误：先替换 &lt; 会把 &amp;lt; 中的 & 也替换了
-# 以下顺序有问题——先替换 &amp; 是正确的
-def unescape_wrong(text):
-    # 先替换 &lt;，但 &amp;lt; 中的 & 还没处理，不会出问题
-    # 但如果先替换 &amp; 为 &，&lt; 中的 & 会被错误替换
-    text = text.replace("&lt;", "<")
-    text = text.replace("&gt;", ">")
-    text = text.replace("&amp;", "&")   # 这时 &lt; 的 & 已经变成了 <
-    # 但上一步替换出的 < 不会被这一步影响
-    return text
-# 上面的顺序实际是安全的，但容易搞混
+# 正则中的 \b 需要用原始字符串 r''
+re.findall(r'\bcat\b', 'cat catfish')  # ['cat']
 
-# 正确：先替换 &amp;，避免后续替换出的 & 被二次替换
-def unescape_correct(text):
-    text = text.replace("&amp;", "&")   # 先处理 &amp;
-    text = text.replace("&lt;", "<")
-    text = text.replace("&gt;", ">")
-    text = text.replace("&quot;", '"')
-    return text
+# 不加 r 前缀，\b 被 Python 先解释为退格符
+re.findall('\bcat\b', 'cat catfish')  # []  ← 错误！
+```
+
+**贪婪模式导致的过度匹配**
+
+```python
+# 贪婪 .* 匹配过多
+re.findall(r'"(.*)"', '"a":"b","c":"d"')
+# ['a":"b","c":"d']  ← 一口气匹配到最后
+
+# 非贪婪 .*? 正确提取
+re.findall(r'"(.*?)"', '"a":"b","c":"d"')
+# ['a', 'b', 'c', 'd']
 ```
 
 ## 4. 原理
 
-### 4.1 `replace` 的底层实现
+### 4.1 正则引擎的工作方式
 
-`replace` 在 CPython 底层逐字符扫描字符串，寻找与 `old` 匹配的子串。每次找到匹配就复制到结果中（替换为 `new`），然后从匹配后的位置继续扫描。
-
-```text
-replace("ab", "X") 处理 "abcabd" 的过程：
-
-  位置 0: a (匹配 ab 的第 1 个字符) → 检查位置 1: b (匹配!) → 替换为 X
-  位置 2: c (不匹配 a) → 复制 c
-  位置 3: a (匹配 ab 的第 1 个字符) → 检查位置 4: b (匹配!) → 替换为 X
-  位置 5: d (不匹配 a) → 复制 d
-
-  结果: "XcdX"
-```
-
-`count` 参数的实现是一个计数器——每完成一次替换，计数器递减。计数器归零后，剩余部分直接复制到结果中，不再扫描匹配。
+Python 的 `re` 模块使用回溯（backtracking）正则引擎。它从字符串的起始位置开始，逐字符尝试匹配模式。当遇到量词时，引擎优先匹配尽可能多的字符（贪婪），如果后续模式匹配失败，就回退（回溯）减少量词匹配量，再次尝试。
 
 ```text
-replace("ab", "X", 1) 处理 "abcabd" 的过程：
+匹配 r'a.*b' 到 'axyzb' 的过程:
 
-  位置 0: 匹配 ab → 替换为 X，计数: 1/1
-  计数归零 → 剩余 "cabd" 直接复制
-  结果: "Xcabd"
+  1. a 匹配 'a' → 成功
+  2. .* 贪婪匹配 → 匹配到 'xyzb'（到字符串末尾）
+  3. b 匹配 → 失败（已经到末尾了）
+  4. 回溯：.* 退回 1 个 → 匹配 'xyz'
+  5. b 匹配 'b' → 成功
+  结果匹配 'axyzb'
 ```
 
-### 4.2 `translate` 的底层实现
+回溯的本质是"试错"——先尝试最贪婪的匹配，失败再退回重来。这导致某些模式下性能很差（回溯爆炸），如 `r'(a+)+b'` 匹配不包含 `b` 的超长字符串。
 
-`translate` 在 CPython 底层只扫描字符串一次。对每个字符，查映射表（字典或数组）是否有对应的替换值：
+### 4.2 非贪婪的回溯行为
 
-- 有映射值 → 替换为映射值（可以是多字符子串）
-- 映射值为 `None` → 删除该字符
-- 无映射（不在表中）→ 保留原字符
+非贪婪模式的回溯方向相反——先匹配尽可能少的字符，后续模式失败时增加量词匹配量：
 
 ```text
-translate(maketrans("ab", "12", "x")) 处理 "axb xc" 的过程：
+匹配 r'a.*?b' 到 'axyzb' 的过程:
 
-  位置 0: a → 查表: 97 → 49 ('1') → 输出 '1'
-  位置 1: x → 查表: 120 → None（删除） → 不输出
-  位置 2: b → 查表: 98 → 50 ('2') → 输出 '2'
-  位置 3: ' ' → 查表: 无映射 → 保留 ' '
-  位置 4: x → 查表: 120 → None（删除） → 不输出
-  位置 5: c → 查表: 无映射 → 保留 'c'
-
-  结果: "12 c"
+  1. a 匹配 'a' → 成功
+  2. .*? 非贪婪 → 先匹配 0 个字符
+  3. b 匹配 'x' → 失败
+  4. 增加：.*? 匹配 'x'
+  5. b 匹配 'y' → 失败
+  6. 增加：.*? 匹配 'xy'
+  7. b 匹配 'z' → 失败
+  8. 增加：.*? 匹配 'xyz'
+  9. b 匹配 'b' → 成功
+  结果匹配 'axyzb'
 ```
 
-`maketrans` 创建的映射表在底层是一个字典（键为 Unicode 码点，值为字符串或 `None`）。`translate` 的查找操作是 O(1) 的哈希查找，因此整体时间复杂度为 O(n)——n 是字符串长度，与需要替换的字符种类数量无关。
+非贪婪不是"更快"，而是"更早停止"——当后续模式能匹配时就不再增加量词匹配量。在提取成对标记时，非贪婪能在第一个闭合标记处停止，避免跨越多个标记。
 
-### 4.3 为什么 `translate` 比 `replace` 链式调用更快
+### 4.3 re.compile 的缓存机制
 
-`replace` 链式调用时，每调用一次 `replace` 就完整扫描一遍字符串。如果要替换 5 个不同字符，需要 5 次完整扫描：O(5n)。
-
-`translate` 只扫描一次字符串，对每个字符查一次映射表：O(n) + 查表开销。查表是 O(1) 的哈希查找，因此总体为 O(n)。
-
-```text
-replace 链式调用 (5次) 的扫描次数:
-
-  第1次 replace: 扫描整个字符串 → 替换 a→1
-  第2次 replace: 扫描整个替换后的字符串 → 替换 e→2
-  第3次 replace: 扫描整个替换后的字符串 → 替换 i→3
-  第4次 replace: 扫描整个替换后的字符串 → 替换 o→4
-  第5次 replace: 扫描整个替换后的字符串 → 替换 u→5
-  总扫描次数: 5n
-
-translate (1次) 的扫描次数:
-
-  扫描整个字符串一次 → 每个字符查一次表
-  总扫描次数: n + 查表开销（O(1) per char）
-  ≈ n
-```
-
-### 4.4 `maketrans` 与 `translate` 的设计哲学
-
-`maketrans` 和 `translate` 的分离设计源于 Python 早期——映射表的创建和使用分离，使得同一个映射表可以复用于多个字符串，避免重复构建映射表的开销：
+`re` 模块内部维护了一个正则缓存（`_cache`），`re.findall` 等函数调用时会先查缓存。缓存大小有限（默认 512 条），频繁使用不同正则时缓存可能被淘汰。`re.compile` 创建的 `Pattern` 对象不受缓存淘汰影响——它一直持有编译后的结果。
 
 ```python
-# 映射表创建一次，用于多个字符串
-table = str.maketrans("aeiou", "12345")
+# re.findall 内部流程
+def findall(pattern, string):
+    compiled = _cache.get(pattern)
+    if compiled is None:
+        compiled = _compile(pattern)
+        _cache[pattern] = compiled
+    return compiled.findall(string)
 
-texts = ["hello", "world", "python", "beautiful"]
-for text in texts:
-    print(text.translate(table))
-# h2ll4
-# w4rld
-# pyth4n
-# b2a5t3f5l
+# re.compile 内部流程
+pattern_obj = _compile(pattern)  # 编译一次，永久持有
+pattern_obj.findall(string)       # 直接调用，无缓存查找
 ```
 
-如果把映射表创建和使用合并在一个方法中（如 `str.replace_all(chars, mapping)`），每次调用都要重建映射表，性能反而下降。分离设计是 Python 字符串方法中"创建一次、多次使用"模式的典型体现。
+当同一个正则被使用多次时，`re.compile` 略快——省去了缓存查找的开销。但性能差异通常不大（缓存命中时仅省一次字典查找），日常代码中编译的主要价值是代码可读性——将正则定义和使用分离。
+
+### 4.4 零宽断言为什么"不消耗字符"
+
+正则引擎维护一个"当前位置指针"。普通匹配（如 `\d+`）会移动这个指针——匹配后指针跳到匹配结束处。零宽断言（如 `(?=...)`）只检查当前指针位置是否满足条件，**不移动指针**——检查完指针仍在原位。
+
+```text
+r'\d+(?=元)' 匹配 '100元' 的过程:
+
+  位置 0: \d+ 匹配 '100' → 指针移动到位置 3
+  位置 3: (?=元) 检查 '元' → 成功，但指针不移动
+  匹配结果: '100'（不包含 '元'）
+
+对比：r'\d+元' 匹配 '100元'
+
+  位置 0: \d+ 匹配 '100' → 指针移动到位置 3
+  位置 3: 元 匹配 '元' → 指针移动到位置 4
+  匹配结果: '100元'（包含 '元'）
+```
+
+这就是为什么 `(?=元)` 提取的数字不包含"元"——"元"只是当前位置的判断条件，不是匹配内容。
 
 ## 5. 总结
 
-本文围绕 Python 字符串的替换方法展开，主要介绍了以下内容：
+本文围绕 Python 字符串与正则表达式展开，主要介绍了以下内容：
 
-- **`replace()` 方法**：按子串匹配替换，支持 `count` 参数限制替换次数；替换为空串等于删除；链式调用有顺序依赖陷阱（前一次的结果可能被后一次匹配）
-- **`translate()` 方法**：按字符映射批量替换，配合 `maketrans` 创建映射表；支持三种映射形式（两等长字符串、三字符串含删除集、字典）；一次扫描完成所有替换和删除；无顺序依赖
-- **`maketrans()` 方法**：创建字符映射表，两等长字符串形式做 1:1 映射，字典形式支持单字符→多字符映射和 `None` 删除
-- **对比与选择**：`replace` 适合替换单个子串或少量替换（支持 `count` 限制次数）；`translate` 适合批量字符映射/删除（单次扫描、无顺序依赖、性能更优）；子串替换只能用 `replace`，字符映射优先用 `translate`
-- **最佳实践**：批量字符替换用 `translate` 替代 `replace` 链式；删除字符用 `translate` 的删除参数；HTML 转义用 `translate` 字典形式；敏感词过滤用 `replace`（子串匹配）；注意 `replace` 链式的顺序依赖和 `maketrans` 两字符串长度相等的要求
-- **底层原理**：`replace` 多次扫描字符串（链式调用时每次完整扫描），`translate` 单次扫描 + O(1) 查表；`maketrans` 与 `translate` 分离的设计使映射表可复用，避免重复构建开销
+- **re 模块核心函数**：`re.match` 从开头匹配、`re.search` 任意位置搜索、`re.fullmatch` 完全匹配；`re.findall` 找到所有匹配（无分组返回字符串列表，有分组返回元组列表）、`re.finditer` 返回 Match 对象迭代器
+- **正则元字符**：`.` 任意字符、`\d` 数字、`\w` 字母数字下划线、`\s` 空白、`\b` 单词边界、`^` 开头、`$` 结尾、`[]` 字符集合、`|` 或运算
+- **量词**：`*` 0 次或多次、`+` 1 次或多次、`?` 0 次或 1 次、`{n}` 恰好 n 次、`{n,m}` n 到 m 次；量词后加 `?` 变为非贪婪
+- **分组与断言**：捕获组 `()` 提取分组内容、命名分组 `(?P<name>)` 用名称引用、非捕获组 `(?:)` 不提取内容、反向引用 `\1` 或 `(?P=name)` 检查重复、零宽断言 `(?=)` `(?!)` `(?<=)` `(?<!)` 检查边界不消耗字符
+- **贪婪与非贪婪**：默认贪婪尽可能多匹配，非贪婪 `*?` `+?` `??` 尽可能少匹配；提取成对标记内容用非贪婪
+- **re.compile 编译**：编译为 Pattern 对象复用，标志 `re.I` 忽略大小写、`re.S` 点匹配换行、`re.M` 多行模式、`re.X` 允许注释
+- **re.sub 替换**：支持反向引用 `\1` 和函数替换；`re.subn` 额外返回替换次数
+- **re.split 分割**：按正则分割，分组会保留分隔符在结果中
+- **最佳实践**：验证格式用 `fullmatch`、重复正则用 `compile`、提取成对内容用非贪婪、不需分得内容用非捕获组
+- **底层原理**：回溯引擎贪婪优先、非贪婪反向回溯；零宽断言不移动位置指针、只做条件检查
