@@ -141,36 +141,40 @@ export default defineConfig({
                     "link": "/Base/03-string-05"
                 },
                 {
-                    "text": "字符串查询与判断方法",
+                    "text": "字符串与类型转换",
                     "link": "/Base/03-string-06"
                 },
                 {
-                    "text": "字符串变形与清洗方法",
+                    "text": "f-string 与字符串格式化",
                     "link": "/Base/03-string-07"
                 },
                 {
-                    "text": "字符串分割方法",
+                    "text": "字符串与字符编码",
                     "link": "/Base/03-string-08"
                 },
                 {
-                    "text": "字符串替换方法",
+                    "text": "字符串与正则表达式",
                     "link": "/Base/03-string-09"
                 },
                 {
-                    "text": "字符串与类型转换",
+                    "text": "占位符精度控制",
                     "link": "/Base/03-string-10"
                 },
                 {
-                    "text": "f-string 与字符串格式化",
+                    "text": "字符串查询与判断方法",
                     "link": "/Base/03-string-11"
                 },
                 {
-                    "text": "字符串与字符编码",
+                    "text": "字符串变形与清洗方法",
                     "link": "/Base/03-string-12"
                 },
                 {
-                    "text": "字符串与正则表达式",
+                    "text": "字符串分割方法",
                     "link": "/Base/03-string-13"
+                },
+                {
+                    "text": "字符串替换方法",
+                    "link": "/Base/03-string-14"
                 }
             ]
         }
