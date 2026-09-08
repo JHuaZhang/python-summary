@@ -117,7 +117,7 @@ export default defineConfig({
             ]
         },
         {
-            "text": "【03】字符串深度剖析",
+            "text": "【03】字符串介绍",
             "collapsible": true,
             "items": [
                 {

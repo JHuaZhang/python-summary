@@ -1,6 +1,6 @@
 ---
 group:
-  title: 【03】字符串深度剖析
+  title: 【03】字符串介绍
   order: 3
 order: 5
 title: 字符串拼接性能对比

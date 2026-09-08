@@ -1,6 +1,6 @@
 ---
 group:
-  title: 【03】字符串深度剖析
+  title: 【03】字符串介绍
   order: 3
 order: 10
 title: 占位符精度控制

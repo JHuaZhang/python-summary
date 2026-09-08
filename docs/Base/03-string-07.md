@@ -1,6 +1,6 @@
 ---
 group:
-  title: 【03】字符串深度剖析
+  title: 【03】字符串介绍
   order: 3
 order: 7
 title: f-string 与字符串格式化
