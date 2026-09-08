@@ -177,6 +177,100 @@ export default defineConfig({
                     "link": "/Base/03-string-14"
                 }
             ]
+        },
+        {
+            "text": "【04】列表介绍",
+            "collapsible": true,
+            "items": [
+                {
+                    "text": "列表概述与内存模型",
+                    "link": "/Base/04-list-01"
+                },
+                {
+                    "text": "列表创建方式",
+                    "link": "/Base/04-list-02"
+                },
+                {
+                    "text": "列表索引与切片",
+                    "link": "/Base/04-list-03"
+                },
+                {
+                    "text": "列表与运算符",
+                    "link": "/Base/04-list-04"
+                },
+                {
+                    "text": "列表推导式",
+                    "link": "/Base/04-list-05"
+                },
+                {
+                    "text": "append 与 extend 区别",
+                    "link": "/Base/04-list-06"
+                },
+                {
+                    "text": "insert、pop 与 remove 方法",
+                    "link": "/Base/04-list-07"
+                },
+                {
+                    "text": "index 查找与 count 统计",
+                    "link": "/Base/04-list-08"
+                },
+                {
+                    "text": "sort 与 sorted 排序",
+                    "link": "/Base/04-list-09"
+                },
+                {
+                    "text": "reverse 与 reversed 反转",
+                    "link": "/Base/04-list-10"
+                },
+                {
+                    "text": "列表拷贝深浅剖析",
+                    "link": "/Base/04-list-11"
+                },
+                {
+                    "text": "列表与栈和队列",
+                    "link": "/Base/04-list-12"
+                },
+                {
+                    "text": "遍历修改列表的坑",
+                    "link": "/Base/04-list-13"
+                },
+                {
+                    "text": "列表解包与星号表达式",
+                    "link": "/Base/04-list-14"
+                },
+                {
+                    "text": "推导式与 map/filter 性能对比",
+                    "link": "/Base/04-list-15"
+                },
+                {
+                    "text": "生成器表达式与列表推导式对比",
+                    "link": "/Base/04-list-16"
+                },
+                {
+                    "text": "嵌套列表与矩阵操作",
+                    "link": "/Base/04-list-17"
+                },
+                {
+                    "text": "列表与deque对比",
+                    "link": "/Base/04-list-18"
+                },
+                {
+                    "text": "列表与其他序列类型对比",
+                    "link": "/Base/04-list-19"
+                },
+                {
+                    "text": "列表性能优化与时间复杂度",
+                    "link": "/Base/04-list-20"
+                },
+                {
+                    "text": "列表常用技巧与惯用法",
+                    "link": "/Base/04-list-21"
+                },
+                {
+                    "text": "列表与 JSON 序列化",
+                    "link": "/Base/04-list-22"
+                }
+            ]
         }
     ]
 },
