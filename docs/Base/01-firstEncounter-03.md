@@ -516,21 +516,7 @@ python app.py
 
 整个流程可以用一张图概括：
 
-```text
-python -m venv .venv         建环境
-       ↓
-source .venv/bin/activate    激活
-       ↓
-pip config set ...           配镜像（国内）
-       ↓
-python -m pip install ...    装依赖
-       ↓
-python app.py                写代码 & 运行
-       ↓
-pip freeze > requirements.txt  固化清单
-       ↓
-git: 提交清单, 忽略 .venv      协作
-```
+![示例图片](../images/base/202609092232.svg)
 
 这套流程是 Python 项目的标准开场。掌握它，任何新项目都能照此起步，环境干净、可复现、可协作。
 

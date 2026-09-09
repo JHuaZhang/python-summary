@@ -349,17 +349,7 @@ pyenv 是一个 Python 版本管理工具，让你在同一台机器上安装和
 
 用一张图说明版本选择流程：
 
-```text
-运行 python 命令
-       ↓
-  pyenv shim 拦截
-       ↓
-  检查 shell 版本 ——有——→ 使用 shell 版本
-       ↓ 无
-  检查 local 版本 ——有——→ 使用 local 版本
-       ↓ 无
-  使用 global 版本
-```
+![示例图片](../images/base/202609092230.svg)
 
 **安装 pyenv**
 
@@ -909,25 +899,7 @@ python hello.py
 
 整个流程可以用一张图概括：
 
-```text
-pyenv install <ver>     定版本
-       ↓
-pyenv local <ver>       项目级绑定
-       ↓
-python -m venv .venv    建虚拟环境
-       ↓
-source .venv/bin/activate    激活
-       ↓
-pip config set ...     配镜像
-       ↓
-python -m pip install  装依赖
-       ↓
-pip freeze > requirements.txt  固化清单
-       ↓
-python hello.py        写代码 & 运行
-       ↓
-git: 提交版本文件+清单, 忽略 .venv
-```
+![示例图片](../images/base/202609092231.svg)
 
 ### 4.2 最佳实践
 
