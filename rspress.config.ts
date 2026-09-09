@@ -161,20 +161,68 @@ export default defineConfig({
                     "link": "/Base/03-string-10"
                 },
                 {
-                    "text": "字符串查询与判断方法",
+                    "text": "字符串长度与成员判断",
                     "link": "/Base/03-string-11"
                 },
                 {
-                    "text": "字符串变形与清洗方法",
+                    "text": "前缀与后缀判断",
                     "link": "/Base/03-string-12"
                 },
                 {
-                    "text": "字符串分割方法",
+                    "text": "子串位置查找",
                     "link": "/Base/03-string-13"
                 },
                 {
-                    "text": "字符串替换方法",
+                    "text": "子串计数方法",
                     "link": "/Base/03-string-14"
+                },
+                {
+                    "text": "字符类型判断",
+                    "link": "/Base/03-string-15"
+                },
+                {
+                    "text": "大小写与格式判断",
+                    "link": "/Base/03-string-16"
+                },
+                {
+                    "text": "标识符与其他判断",
+                    "link": "/Base/03-string-17"
+                },
+                {
+                    "text": "字符串清洗方法",
+                    "link": "/Base/03-string-18"
+                },
+                {
+                    "text": "大小写转换方法",
+                    "link": "/Base/03-string-19"
+                },
+                {
+                    "text": "字符串对齐填充",
+                    "link": "/Base/03-string-20"
+                },
+                {
+                    "text": "split 与 rsplit 方法",
+                    "link": "/Base/03-string-21"
+                },
+                {
+                    "text": "splitlines 按行分割",
+                    "link": "/Base/03-string-22"
+                },
+                {
+                    "text": "partition 与 rpartition 方法",
+                    "link": "/Base/03-string-23"
+                },
+                {
+                    "text": "replace 方法",
+                    "link": "/Base/03-string-24"
+                },
+                {
+                    "text": "translate 与 maketrans 方法",
+                    "link": "/Base/03-string-25"
+                },
+                {
+                    "text": "replace 与 translate 对比",
+                    "link": "/Base/03-string-26"
                 }
             ]
         },
