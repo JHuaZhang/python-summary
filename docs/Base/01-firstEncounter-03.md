@@ -117,7 +117,7 @@ sudo apt install python3-venv
 python -m venv .venv
 ```
 
-执行后，当前目录出现 `.venv/` 文件夹，内含上一节所述结构。创建过程通常几秒，因为它只是建目录、拷贝/链接少量文件，不复制整个 Python。
+执行后，当前目录出现 `.venv/` 文件夹，内含前文所述的目录结构（bin/Scripts、lib/site-packages、pyvenv.cfg 等）。创建过程通常几秒，因为它只是建目录、拷贝/链接少量文件，不复制整个 Python。
 
 **验证创建成功**：
 
