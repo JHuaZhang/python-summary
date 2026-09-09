@@ -9,847 +9,1041 @@ nav:
   order: 1
 ---
 
+# 常量约定
+
 ## 1. 介绍
 
-### 1.1 什么是常量
+### 1.1 什么是常量约定
 
-常量(constant)是程序运行过程中**值不可改变**的量。与变量(variable)相对——变量可以被重新赋值,常量一经定义就应保持不变。比如圆周率 `PI = 3.14159`、最大重试次数 `MAX_RETRY = 3`、状态码 `STATUS_OK = 200`,这些都是"一旦确定就不该再变"的值,适合用常量表达。
+在编程中，**常量**（Constant）是一旦定义就不应该被修改的值。例如圆周率 `PI = 3.14159`、最大重试次数 `MAX_RETRY = 3`、应用名称 `APP_NAME = "OrderService"`——这些值在程序运行期间应当保持不变。
 
-在 C/Java 等语言里,常量有专门的语法保障:`const int MAX = 10;` 或 `final int MAX = 10;`,语言层面禁止重新赋值,试图改常量会编译报错。这是"硬常量"——由语言机制强制不可变。
+在 C/C++、Java 等语言中，有 `const`、`final` 等关键字来声明常量，编译器会在编译阶段拦截对常量的修改。但 Python **没有** `const` 关键字，变量的赋值本质上没有"只读"属性。因此 Python 社区通过一套**约定**来模拟常量行为，配合类型注解和静态检查工具来实现"事实上的常量"。
 
-**Python 没有真正的常量语法**。这是关键认知。Python 里没有 `const` 关键字,所有"常量"本质上都是普通变量,语言层面**允许**重新赋值。Python 采用的是**约定**(convention)的方式:用全大写命名(`MAX_RETRY`)表示"这是常量,请勿修改",靠程序员自觉与社区共识来维护,而非语言强制。
+这套约定包括：
 
-这种"约定式常量"是 Python 的设计选择——Python 哲学 "we are all consenting adults"(大家都是成年人),信任程序员不乱改约定为常量的值,而不像某些语言用编译器强制。代价是没有编译期保护,误改常量不会报错(除非用额外机制,见 2.4 的 Final、2.6 的 Enum)。好处是简单灵活,无需专门语法。
+- **命名约定**：全大写字母 + 下划线分隔，如 `MAX_RETRY`、`PAGE_SIZE`
+- **类型注解**：用 `typing.Final` 标注，让静态检查器（mypy、Ruff）拦截误改
+- **运行时保护**：用 `Enum`、`frozen dataclass`、`tuple`、`frozenset` 等语言机制提供运行时不可变性
 
-所以理解 Python 常量,核心是理解"Python 无强制常量,靠约定 + 可选机制(Enum/Final/frozen)模拟"。本节既讲常量的命名约定,也讲如何用枚举、Final、frozen dataclass 等机制获得更强的"不可变"保障。
+### 1.2 为什么 Python 需要常量约定
 
-常量在实际开发中的作用:
-
-- **消除魔法数**:代码里直接写 `if retry > 3` 的 3 是魔法数,改用 `if retry > MAX_RETRY` 清晰且易改。
-- **集中配置**:超时、URL、阈值等配置集中在模块顶部常量,改一处全生效,不必散落各处。
-- **表达不变语义**:PI、STATUS_OK 这类语义固定的值,用常量表达"它不该变"的意图。
-- **可读性**:`MAX_RETRY` 比 `3` 易读;`STATUS_OK` 比 `200` 易懂。
-
-### 1.2 Python 常量的约定形式
-
-Python 常量的主流约定:**全大写 + 下划线分隔**,放在模块顶部:
+假设你在代码里多次使用数字 `10000` 来判断"大额订单"：
 
 ```python
-# config.py
+def process_order(order):
+    if order["amount"] > 10000:
+        order["priority"] = "high"
+    # ...
+    if order["amount"] > 10000:
+        order["flag"] = "large"
+```
+
+这里的 `10000` 就是**魔法数**（Magic Number）——读代码的人不知道它代表什么含义。如果业务需求变更，阈值从 10000 改为 15000，你需要全文搜索每一处 `10000`，逐个判断是不是"大额订单阈值"再决定是否修改。漏改或多改都会引入 bug。
+
+用常量替代魔法数：
+
+```python
+LARGE_ORDER_THRESHOLD = 10000
+
+def process_order(order):
+    if order["amount"] > LARGE_ORDER_THRESHOLD:
+        order["priority"] = "high"
+    # ...
+    if order["amount"] > LARGE_ORDER_THRESHOLD:
+        order["flag"] = "large"
+```
+
+改阈值只需修改一处定义。常量让代码**自解释**——`LARGE_ORDER_THRESHOLD` 这个名字本身就说明了它的含义。
+
+Python 没有编译期常量保护，全靠约定和工具链。这套约定虽不是强制的，但它是 Python 工程实践中非常重要的编码规范。正确使用常量约定能显著提升代码的可读性、可维护性和安全性。
+
+### 1.3 最简示例
+
+最基础的常量写法——全大写命名 + 模块顶部集中定义：
+
+```python
+# 常量定义在模块顶部，全大写命名
+APP_NAME = "OrderService"
 MAX_RETRY = 3
-DEFAULT_TIMEOUT = 30
 PI = 3.14159
-DATABASE_URL = "postgresql://localhost/mydb"
-STATUS_OK = 200
-STATUS_NOT_FOUND = 404
+
+# 使用时直接引用常量名
+print(f"应用: {APP_NAME}")
+print(f"重试: {MAX_RETRY} 次")
+print(f"圆面积: {PI * 5 ** 2:.4f}")
 ```
 
-要点:
-
-- **全大写**:`MAX_RETRY` 而非 `max_retry`(变量)或 `MaxRetry`(类)。
-- **下划线分隔单词**:`DEFAULT_TIMEOUT`、`DATABASE_URL`。
-- **模块顶部**:常量集中在模块开头(import 之后),便于查找与修改。
-- **约定不改**:全大写是"别重新赋值我"的视觉信号,大家自觉遵守。
-
-这套约定来自 PEP 8:"Constants are usually defined on a module level and written in all capital letters with underscores separating words."。虽无强制,但全 Python 社区一致遵守,是事实标准。
-
-**类内常量**:类里的常量也全大写,作为类属性:
-
-```python
-class Circle:
-    PI = 3.14159          # 类常量
-    def area(self):
-        return Circle.PI * self.r ** 2
+```text
+应用: OrderService
+重试: 3 次
+圆面积: 78.5397
 ```
 
-**实例不常做常量**:常量通常是模块级或类级,不放在实例(`self.X`)上,因实例属性默认可变。
-
-### 1.3 为什么需要常量(约定)
-
-不用常量,代码会出现"魔法数/魔法字符串"漫天飞的问题:
-
-```python
-# 坏:魔法数
-if retry_count > 3:
-    ...
-time.sleep(2)
-if response.status == 200:
-    ...
-if user.role == "admin":
-    ...
-```
-
-这里的 `3`、`2`、`200`、`"admin"` 都是裸值,读时要猜含义,改时要全项目找(可能改漏)。用常量后:
-
-```python
-# 好:常量
-if retry_count > MAX_RETRY:
-    ...
-time.sleep(RETRY_INTERVAL)
-if response.status == STATUS_OK:
-    ...
-if user.role == ROLE_ADMIN:
-    ...
-```
-
-好处:
-
-- **可读**:`MAX_RETRY`/`STATUS_OK`/`ROLE_ADMIN` 自解释,不用猜。
-- **可维护**:改最大重试数只改 `MAX_RETRY` 一处,全项目生效。
-- **防错**:裸 `200` 易打成 `2000`,常量名打错会 NameError 立即暴露,比静默错误强。
-- **文档作用**:常量名本身就是 documentation,`ROLE_ADMIN` 比 `"admin"` 更明确。
-- **类型检查辅助**:配合类型注解与 Final,静态检查能发现误改。
-
-常量约定的价值不止"好读",更是提升可维护性与降低 bug 率的工程手段。把散落的裸值集中为命名常量,是代码质量的基础动作。
-
-### 1.4 Python 常量的"不可变"层级
-
-既然 Python 无强制常量,实际有不同强度的"不可变"方案,从弱到强:
-
-| 方案 | 强度 | 机制 | 重新赋值 |
-|------|------|------|----------|
-| 全大写约定 | 最弱(纯约定) | 命名 + 自觉 | 允许,不报错 |
-| `Final` 类型注解 | 弱(静态检查) | mypy/Ruff 检查 | 运行时允许,静态检查报错 |
-| `Enum` 枚举 | 中 | 枚举成员只读 | 运行时禁止重新赋值枚举成员 |
-| `frozen` dataclass | 中 | 冻结实例不可改属性 | 实例属性不可改 |
-| tuple 等不可变容器 | 中 | 容器结构不可变 | 元素引用不可增删,元素本身若可变仍可改 |
-| `namedtuple` | 中 | 不可变记录 | 字段不可改 |
-
-**选择**:
-
-- 普通常量(数值、字符串):全大写约定足够,可选加 `Final` 让 mypy 检查误改。
-- 一组相关的常量(状态码、角色、颜色):用 `Enum`,语义清晰且运行时只读。
-- 配置对象:用 `frozen dataclass` 或 `namedtuple`,属性不可改。
-- 不变集合:用 `tuple`/`frozenset`。
-
-本节第 2 章逐一讲解这些方案,第 4 章讲它们的原理(为何运行时仍可能被绕过、各机制的边界)。
-
----
+注意：Python 运行时**不会阻止**你对 `MAX_RETRY = 100` 重新赋值——全大写命名只是"君子协定"。要获得更强的保护，需要用 `Final` 类型注解配合静态检查器，或用 `Enum`、`frozen dataclass` 等运行时机制。
 
 ## 2. 核心内容
 
-本章详解常量的命名约定、模块级/类级常量、Final 注解、Enum 枚举、frozen dataclass/namedtuple、配置常量组织、常量与类型注解、常量模块设计,给出可落地的规范。
+### 2.1 模块级常量：全大写命名 + Final 类型注解
 
-### 2.1 模块级常量
+模块级常量是 Python 中最常见的常量形式。核心做法是把所有常量集中定义在模块顶部，用**全大写 + 下划线**命名，配合 `Final` 类型注解。
 
-最基础的常量形式:模块顶部全大写赋值。
+**命名约定规则**
 
-```python
-"""数据库连接配置。"""
+| 规则 | 示例 | 说明 |
+|------|------|------|
+| 全大写 + 下划线分隔 | `MAX_RETRY`、`PAGE_SIZE` | 与变量（小写）视觉区分 |
+| 常量名应语义化 | `LARGE_ORDER_THRESHOLD` 而非 `THRESHOLD1` | 名字即文档 |
+| 带单位时在名称中体现 | `CONNECTION_TIMEOUT_SECONDS` 而非 `CONNECTION_TIMEOUT` | 消除秒/毫秒歧义 |
+| 布尔常量用 is/has 前缀 | `DEBUG`、`IS_PRODUCTION` | 表明布尔语义 |
 
-import os
+**Final 类型注解**
 
-# 常量集中在模块顶部
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://localhost/app")
-MAX_CONNECTIONS = 10
-CONNECTION_TIMEOUT = 30       # 秒
-RETRY_TIMES = 3
-DEFAULT_PAGE_SIZE = 20
-```
-
-**约定**:
-
-- 全大写、下划线分隔。
-- 放 import 之后、其他代码之前。
-- 一个常量一行,可附行内注释说明单位/含义(如 `# 秒`)。
-- 相关常量可分组,组间空行:
-
-```python
-# === 数据库 ===
-DATABASE_URL = "..."
-MAX_CONNECTIONS = 10
-
-# === HTTP ===
-HTTP_TIMEOUT = 30
-HTTP_RETRY = 3
-```
-
-**使用**:同模块内直接用名字,跨模块 `from config import DATABASE_URL` 或 `import config; config.DATABASE_URL`。
-
-**为何集中在模块顶部**:便于查找(都在开头)、便于修改(改一处)、明确"这些是配置,运行不变"。散落在函数内的裸值难管理,提为顶部常量是规范动作。
-
-### 2.2 类级常量
-
-类内常量作为类属性,全大写,与该类相关的不变值:
-
-```python
-class Circle:
-    PI = 3.14159              # 类常量
-
-    def __init__(self, radius):
-        self.radius = radius
-
-    def area(self):
-        return Circle.PI * self.radius ** 2
-
-print(Circle.PI)              # 3.14159,通过类访问
-```
-
-**访问**:`Circle.PI`(类访问)或 `self.PI`(实例访问,但约定用类访问以表常量)。类常量属于类,所有实例共享同一份。
-
-**类常量 vs 实例属性**:类常量(全大写、不变)放类体;实例属性(可变、每实例不同)放 `__init__`。别混淆:
-
-```python
-class User:
-    ROLE_ADMIN = "admin"      # 类常量,所有 User 共享,不变
-
-    def __init__(self, name):
-        self.name = name      # 实例属性,每实例不同,可变
-```
-
-**类常量适合**:与类语义相关的不变值,如 `Circle.PI`、`User.ROLE_ADMIN`、`Color.RED`。它让常量"挂在"相关类上,比散在模块更有组织。
-
-### 2.3 常量与类型注解:Final
-
-`Final`(typing,Python 3.8+)给常量加静态保护:声明"此名字不应重新赋值",mypy/Ruff 静态检查会报误改:
+`typing.Final` 是 Python 3.8 引入的类型注解，告诉静态检查器"这个变量不应被重新赋值"：
 
 ```python
 from typing import Final
 
+# Final 标注 + 赋初值
+APP_NAME: Final[str] = "OrderService"
+APP_VERSION: Final[str] = "1.0.0"
 MAX_RETRY: Final[int] = 3
-DEFAULT_TIMEOUT: Final[int] = 30
-APP_NAME: Final[str] = "MyApp"
-
-MAX_RETRY = 5     # mypy/Ruff 报错:Cannot assign to final name "MAX_RETRY"
+PAGE_SIZE: Final[int] = 20
+LARGE_ORDER_THRESHOLD: Final[float] = 10000.0
 ```
 
-**机制**:`Final` 是类型注解,告诉静态检查器"这个名字是 final,不可重新赋值"。**运行时 Python 仍允许改**(无强制),但 mypy/Ruff 在检查阶段会报错,CI 拦截误改。
+**示例**
 
-**用法**:`名字: Final[类型] = 值`,或 `名字: Final = 值`(类型可推断省略)。
-
-**类内 Final**:
+一个完整的配置常量模块，集中定义应用所需的全部常量：
 
 ```python
-class Config:
-    URL: Final[str] = "http://example.com"
-    PORT: Final[int] = 8080
+import os
+from dataclasses import dataclass
+from typing import Final
+
+
+# === 应用信息 ===
+APP_NAME: Final[str] = "OrderService"
+APP_VERSION: Final[str] = "1.0.0"
+# 环境变量驱动：不同环境用不同配置，代码不变
+DEBUG: Final[bool] = os.getenv("DEBUG", "false").lower() == "true"
+
+# === 数据库 ===
+DATABASE_URL: Final[str] = os.getenv(
+    "DATABASE_URL", "postgresql://localhost/orders"
+)
+MAX_CONNECTIONS: Final[int] = 10
+CONNECTION_TIMEOUT_SECONDS: Final[int] = 30  # 带单位，消除秒/毫秒歧义
+
+# === 业务阈值 ===
+MAX_RETRY: Final[int] = 3
+LARGE_ORDER_THRESHOLD: Final[float] = 10000.0
+PAGE_SIZE: Final[int] = 20
 ```
 
-**Final 的价值**:把"常量约定"从纯自觉升级为"静态检查可保证"。配合 mypy/Ruff 在 CI 跑,误改常量会在构建阶段暴露,而不是等运行时悄悄出错。这是 Python 里最接近"编译期常量保护"的方案(虽仍是静态检查,非运行时强制)。
-
-**Final 的局限**:只防"重新赋值",不防"对可变常量的就地修改"(如常量是 list,`FINAL_LIST.append(x)` Final 管不到)。要防就地改,用 tuple/frozenset 等不可变容器(2.7)。
-
-### 2.4 用 Enum 表达一组相关常量
-
-当常量是一组相关的命名值(状态码、角色、颜色、选项),用 `Enum` 比裸常量更优:
+**运行结果**（读取并打印这些常量）：
 
 ```python
-from enum import Enum
-
-class Status(Enum):
-    PENDING = "pending"
-    PROCESSING = "processing"
-    SUCCESS = "success"
-    FAILED = "failed"
-
-class Role(Enum):
-    ADMIN = "admin"
-    EDITOR = "editor"
-    VIEWER = "viewer"
-
-# 使用
-order_status = Status.PENDING
-if order_status == Status.SUCCESS:
-    ...
-if user.role == Role.ADMIN:
-    ...
+print(f"  APP_NAME = {APP_NAME}")
+print(f"  APP_VERSION = {APP_VERSION}")
+print(f"  DEBUG = {DEBUG}")
+print(f"  DATABASE_URL = {DATABASE_URL}")
+print(f"  MAX_RETRY = {MAX_RETRY}, PAGE_SIZE = {PAGE_SIZE}")
 ```
 
-**Enum 的优势**:
+```text
+APP_NAME = OrderService
+APP_VERSION = 1.0.0
+DEBUG = False
+DATABASE_URL = postgresql://localhost/orders
+MAX_RETRY = 3, PAGE_SIZE = 20
+```
 
-- **分组明确**:`Status.PENDING`/`Status.SUCCESS` 同属 Status,比散落的 `STATUS_PENDING`/`STATUS_SUCCESS` 更有组织。
-- **运行时只读**:Enum 成员不可重新赋值(`Status.PENDING = "x"` 报错),比纯约定强。
-- **防非法值**:函数参数类型注解为 `Status`,mypy 能拦截传入非 Status 值。
-- **可迭代**:`for s in Status:` 遍历所有状态;`Status["PENDING"]` 按名取;`Status("success")` 按值取。
-- **可读**:`Status.SUCCESS` 比 `"success"` 或 `200` 自解释。
+**关键点说明**
 
-**Enum 的值类型**:`Enum` 成员值可任意;`IntEnum`/`StrEnum` 让成员可当 int/str 用(可与数字/字符串直接比较,3.11+ 有 StrEnum)。`auto()` 自动赋值:
+- 全大写命名是**纯自觉**——运行时不拦截修改。`MAX_RETRY = 100` 能正常执行，不会报错。不可变性靠 Final + mypy/Ruff 静态检查保证。
+- `Final` 注解只在**静态检查**阶段生效：如果你写 `MAX_RETRY = 100` 重新赋值，mypy 会报 `Cannot assign to final name "MAX_RETRY"`，但 Python 解释器运行时不会拦截。
+- 常量名带单位（如 `_SECONDS`、`_MS`、`_KB`）能消除歧义。`CONNECTION_TIMEOUT = 30` 让读者猜不出是秒还是毫秒，`CONNECTION_TIMEOUT_SECONDS = 30` 一目了然。
+- 环境变量驱动的常量适合不同部署环境：开发环境 `DEBUG=true`，生产环境 `DEBUG=false`，代码不需要改，只改环境变量。
+
+### 2.2 类级常量：与类语义绑定的常量
+
+当常量与某个类的语义强相关时，把它作为**类属性**定义在类内部，而不是放在模块顶部。这样常量和类在同一个位置，修改时不用满文件找。
+
+**何时用类级常量**
+
+| 场景 | 示例 | 说明 |
+|------|------|------|
+| 数学/物理常量 | `Circle.PI`、`Earth.GRAVITY` | 与类公式强相关 |
+| 角色常量 | `User.ROLE_ADMIN`、`User.ROLE_VIEWER` | 角色值与用户类绑定 |
+| 状态常量 | `Order.STATUS_PENDING` | 状态与订单类绑定 |
+| 配置常量 | `HttpClient.MAX_TIMEOUT` | 默认配置与类绑定 |
+
+**示例**
+
+```python
+class Circle:
+    """圆——PI 是数学常量，与圆的公式强相关。"""
+
+    PI = 3.14159  # 类常量，所有实例共享
+
+    def __init__(self, radius):
+        self.radius = radius  # 实例属性，每实例不同、可变
+
+    def area(self):
+        # 约定用类访问 Circle.PI，而非 self.PI
+        return Circle.PI * self.radius ** 2
+
+    def circumference(self):
+        return 2 * Circle.PI * self.radius
+
+
+class User:
+    ROLE_ADMIN = "admin"   # 类常量
+    ROLE_EDITOR = "editor"
+    ROLE_VIEWER = "viewer"
+
+    def __init__(self, name, role):
+        self.name = name  # 实例属性
+        self.role = role
+```
+
+**运行结果**：
+
+```python
+c = Circle(5)
+print(f"  Circle.PI = {Circle.PI}（类访问）")
+print(f"  Circle(5).area() = {c.area():.4f}")
+print(f"  Circle(5).circumference() = {c.circumference():.4f}")
+
+admin = User("张三", User.ROLE_ADMIN)
+print(f"  User.ROLE_ADMIN = {User.ROLE_ADMIN}")
+print(f"  用户 {admin.name} 角色: {admin.role}")
+```
+
+```text
+Circle.PI = 3.14159（类访问）
+Circle(5).area() = 78.5397
+Circle(5).circumference() = 31.4159
+User.ROLE_ADMIN = admin
+用户 张三 角色: admin
+```
+
+**关键点说明**
+
+- 类常量用**类名访问**（`Circle.PI`），而非实例访问（`self.PI`）。通过类名访问明确表达"这是一个常量"，通过 `self.PI` 访问会让人误以为是实例属性。
+- 类常量被所有实例共享，内存中只有一份。实例属性（如 `self.radius`）每实例独立。
+- 类常量同样可以被运行时修改（`Circle.PI = 4` 不会报错），Final 注解和静态检查同样适用。
+- 当角色常量数量较多或需要迭代时，更适合用 Enum（见 2.3 节）。
+
+### 2.3 Enum 枚举：运行时只读的常量
+
+当一组常量属于同一个有限集合（如订单状态有 4 种：待处理、处理中、成功、失败），用 `Enum` 比"一堆全大写变量"更合适。Enum 是 Python 标准库提供的枚举类型，最大的优势是**运行时只读**——由元类强制执行，试图修改枚举成员会抛 `AttributeError`。
+
+**Enum vs 全大写常量**
+
+| 维度 | 全大写常量 | Enum |
+|------|----------|------|
+| 运行时保护 | 无，纯自觉 | 有，元类强制只读 |
+| 成员可迭代 | 不行 | 可以，`for s in OrderStatus` |
+| 按名取值 | 不直接支持 | `OrderStatus['PENDING']` |
+| 按值取名 | 不直接支持 | `OrderStatus('pending')` |
+| 分组明确 | 散落在模块中 | 集中在类内 |
+| 适合场景 | 独立常量 | 一组相关常量 |
+
+**示例**
+
+定义订单状态和优先级枚举：
 
 ```python
 from enum import Enum, auto
 
-class Color(Enum):
-    RED = auto()       # 自动 1, 2, 3
-    GREEN = auto()
-    BLUE = auto()
-```
 
-**何时用 Enum**:一组有限、相关、命名的取值(状态、角色、类型、选项),用 Enum;单个独立常量(如 PI)用全大写变量。Enum 是表达"枚举常量集"的最佳方式。
+class OrderStatus(Enum):
+    """订单状态枚举（一组有限命名取值）。"""
 
-### 2.5 frozen dataclass 与 namedtuple:不可变记录
-
-当常量是**结构化配置对象**(多个字段的不可变组合),用 `frozen dataclass` 或 `namedtuple`:
-
-**frozen dataclass**(Python 3.7+):
-
-```python
-from dataclasses import dataclass
-
-@dataclass(frozen=True)
-class DbConfig:
-    url: str
-    max_connections: int = 10
-    timeout: int = 30
-
-DB = DbConfig(url="postgresql://localhost/app", max_connections=20)
-print(DB.url)            # 访问字段
-# DB.url = "x"          # FrozenInstanceError!frozen 禁止改属性
-```
-
-`frozen=True` 让 dataclass 实例不可变,改属性抛 `FrozenInstanceError`。适合"一组配置常量"作为不可变对象。
-
-**namedtuple**(更老,轻量):
-
-```python
-from collections import namedtuple
-
-DbConfig = namedtuple("DbConfig", ["url", "max_connections", "timeout"])
-DB = DbConfig(url="...", max_connections=20, timeout=30)
-# DB.url = "x"          # AttributeError,namedtuple 不可变
-```
-
-namedtuple 也是不可变记录,但无类型注解、无默认值方法等 dataclass 的现代特性。新项目优先 frozen dataclass。
-
-**何时用**:配置对象(数据库配置、HTTP 配置)用 frozen dataclass 表达"一组不可变配置",比散落常量更有结构、比可变对象更安全。
-
-### 2.6 不可变容器:tuple 与 frozenset
-
-常量若是集合,用不可变容器 `tuple`/`frozenset` 而非可变的 `list`/`set`:
-
-```python
-# 好:tuple 不可变
-SUPPORTED_LANGUAGES = ("zh", "en", "ja")
-ALLOWED_ORIGINS = frozenset({"https://a.com", "https://b.com"})
-
-# 坏:list 可变,常量可能被 append
-SUPPORTED_LANGUAGES = ["zh", "en", "ja"]
-SUPPORTED_LANGUAGES.append("ko")   # 不报错,常量被改了!
-```
-
-**tuple vs list**:tuple 不可变(不能增删元素),list 可变。常量集合用 tuple,防止误 append/修改。
-
-**frozenset vs set**:frozenset 不可变 set,可哈希(能做 dict 键);set 可变。常量集合用 frozenset。
-
-**注意元素可变性**:tuple 本身不可变(结构),但若元素是可变对象,元素内容仍可改:
-
-```python
-DATA = ([1, 2], [3, 4])     # tuple 含 list
-DATA[0].append(99)          # 合法!改的是 tuple 内的 list 元素
-print(DATA)                 # ([1, 2, 99], [3, 4])
-```
-
-要真正不可变,元素也需不可变(全部用 tuple/int/str)。这是不可变性的层级:容器不可变≠元素不可变,深层不可变要递归用不可变类型。
-
-### 2.7 配置常量的组织
-
-项目常量多了需要组织。常见模式:
-
-**单配置模块**:`config.py` 集中所有常量,其他模块 `from config import X`:
-
-```python
-# config.py
-DATABASE_URL = "..."
-MAX_RETRY = 3
-...
-
-# app.py
-from config import DATABASE_URL, MAX_RETRY
-```
-
-适合小项目。但大项目常量全堆一个文件会臃肿。
-
-**分领域配置**:`config/db.py`、`config/http.py`、`config/app.py`,按领域分文件:
-
-```python
-# config/db.py
-URL = "..."
-MAX_CONNECTIONS = 10
-
-# config/http.py
-TIMEOUT = 30
-RETRY = 3
-```
-
-按领域分,清晰且可维护。
-
-**环境变量驱动**:常量从环境变量读,适应多环境(开发/生产):
-
-```python
-import os
-DATABASE_URL = os.getenv("DATABASE_URL", "default")
-DEBUG = os.getenv("DEBUG", "false").lower() == "true"
-```
-
-环境变量让同一份代码在不同环境用不同配置,是部署的标准做法。配合 `.env` 文件与 `python-dotenv` 加载。
-
-**常量与配置文件**:复杂配置用 YAML/TOML/JSON 文件,程序读取为常量对象(dict/dataclass)。配置与代码分离,改配置不改代码。
-
-组织常量的原则:**小项目单 config 模块,大项目按领域分,环境差异用环境变量/配置文件**。常量集中管理、环境外置,是可维护配置的基础。
-
-### 2.8 常量与类型注解协作
-
-常量配合类型注解,提升可读性与静态检查:
-
-```python
-from typing import Final
-
-MAX_RETRY: Final[int] = 3
-DEFAULT_TIMEOUT: Final[float] = 30.0
-APP_NAME: Final[str] = "MyApp"
-SUPPORTED_FORMATS: Final[tuple[str, ...]] = ("csv", "json", "xml")
-```
-
-**收益**:
-
-- 类型注解让常量类型明确,读者一眼知 `MAX_RETRY` 是 int。
-- `Final` 让静态检查保证不被重新赋值。
-- 容器常量注解为不可变类型(`tuple[str, ...]` 而非 `list[str]`),表达"不可变集合"意图,mypy 也会阻止 append 等修改尝试。
-
-**推导与显式**:简单常量类型可推断省略(`MAX_RETRY: Final = 3`),复杂或需明确用显式注解。团队统一风格即可。
-
-类型注解 + Final + 不可变容器类型,三者协作把"常量约定"从纯命名升级为静态类型系统可保证的契约,是现代 Python 常量的最佳实践。
-
-### 2.9 常量文档与命名
-
-常量命名与文档:
-
-**命名**:全大写下划线,表意准确:
-
-```python
-# 好
-MAX_RETRY = 3
-DEFAULT_TIMEOUT_SECONDS = 30      # 带单位更清晰
-HTTP_STATUS_OK = 200
-
-# 坏
-MAX = 3                           # 过于泛
-TIMEOUT = 30                      # 不知秒/毫秒
-X = 200                           # 含义不明
-```
-
-带单位的常量名加单位(`TIMEOUT_SECONDS`/`DELAY_MS`),避免单位歧义(秒还是毫秒是经典坑)。
-
-**文档**:常量密集或含义不直观时,加注释或 docstring:
-
-```python
-# 最大重试次数,超过即放弃并抛错
-MAX_RETRY = 3
-
-# 心跳间隔(秒),服务端据此判断客户端是否存活
-HEARTBEAT_INTERVAL = 15
-```
-
-模块级常量可在模块 docstring 说明,枚举可在每个成员加注释:
-
-```python
-class Status(Enum):
-    PENDING = "pending"        # 已创建,待处理
+    PENDING = "pending"        # 已创建，待处理
     PROCESSING = "processing"  # 处理中
     SUCCESS = "success"        # 成功
-    FAILED = "failed"          # 失败,含 error 字段
+    FAILED = "failed"          # 失败，含 error 字段
+
+
+class UserRole(Enum):
+    """用户角色枚举。"""
+
+    ADMIN = "admin"
+    EDITOR = "editor"
+    VIEWER = "viewer"
+
+
+class Priority(Enum):
+    """订单优先级，用 auto() 自动编号。"""
+
+    LOW = auto()     # 1
+    NORMAL = auto()  # 2
+    HIGH = auto()    # 3
 ```
 
-常量文档让"为何是这个值""单位是什么""取值含义"清晰,减少后续维护的猜测。
-
-### 2.10 完整示例:规范的常量模块
-
-一个体现各项规范的配置模块:
+**运行结果**（访问枚举成员）：
 
 ```python
-"""应用配置常量。"""
+order_status = OrderStatus.PENDING
+print(f"  订单状态: {order_status.name} = {order_status.value}")
 
-import os
+# Enum 可迭代、按名取、按值取
+print(f"  所有状态: {[s.name for s in OrderStatus]}")
+print(f"  按名取 OrderStatus['SUCCESS'] = {OrderStatus['SUCCESS'].value}")
+print(f"  按值取 OrderStatus('failed') = {OrderStatus('failed').name}")
+
+# 运行时强制只读：试图改成员抛 AttributeError
+try:
+    OrderStatus.PENDING = "x"
+except AttributeError as e:
+    print(f"  AttributeError: {e}")
+
+# 试图改成员值也抛 AttributeError
+try:
+    OrderStatus.PENDING.value = "x"
+except AttributeError as e:
+    print(f"  AttributeError: {e}")
+
+print(f"  Priority 自动编号: LOW={Priority.LOW.value}, "
+      f"NORMAL={Priority.NORMAL.value}, HIGH={Priority.HIGH.value}")
+```
+
+```text
+订单状态: PENDING = pending
+所有状态: ['PENDING', 'PROCESSING', 'SUCCESS', 'FAILED']
+按名取 OrderStatus['SUCCESS'] = success
+按值取 OrderStatus('failed') = FAILED
+AttributeError: cannot reassign member 'PENDING'
+AttributeError: <enum 'Enum'> cannot set attribute 'value'
+Priority 自动编号: LOW=1, NORMAL=2, HIGH=3
+```
+
+**关键点说明**
+
+- `OrderStatus.PENDING` 是一个枚举成员对象，`.name` 返回成员名（`"PENDING"`），`.value` 返回成员值（`"pending"`）。
+- `auto()` 自动从 1 开始递增编号（不是从 0），适合不需要特定值的场景。
+- Enum 的只读性是**运行时强制**的，不是约定——这比全大写常量更强。`OrderStatus.PENDING = "x"` 直接抛 `AttributeError`。
+- `OrderStatus('pending')` 可以通过值反查到枚举成员，全大写常量做不到这种反向查找。
+- 枚举成员是**单例**——`OrderStatus.PENDING is OrderStatus.PENDING` 返回 `True`，可以用 `is` 判断身份。
+
+### 2.4 frozen dataclass：不可变结构化常量
+
+当常量是一组相关的配置项（如 HTTP 客户端的超时、重试次数、User-Agent），用一个结构化的对象来表达比分散的变量更清晰。`@dataclass(frozen=True)` 创建的**冻结数据类**让实例属性不可修改——试图赋值会抛 `FrozenInstanceError`。
+
+**frozen vs 普通 dataclass**
+
+| 维度 | 普通 dataclass | frozen dataclass |
+|------|--------------|-----------------|
+| 实例属性可修改 | 可以 | 不可以，抛 FrozenInstanceError |
+| 可哈希 | 不一定 | 是，可做 dict 键 |
+| 适合场景 | 可变数据对象 | 不可变配置常量 |
+| 安全性 | 运行时可被篡改 | 运行时只读 |
+
+**示例**
+
+定义 HTTP 配置常量：
+
+```python
 from dataclasses import dataclass
-from enum import Enum
 from typing import Final
-
-# === 应用 ===
-APP_NAME: Final[str] = "MyApp"
-APP_VERSION: Final[str] = "1.0.0"
-DEBUG: Final[bool] = os.getenv("DEBUG", "false").lower() == "true"
-
-# === 数据库 ===
-DATABASE_URL: Final[str] = os.getenv("DATABASE_URL", "postgresql://localhost/app")
-MAX_CONNECTIONS: Final[int] = 10
-CONNECTION_TIMEOUT: Final[int] = 30  # 秒
 
 
 @dataclass(frozen=True)
 class HttpConfig:
-    """HTTP 客户端不可变配置。"""
-    timeout: int = 30          # 秒
+    """HTTP 客户端不可变配置。
+
+    frozen=True 让实例属性不可改，改属性抛 FrozenInstanceError，
+    适合"一组配置常量"作为不可变对象。
+    """
+
+    timeout_seconds: int = 30
     retry: int = 3
-    user_agent: str = "MyApp/1.0"
+    user_agent: str = "OrderService/1.0"
 
 
+# 全局 HTTP 配置常量，frozen 实例不可改
 HTTP: Final[HttpConfig] = HttpConfig()
+```
+
+**运行结果**（验证不可变性）：
+
+```python
+print(f"  HTTP 配置默认: timeout={HTTP.timeout_seconds}s, retry={HTTP.retry}")
+print("  尝试改 frozen 属性 HTTP.timeout_seconds = 60 ...")
+try:
+    HTTP.timeout_seconds = 60
+except AttributeError as e:
+    # FrozenInstanceError 是 AttributeError 的子类
+    print(f"  -> {type(e).__name__}: {e}")
+```
+
+```text
+HTTP 配置默认: timeout=30s, retry=3
+尝试改 frozen 属性 HTTP.timeout_seconds = 60 ...
+-> FrozenInstanceError: cannot assign to field 'timeout_seconds'
+```
+
+**关键点说明**
+
+- `frozen=True` 让 dataclass 的 `__setattr__` 和 `__delattr__` 被拦截，任何对实例属性的赋值或删除都会抛 `FrozenInstanceError`（`AttributeError` 的子类）。
+- frozen 实例是**可哈希**的（普通 dataclass 不一定），可以用作 dict 的键或放入 set 中。
+- 适合表达"一组不可变配置"——比如 HTTP 配置、数据库配置、业务参数配置。
+- `Final` 和 `frozen` 搭配使用：`Final` 防止 `HTTP` 变量被重新赋值，`frozen` 防止 `HTTP.timeout_seconds` 被修改。双重保护。
+
+### 2.5 namedtuple：轻量不可变记录
+
+`collections.namedtuple` 是另一种创建不可变记录的方式。它比 dataclass 更轻量，不需要定义类，适合简单的固定字段记录。
+
+**示例**
+
+```python
+from collections import namedtuple
+
+# 定义一个 Point 命名元组，有 x、y 两个字段
+Point = namedtuple("Point", ["x", "y"])
+p = Point(3, 4)
+
+print(f"  Point(3, 4): x={p.x}, y={p.y}")
+print("  尝试改 namedtuple 字段 p.x = 10 ...")
+try:
+    p.x = 10
+except AttributeError as e:
+    print(f"  -> AttributeError: {e}")
+```
+
+```text
+Point(3, 4): x=3, y=4
+尝试试改 namedtuple 字段 p.x = 10 ...
+-> AttributeError: can't set attribute
+```
+
+**namedtuple vs frozen dataclass**
+
+| 维度 | namedtuple | frozen dataclass |
+|------|-----------|-----------------|
+| 定义方式 | `namedtuple("Name", [...])` | `@dataclass(frozen=True)` |
+| 类型注解 | 不支持（Python < 3.6 typing.NamedTuple 支持） | 原生支持 |
+| 默认值 | `defaults` 参数 | 字段直接赋默认值 |
+| 方法 | 继承 tuple 全部方法 | 自动生成 `__init__`、`__repr__` 等 |
+| 解包 | 支持（元组解包） | 不直接支持 |
+| 适合场景 | 轻量记录、兼容旧代码 | 结构化配置常量 |
+| 内存开销 | 更小（C 实现） | 略大 |
+
+**选择建议**：新代码优先用 `dataclass(frozen=True)`，类型注解更自然、功能更完整；需要与 tuple 兼容或需要迭代/解包时用 `namedtuple`。
+
+### 2.6 tuple 与 frozenset：不可变集合常量
+
+当常量是一个集合（如支持的语言列表、允许的来源域名），用不可变集合类型 `tuple` 和 `frozenset` 而非 `list` 和 `set`。这样可以防止运行时被误 `append`、`add` 等操作修改。
+
+**list vs tuple vs set vs frozenset**
+
+| 集合类型 | 可变性 | 可哈希 | 适合场景 |
+|---------|--------|--------|---------|
+| `list` | 可变 | 否 | 运行时动态增删的场景 |
+| `tuple` | 不可变 | 是 | 固定顺序的不可变序列 |
+| `set` | 可变 | 否 | 需要去重和集合运算 |
+| `frozenset` | 不可变 | 是 | 固定成员的不可变集合，可做 dict 键 |
+
+**示例**
+
+定义不可变集合常量：
+
+```python
+from typing import Final
+
+# 用 tuple 而非 list，防止运行时被误 append
+SUPPORTED_LANGUAGES: Final[tuple[str, ...]] = ("zh", "en", "ja")
+# frozenset 不可变且可哈希，能做 dict 键
+ALLOWED_ORIGINS: Final[frozenset[str]] = frozenset(
+    {"https://app.example.com", "https://admin.example.com"}
+)
+```
+
+**运行结果**：
+
+```python
+langs = SUPPORTED_LANGUAGES
+origins = ALLOWED_ORIGINS
+print(f"  tuple: {langs}")
+print(f"  frozenset: {origins}")
+
+# tuple 结构不可变：没有 append 方法
+print("  尝试 tuple.append (不可变，无此方法)...")
+print(f"  hasattr(langs, 'append') = {hasattr(langs, 'append')}")
+
+# 但元素若可变，元素内容仍可改——容器不可变 ≠ 元素不可变
+nested = ([1, 2], [3, 4])
+print(f"  含 list 的 tuple: {nested}")
+nested[0].append(99)
+print(f"  nested[0].append(99) 后: {nested}（tuple 内的 list 被改了！）")
+
+# frozenset 可哈希，能做 dict 键——set 不行
+cache = {origins: "ok"}
+print(f"  frozenset 做 dict 键: {cache}")
+```
+
+```text
+tuple: ('zh', 'en', 'ja')
+frozenset: frozenset({'https://app.example.com', 'https://admin.example.com'})
+尝试 tuple.append (不可变，无此方法)...
+hasattr(langs, 'append') = False
+含 list 的 tuple: ([1, 2], [3, 4])
+nested[0].append(99) 后: ([1, 2, 99], [3, 4])（tuple 内的 list 被改了！）
+frozenset 做 dict 键: {frozenset({'https://app.example.com', 'https://admin.example.com'}): 'ok'}
+```
+
+**关键点说明**
+
+- `tuple` 不可变指的是**结构不可变**——不能 `append`、不能 `del`、不能通过索引替换元素引用。但如果 tuple 内的元素本身是可变对象（如 `list`），你仍然可以修改那个可变对象的内容。所以"tuple 不可变"精确地说应该是"tuple 不可重新绑定元素引用"，而非"tuple 内所有内容都不可变"。
+- `frozenset` 和 `set` 的区别就是可变性。`frozenset` 是可哈希的，所以它可以做 dict 的键或放入另一个 set 中。`set` 不可哈希，不能做 dict 键。
+- 版本提示：`tuple[str, ...]` 和 `frozenset[str]` 这种内置泛型注解需要 Python 3.9+。3.8 及以下需要用 `typing.Tuple` 和 `typing.FrozenSet`。
+- 什么时候用 tuple，什么时候用 frozenset？——需要保持顺序且有重复值用 tuple，需要去重和成员判断用 frozenset。
+
+### 2.7 常量与魔法数：消除散落的硬编码值
+
+**魔法数**（Magic Number）是代码中直接出现的、没有解释含义的数字或字符串。它们像"魔法"一样凭空出现，读代码的人必须猜测含义。用常量替代魔法数是常量约定最核心的应用场景之一。
+
+**什么是魔法数**
+
+```python
+# 魔法数满天飞的代码
+def process_order(order):
+    if order["status"] == "pending":       # "pending" 是魔法字符串
+        if order["amount"] > 10000:        # 10000 是魔法数——大额阈值？
+            order["priority"] = "high"     # "high" 是魔法字符串
+    if order["retry"] > 3:                 # 3 是魔法数——最大重试？
+        order["status"] = "failed"        # "failed" 是魔法字符串
+    return order
+```
+
+每处魔法数和魔法字符串都需要猜测含义。修改阈值需要全文搜索，容易遗漏。
+
+**用常量替代**
+
+```python
+from enum import Enum, auto
 
 
-class Status(Enum):
-    """订单状态枚举。"""
+class OrderStatus(Enum):
     PENDING = "pending"
     PROCESSING = "processing"
     SUCCESS = "success"
     FAILED = "failed"
 
 
-# === 不可变集合 ===
-SUPPORTED_LANGUAGES: Final[tuple[str, ...]] = ("zh", "en", "ja")
-ALLOWED_ORIGINS: Final[frozenset[str]] = frozenset({"https://a.com", "https://b.com"})
-```
+class Priority(Enum):
+    LOW = auto()
+    NORMAL = auto()
+    HIGH = auto()
 
-此示例体现:模块 docstring、Final 类型注解、分组注释、frozen dataclass 配置、Enum 枚举、不可变容器(tuple/frozenset)、环境变量驱动、带单位注释。是常量约定的范本。
 
-### 2.11 魔法数消除实战
-
-把魔法数逐步替换为常量,是提升可读性的标准动作。看一个对比:
-
-```python
-# 重构前:魔法数/字符串漫天飞
-def process_order(order):
-    if order["status"] == 1:           # 1 是什么?
-        time.sleep(2)                  # 2 秒?2 分钟?
-        if order["amount"] > 10000:
-            order["priority"] = "high"  # "high" 散落多处
-    if order["retry"] > 3:
-        raise Exception("failed")
-    return order
-
-def get_users(page):
-    return db.query("SELECT * FROM users LIMIT 20 OFFSET ?", (page * 20,))  # 20 是啥?
-```
-
-```python
-# 重构后:常量化,自解释
-STATUS_PENDING = 1
-PRIORITY_HIGH = "high"
-PROCESS_DELAY_SECONDS = 2
-LARGE_ORDER_THRESHOLD = 10000
+# 业务阈值常量
 MAX_RETRY = 3
-PAGE_SIZE = 20
+LARGE_ORDER_THRESHOLD = 10000.0
+
 
 def process_order(order):
-    if order["status"] == STATUS_PENDING:
-        time.sleep(PROCESS_DELAY_SECONDS)
+    if order["status"] == OrderStatus.PENDING.value:
         if order["amount"] > LARGE_ORDER_THRESHOLD:
-            order["priority"] = PRIORITY_HIGH
-    if order["retry"] > MAX_RETRY:
-        raise Exception("failed")
+            order["priority"] = Priority.HIGH.name
+        if order["retry"] > MAX_RETRY:
+            order["status"] = OrderStatus.FAILED.value
+    return order
+```
+
+**重构前后对比**
+
+```python
+order = {"status": "pending", "amount": 15000, "retry": 1, "priority": "normal"}
+
+# 重构前：魔法数/字符串满天飞，读时要猜含义
+def process_order_bad(order):
+    if order["status"] == "pending":
+        if order["amount"] > 10000:
+            order["priority"] = "high"
+    if order["retry"] > 3:
+        order["status"] = "failed"
     return order
 
-def get_users(page):
-    return db.query("SELECT * FROM users LIMIT ? OFFSET ?", (PAGE_SIZE, page * PAGE_SIZE))
+# 重构后：常量化，自解释
+def process_order_good(order):
+    if order["status"] == OrderStatus.PENDING.value:
+        if order["amount"] > LARGE_ORDER_THRESHOLD:
+            order["priority"] = Priority.HIGH.name
+        if order["retry"] > MAX_RETRY:
+            order["status"] = OrderStatus.FAILED.value
+    return order
+
+order = {"status": "pending", "amount": 15000, "retry": 1, "priority": "normal"}
+result = process_order_good(order)
+print(f"  原始订单: {order}")
+print(f"  处理后: {order}")
 ```
 
-重构后每处值的含义一目了然,改阈值只改常量定义一处。这种"魔法数 → 命名常量"的提取是代码质量的基础重构,几乎每个项目都该做一遍。注意常量名要准确表意(`LARGE_ORDER_THRESHOLD` 而非 `THRESHOLD`),否则换汤不换药。
-
-### 2.12 常量与函数默认参数
-
-常量常用作函数默认参数值,但需注意可变常量的陷阱:
-
-**不可变常量作默认参数(安全)**:
-
-```python
-DEFAULT_TIMEOUT = 30
-
-def fetch(url, timeout=DEFAULT_TIMEOUT):   # 不可变,安全
-    ...
+```text
+原始订单: {'status': 'pending', 'amount': 15000, 'retry': 1, 'priority': 'normal'}
+处理后: {'status': 'pending', 'amount': 15000, 'retry': 1, 'priority': 'HIGH'}
 ```
 
-int 不可变,作默认参数安全——每次调用都用同一 30,不会累积。
+**关键点说明**
 
-**可变常量作默认参数(陷阱)**:与变量赋值机制里的默认参数陷阱同理,可变常量作默认参数会在多次调用间共享累积:
+- 重构后每处值的含义一目了然——`LARGE_ORDER_THRESHOLD` 替代了 `10000`，`MAX_RETRY` 替代了 `3`，`OrderStatus.PENDING.value` 替代了散落的 `"pending"` 字符串。
+- 修改阈值时只需改常量定义一处，不需要全文搜索。比如把大额阈值从 10000 改为 15000，只需改 `LARGE_ORDER_THRESHOLD = 15000.0`。
+- Enum 相比普通字符串常量还有一个额外好处：拼写检查。如果你把 `"pending"` 误写为 `"pendign"`，运行时可能不会报错但逻辑不对。而 `OrderStatus.PENDIGNGN` 会在 import 时直接抛 `AttributeError`，立即暴露错误。
+
+### 2.8 可变常量作默认参数的陷阱
+
+这是 Python 中一个非常经典的坑。当你把一个**可变对象**（如 list、dict、set）作为常量，并用作函数的默认参数时，多次调用会**共享同一对象**，导致数据累积。
+
+**陷阱演示**
 
 ```python
-DEFAULT_TAGS = []          # 可变常量(本身就不该用 list 当常量,见 2.6)
+# 陷阱：可变常量作默认参数，多次调用共享同一对象
+DEFAULT_TAGS = ["new"]  # 可变常量（本身就不该用 list 当常量）
 
-def create_user(name, tags=DEFAULT_TAGS):  # 陷阱!所有调用共享同一 list
+def create_user_bad(name, tags=DEFAULT_TAGS):
     tags.append("new")
     return {"name": name, "tags": tags}
 
-create_user("a")   # {'name': 'a', 'tags': ['new']}
-create_user("b")   # {'name': 'b', 'tags': ['new', 'new']}  —— 累积了!
+user_a = create_user_bad("alice")
+user_b = create_user_bad("bob")
+print(f"  陷阱: user_a = {user_a}")
+print(f"  陷阱: user_b = {user_b}（累积了 alice 的标签！）")
 ```
 
-修复一:常量用不可变容器 `DEFAULT_TAGS = ()`(tuple),但 `tags.append` 就不适用了。
-修复二:用 `None` 哨兵,函数内创建:
+```text
+陷阱: user_a = {'name': 'alice', 'tags': ['new', 'new', 'new']}
+陷阱: user_b = {'name': 'bob', 'tags': ['new', 'new', 'new']}（累积了 alice 的标签！）
+```
+
+`user_b` 的 tags 里竟然有 alice 的标签！原因是 Python 的函数默认参数在**函数定义时创建一次**，之后所有调用共享这同一个对象。`tags.append("new")` 修改的是这同一个 list，每次调用都会往里面加一个 `"new"`。
+
+**修复方案**
+
+**方案一：None 哨兵 + 函数内创建新对象**
 
 ```python
-def create_user(name, tags=None):
+def create_user_good(name, tags=None):
     if tags is None:
-        tags = []
+        tags = []       # 每次调用创建新 list
     tags.append("new")
     return {"name": name, "tags": tags}
+
+user_c = create_user_good("charlie")
+user_d = create_user_good("diana")
+print(f"  修复: user_c = {user_c}")
+print(f"  修复: user_d = {user_d}（各自独立）")
 ```
 
-**规则**:可变对象(即使是常量)绝不做函数默认参数。常量集合用 tuple/frozenset(既不可变又可作安全默认参数),或用 None 哨兵。这条与《变量赋值机制》的默认参数陷阱一脉相承,常量语境下同样适用。
+```text
+修复: user_c = {'name': 'charlie', 'tags': ['new']}
+修复: user_d = {'name': 'diana', 'tags': ['new']}（各自独立）
+```
 
-### 2.13 常量的反模式
+**方案二：tuple 常量做默认参数**
 
-汇总常见坏常量用法:
-
-- **可变常量**:`SUPPORTED = ["zh","en"]` 用 list 当常量,易被误改。该用 tuple。
-- **散落裸值**:该提常量的地方直接写 3/200/"admin",魔法数残留。
-- **常量命名含糊**:`MAX = 3`(什么的 max)、`DATA = ...`(什么 data)。
-- **常量不带单位**:`TIMEOUT = 30` 不知秒/毫秒。该 `TIMEOUT_SECONDS`。
-- **运行时计算的"常量"**:常量本应编译期/启动期确定,若 `BASE = compute()` 每次不同,它不是常量,是变量。
-- **常量值可变对象**:`CONFIG = {"x": [1]}` 内层 list 可改,所谓"常量"可被改内容。
-- **过度常量化**:把只在一处用、含义明显的值(如 `range(10)` 的 10)也提常量,反而绕。
-- **常量散落多处**:同值常量在多文件重复定义,改时易遗漏。该集中。
-
-识别反模式,常量才能真正发挥可读可维护作用,而非成为新的混乱源。
-
-### 2.14 跨模块常量共享与循环导入
-
-常量常需多模块共享,但放在哪个模块、如何避免循环导入是工程问题:
-
-**集中 config 模块,被各模块 import**(推荐):
+如果默认值本身是固定的不可变集合，直接用 `tuple`：
 
 ```python
-# config.py
-MAX_RETRY = 3
+# 规则：常量集合用 tuple（不可变，可作安全默认参数）
+SAFE_DEFAULT_LANGS = ("zh",)  # tuple 不可变
 
-# service.py
-from config import MAX_RETRY    # 单向依赖,无循环
+def set_langs(langs=SAFE_DEFAULT_LANGS):
+    return list(langs)  # 函数内转 list 使用，不修改常量
+
+print(f"  tuple 常量作默认参数: set_langs() = {set_langs()}")
 ```
 
-`config.py` 不 import 业务模块,业务模块 import config,单向依赖,无循环导入风险。这是最稳妥的常量共享方式。
-
-**避免常量模块反向依赖业务**:若 config.py 里 `import service`(为了某常量),而 service.py 又 `from config import X`,就循环导入。保持 config 模块**只被依赖、不依赖业务**,常量定义自包含。
-
-**分领域 config 同理**:`config/db.py` 不 import 业务,业务 import 它。配置模块永远是依赖图的"叶子",不被反向依赖。
-
-**大值常量与延迟**:若常量需要复杂计算才得到(如加载大字典),可放函数延迟计算或用 lru_cache,避免模块导入即重算。但纯常量应简单,避免在常量模块做重逻辑。
-
-### 2.15 常量在测试中的处理
-
-测试时常需覆盖常量(如把 `MAX_RETRY` 改小加速测试、改 `DATABASE_URL` 指向测试库)。Python 常量可改(无强制),这反而是测试的便利:
-
-```python
-import config
-from mymodule import retry_function
-
-def test_retry(monkeypatch):
-    monkeypatch.setattr(config, "MAX_RETRY", 1)   # 测试时改小
-    retry_function()   # 用改后的常量行为
+```text
+tuple 常量作默认参数: set_langs() = ['zh']
 ```
 
-`monkeypatch.setattr` 在测试期间改常量,测试后自动还原。这在有强制常量的语言里难做(常量不可改),Python 的"约定式常量"反而利于测试——能临时 monkeypatch。这是 Python 无强制常量的一个意外好处。
+**关键点说明**
 
-**但生产代码勿依赖可改常量**:测试用 monkeypatch 改常量 OK,但别在生产代码里改常量(破坏约定)。常量在生产中应保持不变,可改仅是测试便利,别滥用。
-
-### 2.16 常量的演进与版本化
-
-常量会随项目演进变化(阈值调整、新增状态、URL 变更),如何管理:
-
-- **集中管理易演进**:常量集中在 config,改一处全生效,演进方便。散落多处则改时易遗漏。
-- **常量与配置分离**:真正"运行不变"的常量(如 PI、状态码)硬编码在代码;会随环境/部署变的(URL、阈值)用环境变量/配置文件外置,改配置不重发布代码。
-- **版本化**:常量相关联的一组(如 API 版本常量)可加版本注释,便于追踪何时为何改。
-- **废弃常量缓删**:某常量不再用,先标 `# DEPRECATED` 注释一段时间(过渡),确认无引用再删,避免突然删导致依赖方报错。
-- **常量变更需测试**:改常量(尤其阈值、状态)可能影响逻辑,改后跑测试验证,别盲目改。
-
-常量演进是长期维护的一部分,集中管理 + 配置外置 + 谨慎变更,让常量随项目健康发展而不成为债。
-
----
+- 根本原因：Python 函数默认参数在 `def` 执行时求值一次，之后共享。这是 Python 的设计决策，不是 bug。
+- 集合常量用 `tuple` / `frozenset` 而非 `list` / `set`，从根源上避免可变默认参数陷阱。
+- 用 `None` 哨兵是处理"需要可变默认值"的标准模式——函数内判断 `is None` 后创建新对象。
+- `is None` 而非 `== None`：`is` 判断身份（同一个对象），`==` 可能被重载。用 `is None` 更安全更快。
 
 ## 3. 最佳实践
 
-### 3.1 常量全大写、模块顶部、集中管理
+### 3.1 推荐 vs 不推荐写法对比
 
-常量全大写下划线,放模块顶部,集中在配置模块/类。便于查找修改,符合 PEP 8 与社区共识。散落函数内的裸值提为顶部常量。
+| 维度 | 不推荐 | 推荐 | 原因 |
+|------|--------|------|------|
+| 命名 | `max_retry = 3` | `MAX_RETRY: Final[int] = 3` | 大写+Final 让常量一眼可辨 |
+| 位置 | 函数内部散落定义 | 模块顶部集中定义 | 集中管理，修改一处生效 |
+| 集合常量 | `TAGS = ["new"]` | `TAGS = ("new",)` | tuple 不可变，防误改 |
+| 魔法数 | `if amount > 10000:` | `if amount > LARGE_ORDER_THRESHOLD:` | 自解释，改一处 |
+| 状态字符串 | `status = "pending"` | `status = OrderStatus.PENDING.value` | 防拼写错误，可迭代 |
+| 配置式常量 | 散落多个变量 | `frozen dataclass` 集中 | 结构化、不可变 |
+| 默认参数 | `def f(x, tags=[]):` | `def f(x, tags=None)` 或 `tags=()` | 避免共享可变对象 |
+| 单位 | `TIMEOUT = 30` | `TIMEOUT_SECONDS = 30` | 消除秒/毫秒歧义 |
+| 类内访问 | `self.PI` | `Circle.PI` | 表明是类常量非实例属性 |
 
-### 3.2 用 Final 加静态保护
+### 3.2 常量定义的分层策略
 
-`名字: Final[类型] = 值` 让 mypy/Ruff 检查误改,把约定升级为静态保证。配合 CI 跑 mypy/Ruff,误改常量构建期暴露。
+实际项目中的常量不是一股脑全放一个文件，而是按层次组织：
 
-### 3.3 一组相关常量用 Enum
+```text
+常量分层架构：
 
-状态码、角色、颜色等有限命名取值集,用 `Enum` 而非散落全大写常量。Enum 分组明确、运行时只读、可迭代、防非法值,是枚举常量最佳方式。
+┌─────────────────────────────────────────┐
+│  环境变量 (.env / os.environ)            │
+│  → 不同部署环境不同值，代码不变            │
+│  → DATABASE_URL、DEBUG、SECRET_KEY        │
+├─────────────────────────────────────────┤
+│  全局配置常量 (config.py 模块)             │
+│  → 应用级常量，全项目共享                  │
+│  → APP_NAME、MAX_RETRY、HTTP 配置         │
+├─────────────────────────────────────────┤
+│  类级常量 (类内部)                        │
+│  → 与类语义绑定的常量                      │
+│  → Circle.PI、User.ROLE_ADMIN             │
+├─────────────────────────────────────────┤
+│  枚举常量 (enums.py 模块)                 │
+│  → 一组相关命名取值                        │
+│  → OrderStatus、Priority、UserRole        │
+├─────────────────────────────────────────┤
+│  函数内局部常量                           │
+│  → 仅当前函数使用的魔法数常量化             │
+│  → 作用域最小，不暴露给外部                 │
+└─────────────────────────────────────────┘
+```
 
-### 3.4 配置对象用 frozen dataclass
+**分层原则**：
 
-结构化配置(多字段不可变组合)用 `@dataclass(frozen=True)`,不可改属性,比散落常量有结构、比可变对象安全。新项目优先 dataclass 而非 namedtuple。
+- **作用域最小化**：只在当前函数使用的值，定义为函数内局部常量；跨模块共享的才提升到模块级。
+- **环境变量优先**：部署相关的常量（数据库 URL、密钥、调试开关）用环境变量驱动，不要硬编码在代码里。
+- **枚举合一**：一组相关的命名常量用 Enum 集中管理，而不是散落的多个 `Final` 变量。
+- **配置集中**：应用级常量集中在一个配置模块中，其他模块通过 `from config import XXX` 引用，不要各自重复定义。
 
-### 3.5 集合常量用 tuple/frozenset
+### 3.3 常见错误模式及修正
 
-常量集合用 `tuple`/`frozenset` 而非 `list`/`set`,防止误 append/修改,且可哈希(能做 dict 键)。注意元素可变性,深层不可变递归用不可变类型。
+**错误模式一：用 list/dict/set 当常量**
 
-### 3.6 常量带单位与注释
+```python
+# 不推荐：用 list 当常量，可被运行时修改
+SUPPORTED_LANGS = ["zh", "en", "ja"]
+SUPPORTED_LANGS.append("ko")  # 运行时不报错，但常量被意外修改了
+```
 
-数值常量带单位(`TIMEOUT_SECONDS`/`DELAY_MS`)避免单位歧义;含义不直观的加注释说明取值依据。常量文档减少维护猜测。
+```python
+# 推荐：用 tuple，运行时不可变
+SUPPORTED_LANGS: Final[tuple[str, ...]] = ("zh", "en", "ja")
+```
 
-### 3.7 环境差异用环境变量/配置文件
+**错误模式二：魔法数不消除**
 
-部署相关常量(URL、DEBUG、密钥)从环境变量读,适应多环境;复杂配置用 YAML/TOML 文件外置。代码与配置分离,改配置不改代码。
+```python
+# 不推荐：魔法数散落
+if user["age"] >= 18:
+    process()
+if len(data) > 100:
+    truncate(data)
+```
 
-### 3.8 不依赖运行时强制,但用工具补强
+```python
+# 推荐：常量化
+ADULT_AGE_THRESHOLD = 18
+MAX_DATA_SIZE = 100
 
-Python 常量无运行时强制,接受"约定为主",但用 Final(静态检查)+ Enum/frozen(运行时只读)+ Ruff(规范检查)层层补强。不指望编译器,但用工具把误改概率降到最低。
+if user["age"] >= ADULT_AGE_THRESHOLD:
+    process()
+if len(data) > MAX_DATA_SIZE:
+    truncate(data)
+```
 
-### 3.9 常量命名表意准确,避免魔法数
+**错误模式三：可变默认参数**
 
-`MAX_RETRY` 优于 `3`,`STATUS_OK` 优于 `200`。消除魔法数/魔法字符串,常量名自解释。这是常量最基本的用途。
+```python
+# 不推荐：list 做默认参数，多次调用共享
+def add_item(item, items=[]):
+    items.append(item)
+    return items
+```
 
-### 3.10 类相关常量挂类上
+```python
+# 推荐方案 A：None 哨兵
+def add_item(item, items=None):
+    if items is None:
+        items = []
+    items.append(item)
+    return items
 
-与类语义相关的不变值(如 `Circle.PI`)作类常量,而非散落模块,让常量在结构上归属相关类,更有组织。
+# 推荐方案 B：tuple 做默认参数（适合不需修改默认值的场景）
+DEFAULT_ITEMS = ()
+def add_item(item, items=DEFAULT_ITEMS):
+    return list(items) + [item]
+```
 
-### 3.11 常量与类型注解配合
+**错误模式四：Final 不初始化**
 
-常量加类型注解 + Final,类型明确且静态保护。容器常量注解为不可变类型(`tuple[str, ...]`),表达并保证不可变集合意图。
+```python
+# 不推荐：Final 不赋初值，静态检查器无法推断类型
+MAX_SIZE: Final  # 缺少初值，Final 失去意义
+MAX_SIZE = 100    # 这行赋值在运行时正常，但 Final 的保护被打折
+```
 
-### 3.12 定期审视常量,清理无用
+```python
+# 推荐：Final 声明和赋值放一起
+MAX_SIZE: Final[int] = 100
+```
 
-项目演进中常量会过时(不再用的配置、废弃的状态)。定期审视常量模块,删除无用常量,保持精简。常量模块臃肿会增加维护负担,保持只含真正在用的。
+**错误模式五：枚举和普通常量混用**
 
----
+```python
+# 不推荐：同一类常量有的用 Enum，有的用 Final
+STATUS_PENDING = "pending"
+STATUS_PROCESSING = "processing"
 
-## 4. 原理
+class OrderStatus(Enum):
+    SUCCESS = "success"
+    FAILED = "failed"
+```
 
-### 4.1 Python 为何无常量语言机制(需理解,详述)
+```python
+# 推荐：统一用 Enum 集中管理
+class OrderStatus(Enum):
+    PENDING = "pending"
+    PROCESSING = "processing"
+    SUCCESS = "success"
+    FAILED = "failed"
+```
 
-Python 没有 `const`/`final` 这种语言级常量机制(运行时强制不可变),这是有意的设计选择,理解其缘由有助于把握 Python 哲学。
+## 4. 原理：Python 为什么没有 const 关键字
 
-**对比 C/Java 的硬常量**:C 的 `const int MAX = 10;` 由编译器强制,`MAX = 20` 编译报错;Java 的 `final` 同理。这是"语言层面不可变",编译期保护,试图改即报错,常量安全有保障。
+### 4.1 Python 的变量模型
 
-**Python 的选择**:Python 不提供这种运行时强制的常量。所有名字都是普通变量,可重新赋值。Python 用"约定"(全大写命名)+ 程序员自觉来维护常量,而非语言强制。
+理解 Python 为什么没有 `const` 关键字，需要先理解 Python 的变量模型。
 
-**设计缘由**:
+在 C 语言中，变量是内存中一块有名字的区域，`const int x = 5` 声明这块内存为只读。在 Python 中，**变量不是内存盒子，而是名字标签**。赋值 `x = 5` 是把名字 `x` 绑定到对象 `5`，而不是把 `5` 放进 `x` 这个盒子。
 
-1. **"Consenting adults" 哲学**:Python 信任程序员是成年人,自觉遵守约定,不用编译器当保姆。若你坚持要改一个全大写常量,Python 不阻拦(可能你有特殊理由,如测试时 monkeypatch)。这降低语言复杂度(无需 const 语义)。
-2. **动态语言本性**:Python 是动态语言,变量无固定类型、可在运行时重新绑定,强制的"不可变绑定"与动态本性 somewhat 张力。Python 选择保持动态一致,常量靠约定。
-3. **简单优先**:无 const 语法,语言更简单。需要强不可变时,用 Enum/frozen/tuple 等机制针对性实现,而非通用 const。
+```python
+x = 5       # 名字 x 绑定到 int 对象 5
+x = 10      # 名字 x 重新绑定到 int 对象 10
+            # 对象 5 本身没有变，只是名字 x 不再指向它
+```
 
-**后果与应对**:
+因为"变量赋值"本质上是"重新绑定名字"，在 Python 中实现 `const` 就意味着"禁止某个名字重新绑定到其他对象"。这与 Python 的名字绑定模型不太契合——Python 的赋值语句太灵活了，几乎可以出现在任何地方。
 
-- **无编译期保护**:误改常量不报错(运行时)。应对:用 `Final`(静态检查)+ mypy/Ruff 在 CI 拦截。
-- **约定靠自觉**:全大写常量可被改,只是"不该改"。应对:团队规范 + 工具检查 + code review。
-- **需要真不可变时用专门机制**:Enum 成员只读、frozen dataclass 禁改属性、tuple 结构不可变——这些是"局部强制不可变",针对特定场景提供保障。
+Python 社区曾经多次讨论过引入 `const` 关键字（参见 PEP 讨论记录），但最终都没有采纳。核心原因：
 
-理解"Python 无通用常量机制,靠约定 + 针对性不可变类型",就能解释为何全大写常量仍可被改、为何要 Final/Enum/frozen 这些"补丁"机制。Python 的常量是"约定为主、机制为辅"的工程实践,而非语言保证。
+- Python 是动态语言，运行时编译执行，`const` 的编译期保护意义有限
+- `Final` 类型注解 + 静态检查器（mypy、Ruff）可以实现"开发期保护"，满足大部分需求
+- Enum、frozen dataclass 等机制提供了**运行时强制**的不可变性，弥补了 Final 的运行时空白
 
-### 4.2 Final 的静态检查机制(需理解,详述)
+### 4.2 Final 的静态检查机制
 
-`Final` 是如何"防重新赋值"的?它是**类型注解**,被静态类型检查器(非运行时)消费。
+`typing.Final` 不是运行时强制机制，它是一个**类型注解标记**。工作原理如下：
 
-**机制**:`x: Final = 10` 把 `x` 标记为"final 名字",记录在类型信息里。Python 运行时**忽略** Final(它只是个注解,不产生运行时行为)——`x = 20` 运行时仍合法执行。但**静态检查器**(mypy、pyright、Ruff)读取这个注解,在检查阶段发现"对 final 名字重新赋值"就报错:
+```text
+Final 的工作流程：
+
+开发者代码                    静态检查器（mypy/Ruff）              Python 运行时
+───────────                  ─────────────────────             ─────────────
+MAX_RETRY: Final = 3   →   记录: MAX_RETRY 是 Final    →    正常绑定: MAX_RETRY = 3
+                                                            (运行时不做检查)
+
+MAX_RETRY = 100         →   报错: Cannot assign to    →    正常执行: MAX_RETRY = 100
+                             final name "MAX_RETRY"        (运行时允许!)
+```
+
+**mypy 检查示例**
+
+假设有以下代码 `demo.py`：
 
 ```python
 from typing import Final
-MAX: Final[int] = 3
-MAX = 5     # 运行时:正常执行,MAX 变 5
-            # mypy: error: Cannot assign to final name "MAX"
+
+MAX_RETRY: Final[int] = 3
+MAX_RETRY = 10  # 试图修改 Final 变量
 ```
 
-故 Final 的保护是**静态的、可选的**(需跑 mypy/Ruff 才生效),非运行时强制。不跑类型检查,Final 等于无物。
+运行 mypy 检查：
 
-**Final 防什么、不防什么**:
+```bash
+mypy demo.py
+```
 
-- **防重新赋值**:`MAX = 5` 被 Final 拦截(静态)。
-- **不防就地修改可变对象**:`FINAL_LIST: Final = [1,2]; FINAL_LIST.append(3)` Final 管不到——它防"名字重新绑定",不防"对象内容修改"。要防内容改,用 tuple 等不可变容器。
+```text
+demo.py:4: error: Cannot assign to final name "MAX_RETRY"  [misc]
+Found 1 error in 1 file (checked 1 source file)
+```
 
-**类属性 Final**:类内 `URL: Final[str] = "..."` 同理,静态防重新赋值类属性。
+mypy 在静态分析阶段发现了对 Final 变量的重新赋值并报错。但如果你直接 `python demo.py` 运行，不会报错——Python 运行时完全忽略 `Final` 注解。
 
-**Final 的价值与边界**:Final 把常量约定升级为"静态类型系统可检查",在有 mypy/Ruff CI 的项目里有效拦截误改。但它本质是静态检查,运行时无常量保护——不跑检查器或用反射(`setattr`、修改 `__dict__`)仍能改。理解 Final 是"静态约定强化"而非"运行时强制",才能正确使用(配 CI 才有效)。
+**这意味着什么**
 
-### 4.3 Enum 的运行时只读机制(需理解,详述)
+- `Final` 的保护只在**开发期**奏效——你必须在 CI/CD 流水线中集成 mypy/Ruff 检查，才能拦截 Final 变量被修改。
+- 如果只在运行时保护，需要用 Enum、frozen dataclass 等机制。
+- `Final` 防止的是**名字重新绑定**（`MAX_RETRY = 10`），不是对象内容修改。如果 Final 变量绑定的是可变对象（如 `Final[list] = [1, 2]`），你仍然可以 `append` 修改其内容。所以要搭配不可变集合使用。
 
-Enum 成员的"只读"是**运行时强制**的,比 Final 的静态检查更强,值得了解其机制。
+### 4.3 Enum 的元类只读强制
 
-**Enum 成员不可重新赋值**:
+Enum 的运行时只读性来自其**元类** `EnumMeta`。当你定义 `class OrderStatus(Enum)` 时，Python 使用 `EnumMeta` 创建这个类。`EnumMeta` 在类创建过程中做了以下事情：
+
+```text
+EnumMeta 的只读机制：
+
+1. 类创建时：
+   class OrderStatus(Enum):
+       PENDING = "pending"
+   → EnumMeta 将 PENDING 转换为枚举成员对象
+   → 设置 OrderStatus.PENDING 指向该成员对象
+
+2. 防止重新赋值成员：
+   OrderStatus.PENDING = "x"
+   → EnumMeta.__setattr__ 拦截
+   → 抛出 AttributeError: cannot reassign member 'PENDING'
+
+3. 防止修改成员属性：
+   OrderStatus.PENDING.value = "x"
+   → 成员对象没有 __dict__ 或 __setattr__ 被拦截
+   → 抛出 AttributeError: <enum 'Enum'> cannot set attribute 'value'
+
+4. 防止删除成员：
+   del OrderStatus.PENDING
+   → EnumMeta.__delattr__ 拦截
+   → 抛出 AttributeError
+```
+
+**验证性代码**
+
+可以通过检查 Enum 的内部机制来理解其工作原理：
 
 ```python
+from enum import Enum
+
 class Color(Enum):
     RED = 1
     GREEN = 2
 
-Color.RED = 99     # AttributeError: cannot reassign member 'RED'
-Color.RED.value = 99   # AttributeError: cannot set 'value'
+# 查看枚举成员的类型
+print(f"  Color.RED 类型: {type(Color.RED)}")
+print(f"  Color.RED.name: {Color.RED.name}")
+print(f"  Color.RED.value: {Color.RED.value}")
+
+# 查看是否有 __dict__（枚举成员通常没有可写 __dict__）
+print(f"  Color.RED.__dict__: {vars(Color.RED) if hasattr(Color.RED, '__dict__') else 'N/A'}")
+
+#枚举成员是单例
+print(f"  Color.RED is Color.RED: {Color.RED is Color.RED}")
+print(f"  Color.RED is Color['RED']: {Color.RED is Color['RED']}")
+print(f"  Color.RED is Color(1): {Color.RED is Color(1)}")
 ```
 
-Enum 类在创建时,通过**元类**(`EnumMeta`)的 `__setattr__`/`__delattr__` 拦截对枚举成员的修改:试图重新赋值成员或改成员属性,抛 `AttributeError`。这是运行时强制,非静态检查。
+```text
+Color.RED 类型: <enum 'Color'>
+Color.RED.name: RED
+Color.RED.value: 1
+Color.RED.__dict__: N/A
+Color.RED is Color.RED: True
+Color.RED is Color['RED']: True
+Color.RED is Color(1): True
+```
 
-**Enum 的数据模型**:Enum 类的每个成员是枚举类的一个**单例实例**(如 `Color.RED` 是 Color 的实例),成员的值存为实例属性。元类在类创建时锁定这些成员,禁止后续修改。
+### 4.4 frozen dataclass 的 __setattr__ 拦截
 
-**边界**:
+`@dataclass(frozen=True)` 的不可变性是通过拦截 `__setattr__` 和 `__delattr__` 实现的。当你设置了 `frozen=True`，dataclass 装饰器会自动生成以下方法：
 
-- **成员值只读**:不能改 `Color.RED.value`。
-- **不能增删成员**:类创建后不能加新成员或删已有。
-- **但成员值对象若可变仍可改内容**(与 tuple 同理):若成员值是 list,`Color.X.value.append(...)` 可行(因改的是 value 对象内容,非成员绑定)。故 Enum 成员值宜用不可变类型(int/str/tuple)。
+```text
+frozen dataclass 的拦截机制：
 
-**Enum vs Final vs 全大写**:
+实例属性赋值:
+  config.timeout_seconds = 60
+  → 触发 __setattr__('timeout_seconds', 60)
+  → 生成的 __setattr__ 抛出 FrozenInstanceError
+  → AttributeError: cannot assign to field 'timeout_seconds'
 
-- 全大写:纯约定,运行时可改。
-- Final:静态检查防改,运行时可改。
-- Enum 成员:**运行时强制只读**(元类拦截),最强。
+实例属性删除:
+  del config.timeout_seconds
+  → 触发 __delattr__('timeout_seconds')
+  → 生成的 __delattr__ 抛出 FrozenInstanceError
+  → AttributeError: cannot delete field 'timeout_seconds'
+```
 
-理解 Enum 的运行时只读机制(元类 `__setattr__` 拦截),就知道它是 Python 里"常量"保障最强的方案——不是约定、不是静态检查,而是运行时由元类强制。这解释了为何"一组相关常量推荐用 Enum":它真正在运行时保证了不可变。
+**验证性代码**
 
-### 4.4 frozen dataclass 与 namedtuple 的不可变机制(需理解,简述)
+```python
+from dataclasses import dataclass
 
-`@dataclass(frozen=True)` 与 `namedtuple` 的不可变也是运行时强制的,机制类似:
+@dataclass(frozen=True)
+class Config:
+    host: str = "localhost"
+    port: int = 8080
 
-**frozen dataclass**:`frozen=True` 让 dataclass 在生成 `__setattr__`/`__delattr__` 时加上"抛 `FrozenInstanceError`"的逻辑。故试图改实例属性时,`__setattr__` 拦截并报错:
+c = Config()
+
+# 验证 FrozenInstanceError 是 AttributeError 的子类
+try:
+    c.port = 9090
+except AttributeError as e:
+    error_type = type(e).__name__
+    print(f"  错误类型: {error_type}")
+    print(f"  是 AttributeError 子类: {isinstance(e, AttributeError)}")
+    print(f"  错误信息: {e}")
+```
+
+```text
+错误类型: FrozenInstanceError
+是 AttributeError 子类: True
+错误信息: cannot assign to field 'port'
+```
+
+`FrozenInstanceError` 继承自 `AttributeError`，所以 `except AttributeError` 可以捕获它。这意味着你可以用统一的 `AttributeError` 处理逻辑来捕获常量被修改的异常。
+
+**为什么 frozen 实例可哈希**
+
+普通 dataclass 默认不可哈希（因为 `__hash__` 被设为 `None`），而 frozen dataclass 是可哈希的。原因是 frozen 实例的属性不可变，其哈希值在整个生命周期内不变，可以安全地作为 dict 键或放入 set。
 
 ```python
 @dataclass(frozen=True)
-class C:
-    x: int = 1
+class Point:
+    x: int
+    y: int
 
-c = C()
-c.x = 2     # FrozenInstanceError: cannot assign to field 'x'
+# frozen 实例可哈希
+p = Point(1, 2)
+print(f"  hash(Point(1, 2)): {hash(p)}")
+
+# 可做 dict 键
+d = {p: "origin"}
+print(f"  dict 键: {d}")
+
+# 普通 dataclass 不可哈希（会抛 TypeError）
+from dataclasses import dataclass as dc
+
+@dc
+class MutablePoint:
+    x: int
+    y: int
+
+try:
+    hash(MutablePoint(1, 2))
+except TypeError as e:
+    print(f"  MutablePoint 不可哈希: {e}")
 ```
 
-**namedtuple**:namedtuple 是 tuple 子类,字段访问靠 `__getattr__`,因 tuple 不可变且 namedtuple 不提供 `__setattr__`(继承 tuple 的不可变),改字段抛 `AttributeError`。
-
-**边界(与 tuple 同)**:frozen/namedtuple 防"改字段绑定",不防"字段对象内容修改"(若字段是可变对象,改其内容仍可行)。深层不可变需字段也是不可变类型。
-
-**机制共性**:frozen dataclass/namedtuple/Enum/tuple 的运行时不可变,都靠"拦截 `__setattr__`/`__delattr__` 或容器结构不可变"实现。这是 Python 在无通用 const 机制下,用专门类型针对性提供运行时不可变的方案。理解这套"拦截赋值"的机制,就理解了 Python 各类"不可变对象"的统一原理。
-
-### 4.5 常量在字节码与内存的简述(底层,简略)
-
-从字节码看,常量与变量无异——`MAX = 3` 同样是 `LOAD_CONST` + `STORE_NAME`,运行时就是普通名字空间赋值。常量的"不可变"纯靠约定/类型检查/元类拦截,字节码层面无特殊处理。
-
-内存上,常量通常指向不可变对象(int/str/tuple),这些对象本身值不变(不可变类型),但名字到对象的绑定可改(除非 Final/Enum 拦截)。小整数/字符串缓存(见变量赋值机制笔记)让常量 `MAX_RETRY = 3` 的 3 可能与别处 3 共享对象,这是优化,与常量语义无关。这些底层细节日常无需深究,知道"常量在字节码层面无特殊待遇,不可变靠上层机制"即可。
-
----
+```text
+hash(Point(1, 2)): 3713081631934420656
+dict 键: {Point(x=1, y=2): 'origin'}
+MutablePoint 不可哈希: unhashable type: 'MutablePoint'
+```
 
 ## 5. 总结
 
-### 5.1 本文内容回顾
+本文围绕 Python 常量约定展开，主要介绍了以下内容：
 
-- **常量定位**:值不可改变的量;Python **无常量语言机制**(无 const),靠约定(全大写)+ 可选机制(Enum/Final/frozen)模拟;"consenting adults"哲学。
-- **约定形式**:全大写下划线、模块顶部、集中管理;类内常量作类属性。
-- **为何需常量**:消除魔法数/魔法字符串、集中配置、可读可维护、防错、文档作用。
-- **不可变层级**:全大写约定(最弱)→ Final(静态检查)→ Enum/frozen/namedtuple/tuple(运行时只读)。
-- **模块级常量**:顶部集中、分组、带注释。
-- **类级常量**:类属性全大写,与类语义相关的不变值。
-- **Final 类型注解**:静态检查防重新赋值,配 mypy/Ruff/CI 有效;不防就地修改可变对象。
-- **Enum 枚举**:一组相关命名常量,运行时只读(元类强制)、可迭代、防非法值,枚举常量最佳方式。
-- **frozen dataclass / namedtuple**:不可变配置对象,字段不可改,适合结构化配置。
-- **不可变容器**:tuple/frozenset 防误改集合,注意元素可变性,深层不可变递归用不可变类型。
-- **配置组织**:单 config 模块(小项目)/分领域(大项目)/环境变量+配置文件(多环境)。
-- **常量与类型注解**:Final + 类型注解 + 不可变容器类型协作,静态系统可保证契约。
-- **常量文档命名**:全大写表意、带单位、注释取值依据。
-- **魔法数消除实战**:逐步将裸值提为命名常量,重构示例。
-- **常量与默认参数**:不可变常量可作默认参数,可变常量(默认参数陷阱)用 None 哨兵或 tuple。
-- **反模式**:可变常量、散落裸值、命名含糊、不带单位、运行时计算、过度常量化、重复定义。
-- **跨模块共享**:集中 config 模块单向被依赖,避免循环导入,config 是依赖图叶子。
-- **测试处理**:monkeypatch 临时改常量便利测试,生产勿依赖可改常量。
-- **演进版本化**:集中易演进、配置外置、废弃缓删、变更需测试。
-- **完整示例**:规范常量配置模块范本。
-- **原理**:Python 为何无通用常量机制(consenting adults/动态本性/简单优先,详述);Final 静态检查机制(注解被 mypy 消费、运行时忽略、防重新赋值不防就地改,详述);Enum 运行时只读机制(元类 `__setattr__` 拦截,最强,详述);frozen/namedtuple 不可变机制(拦截 `__setattr__`,简述);字节码/内存层面常量无特殊待遇(简略)。
-- **最佳实践**:全大写顶部集中、Final 加保护、相关常量用 Enum、配置用 frozen dataclass、集合用 tuple/frozenset、带单位注释、环境变量外置、工具补强、表意准确、类相关挂类上、类型注解配合、定期清理。
-
-### 5.2 读完本文你应能掌握
-
-- 说明 Python 无常量语言机制,靠约定 + 可选机制模拟,及"consenting adults"设计哲学。
-- 用全大写约定在模块/类级定义常量,消除魔法数,集中管理配置。
-- 用 `Final` 类型注解让静态检查器防误改,说明其"静态、需 CI、防重新赋值不防就地改"的边界。
-- 用 `Enum` 表达一组相关命名常量,说明其运行时只读(元类强制)与可迭代/防非法值优势。
-- 用 `frozen dataclass`/`namedtuple` 表达不可变配置对象,用 `tuple`/`frozenset` 表达不可变集合常量。
-- 说明容器不可变与元素不可变的区别,递归用不可变类型实现深层不可变。
-- 按项目规模组织常量(单模块/分领域/环境变量+配置文件),实现配置与代码分离。
-- 用类型注解 + Final + 不可变容器类型,把常量约定升级为静态可保证契约。
-- 阐述 Final(静态检查)、Enum(元类运行时强制)、frozen(拦截 `__setattr__`)各机制原理与强弱差异。
-- 按最佳实践写出规范、有保障、可维护的常量定义。
+- Python 没有 `const` 关键字，常量通过**命名约定**（全大写 + 下划线）和**工具链**（Final 类型注解 + mypy 静态检查）实现"事实上的常量"
+- **模块级常量**是最基础的形式，集中定义在模块顶部，配合 `Final` 注解让静态检查器拦截误改
+- **类级常量**适合与类语义强相关的常量，通过类名访问（`Circle.PI`），被所有实例共享
+- **Enum 枚举**提供运行时只读保护（元类强制），适合一组相关的命名取值，支持迭代和按名/值查找
+- **frozen dataclass** 创建不可变结构化配置对象，实例属性不可修改（`FrozenInstanceError`），且可哈希
+- **namedtuple** 是轻量不可变记录，适合简单固定字段场景，新代码优先用 frozen dataclass
+- **tuple/frozenset** 作为不可变集合常量，防止运行时被误修改，frozenset 可做 dict 键
+- **魔法数消除**是常量约定的核心应用场景——用命名常量替代散落的硬编码值，让代码自解释、易维护
+- **可变默认参数陷阱**：list/dict/set 不能做函数默认参数，用 None 哨兵或 tuple 常量替代
+- Python 没有 `const` 的原因是其变量模型——变量是名字标签而非内存盒子，Final + 静态检查器 + Enum + frozen dataclass 共同构成了 Python 的常量保护体系
