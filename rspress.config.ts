@@ -53,32 +53,28 @@ export default defineConfig({
                     "link": "/Base/01-firstEncounter-05"
                 },
                 {
-                    "text": "VSCode配置",
+                    "text": "print输出详解",
                     "link": "/Base/01-firstEncounter-06"
                 },
                 {
-                    "text": "print输出详解",
+                    "text": "input输入与类型转换",
                     "link": "/Base/01-firstEncounter-07"
                 },
                 {
-                    "text": "input输入与类型转换",
+                    "text": "注释规范",
                     "link": "/Base/01-firstEncounter-08"
                 },
                 {
-                    "text": "注释规范",
+                    "text": "变量赋值机制",
                     "link": "/Base/01-firstEncounter-09"
                 },
                 {
-                    "text": "变量赋值机制",
+                    "text": "标识符命名规范",
                     "link": "/Base/01-firstEncounter-10"
                 },
                 {
-                    "text": "标识符命名规范",
-                    "link": "/Base/01-firstEncounter-11"
-                },
-                {
                     "text": "常量约定",
-                    "link": "/Base/01-firstEncounter-12"
+                    "link": "/Base/01-firstEncounter-11"
                 }
             ]
         },
