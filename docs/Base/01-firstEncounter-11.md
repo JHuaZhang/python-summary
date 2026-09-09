@@ -3,7 +3,7 @@ group:
   title: 【01】初识python
   order: 1
 order: 11
-title: 标识符命名规范
+title: 常量约定
 nav:
   title: Python基础
   order: 1
@@ -11,788 +11,806 @@ nav:
 
 ## 1. 介绍
 
-### 1.1 什么是标识符
+### 1.1 什么是常量
 
-标识符(identifier)是程序员在代码里自己起的名字——变量名、函数名、类名、模块名、参数名,统统是标识符。当你写 `count = 0`、`def calc_total(items):`、`class User:` 时,`count`、`calc_total`、`User` 就是标识符。它是代码里出现频率最高的元素,几乎每一行都包含若干标识符。
+常量(constant)是程序运行过程中**值不可改变**的量。与变量(variable)相对——变量可以被重新赋值,常量一经定义就应保持不变。比如圆周率 `PI = 3.14159`、最大重试次数 `MAX_RETRY = 3`、状态码 `STATUS_OK = 200`,这些都是"一旦确定就不该再变"的值,适合用常量表达。
 
-标识符与关键字(keyword)不同:关键字是 Python 语言保留、有固定含义的名字(`if`、`for`、`def`、`class`、`return` 等),你不能用它们做标识符;而标识符是你可以自由命名的名字,只要遵守命名规则。区分二者:`if` 是关键字不能作变量名,`iff`、`condition` 可以。
+在 C/Java 等语言里,常量有专门的语法保障:`const int MAX = 10;` 或 `final int MAX = 10;`,语言层面禁止重新赋值,试图改常量会编译报错。这是"硬常量"——由语言机制强制不可变。
 
-标识符命名看似是"起名字的小事",实则是代码质量的基础。理由:
+**Python 没有真正的常量语法**。这是关键认知。Python 里没有 `const` 关键字,所有"常量"本质上都是普通变量,语言层面**允许**重新赋值。Python 采用的是**约定**(convention)的方式:用全大写命名(`MAX_RETRY`)表示"这是常量,请勿修改",靠程序员自觉与社区共识来维护,而非语言强制。
 
-- **可读性**:代码读的次数远多于写,好名字让代码自解释,少写注释。
-- **可维护性**:命名混乱的代码,后人接手如读天书,维护成本陡增。
-- **协作**:团队统一命名风格,代码风格一致,降低沟通成本。
-- **避免错误**:坏名字(如 `l`、`O`、单字母)易与数字混淆、易拼错,埋下 bug。
+这种"约定式常量"是 Python 的设计选择——Python 哲学 "we are all consenting adults"(大家都是成年人),信任程序员不乱改约定为常量的值,而不像某些语言用编译器强制。代价是没有编译期保护,误改常量不会报错(除非用额外机制,见 2.4 的 Final、2.6 的 Enum)。好处是简单灵活,无需专门语法。
 
-业界有句共识:"命名是计算机科学里两大难题之一"(另一是缓存失效)。起好名字不简单,需要遵循规则与约定,这正是本节要讲的——既讲 Python 标识符的**语法规则**(什么名字合法),也讲**命名规范**(什么名字是好名字)。
+所以理解 Python 常量,核心是理解"Python 无强制常量,靠约定 + 可选机制(Enum/Final/frozen)模拟"。本节既讲常量的命名约定,也讲如何用枚举、Final、frozen dataclass 等机制获得更强的"不可变"保障。
 
-### 1.2 标识符的语法规则
+常量在实际开发中的作用:
 
-Python 对标识符有硬性语法规则,违反就是 `SyntaxError`,代码根本跑不了。规则如下:
+- **消除魔法数**:代码里直接写 `if retry > 3` 的 3 是魔法数,改用 `if retry > MAX_RETRY` 清晰且易改。
+- **集中配置**:超时、URL、阈值等配置集中在模块顶部常量,改一处全生效,不必散落各处。
+- **表达不变语义**:PI、STATUS_OK 这类语义固定的值,用常量表达"它不该变"的意图。
+- **可读性**:`MAX_RETRY` 比 `3` 易读;`STATUS_OK` 比 `200` 易懂。
 
-**合法字符**:标识符由**字母、数字、下划线**组成,且**不能以数字开头**。
+### 1.2 Python 常量的约定形式
 
-```python
-# 合法
-count = 1
-_user = 2
-user2 = 3
-总人数 = 4        # Python 3 允许 Unicode 字母,中文可用(但不推荐,见规范)
-__init__ = 5
-```
+Python 常量的主流约定:**全大写 + 下划线分隔**,放在模块顶部:
 
 ```python
-# 非法
-2count = 1        # SyntaxError: 数字开头
-my-var = 2        # SyntaxError: 含连字符(- 会被当减号)
-my var = 3        # SyntaxError: 含空格
-class = 4         # SyntaxError: class 是关键字
+# config.py
+MAX_RETRY = 3
+DEFAULT_TIMEOUT = 30
+PI = 3.14159
+DATABASE_URL = "postgresql://localhost/mydb"
+STATUS_OK = 200
+STATUS_NOT_FOUND = 404
 ```
-
-**大小写敏感**:`count`、`Count`、`COUNT` 是三个不同的标识符。
-
-```python
-count = 1
-Count = 2
-COUNT = 3
-print(count, Count, COUNT)   # 1 2 3
-```
-
-**不能是关键字**:关键字列表可用 `keyword.kwlist` 查看:
-
-```python
-import keyword
-print(keyword.kwlist)
-# ['False', 'None', 'True', 'and', 'as', 'assert', 'async', 'await', ...]
-```
-
-**长度无限制**:理论上标识符可任意长,但实务上应简洁有意义。
-
-**Python 3 的 Unicode 支持**:Python 3 允许标识符含 Unicode 字母(中文、日文等),如 `变量 = 1` 合法。但这**强烈不推荐**——非 ASCII 命名在跨工具(某些 linter、文档工具、旧系统)、国际协作时易出问题,且不符合 PEP 8。除非特殊场景(教学演示),标识符应坚持用 ASCII 字母。
-
-**下划线的特殊含义**:下划线开头的标识符有约定含义(单下划线 `_x`、双下划线 `__x`、前后双下划线 `__x__`),这涉及访问控制与魔法方法,1.4 与第 4 章详述。
-
-记住这套语法规则是"合法"的下限;真正决定代码质量的是"规范",即起什么样的好名字,这是第 2 章重点。
-
-### 1.3 为什么需要命名规范
-
-语法规则只保证名字"合法",规范保证名字"好"。没有规范的命名会出现:
-
-- **含义不明**:`d = get_d(x)` —— `d` 是什么?data?date?distance?看不懂。
-- **误导**:`user_list = {"a": 1}` —— 名字说 list 实际是 dict,误导读者。
-- **风格混乱**:`getUserData`、`get_user_data`、`getuserdata` 三种风格混用,显得业余。
-- **缩写泛滥**:`usr_cnt`、`cfg_mgr` —— 缩写过多,新人看不懂。
-- **单字母滥用**:`l = [1,2]; O = 0` —— `l` 易与 `1` 混、`O` 易与 `0` 混。
-- **命名冲突/遮蔽**:`list = [1,2]` 遮蔽了内置 `list`,之后 `list()` 用不了。
-
-一套命名规范的价值:
-
-- **统一风格**:全项目一致(studly_case 变量、CamelCase 类),阅读流畅。
-- **表意清晰**:名字准确反映含义,代码自解释。
-- **避免陷阱**:不遮蔽内置、不用易混单字母。
-- **传达约定**:下划线前缀表达"私有"、全大写表达"常量",名字本身携带设计意图。
-
-Python 有 PEP 8 官方命名约定,加上类型注解、社区实践,形成一套成熟规范。本节讲 Python 的命名规则与 PEP 8 命名规范,帮你起出专业的好名字。
-
-### 1.4 命名约定速览:下划线的含义
-
-Python 用下划线的不同形式表达不同约定,这是命名规范的核心,先概览:
-
-| 形式 | 含义 | 示例 |
-|------|------|------|
-| `name` | 公开(普通) | `count`、`def calc():` |
-| `_name` | 内部使用(约定私有) | `_helper`、`_internal_var` |
-| `__name` | 类私有,触发名称重整 | `class C: __private` |
-| `__name__` | 魔法方法/特殊属性(Python 定义) | `__init__`、`__len__`、`__name__` |
-| `_` | 临时/忽略的变量 | `for _ in range(10):` |
-| `NAME`(全大写) | 常量 | `MAX_RETRY = 3` |
 
 要点:
 
-- **单下划线前缀 `_x`**:约定"内部使用",提示"别从外部访问我",但 Python 不强制(仍可访问)。多用于模块内私有函数/变量、非公开 API。
-- **双下划线前缀 `__x`**(在类内):触发**名称重整**(name mangling),变成 `_ClassName__x`,一定程度避免子类覆盖。比单下划线更强的"私有"。
-- **前后双下划线 `__x__`**:Python 保留的"魔法"名字(dunder,double underscore),用于特殊方法/属性,如 `__init__`、`__str__`、`__name__`。**不要自己发明 `__xxx__` 名字**,会与 Python 未来/现有机制冲突。
-- **全大写 `NAME`**:约定常量,提示"不应修改"。
-- **单独 `_`**:常作"我不关心这个值"的占位,如 `for _ in range(10)` 或解包忽略 `a, _ = pair`。
+- **全大写**:`MAX_RETRY` 而非 `max_retry`(变量)或 `MaxRetry`(类)。
+- **下划线分隔单词**:`DEFAULT_TIMEOUT`、`DATABASE_URL`。
+- **模块顶部**:常量集中在模块开头(import 之后),便于查找与修改。
+- **约定不改**:全大写是"别重新赋值我"的视觉信号,大家自觉遵守。
 
-这套下划线约定是 Python 命名文化的精髓,理解它就能从名字看出设计意图。第 4 章会详述名称重整等机制,第 2 章讲各种标识符的命名规范。
+这套约定来自 PEP 8:"Constants are usually defined on a module level and written in all capital letters with underscores separating words."。虽无强制,但全 Python 社区一致遵守,是事实标准。
+
+**类内常量**:类里的常量也全大写,作为类属性:
+
+```python
+class Circle:
+    PI = 3.14159          # 类常量
+    def area(self):
+        return Circle.PI * self.r ** 2
+```
+
+**实例不常做常量**:常量通常是模块级或类级,不放在实例(`self.X`)上,因实例属性默认可变。
+
+### 1.3 为什么需要常量(约定)
+
+不用常量,代码会出现"魔法数/魔法字符串"漫天飞的问题:
+
+```python
+# 坏:魔法数
+if retry_count > 3:
+    ...
+time.sleep(2)
+if response.status == 200:
+    ...
+if user.role == "admin":
+    ...
+```
+
+这里的 `3`、`2`、`200`、`"admin"` 都是裸值,读时要猜含义,改时要全项目找(可能改漏)。用常量后:
+
+```python
+# 好:常量
+if retry_count > MAX_RETRY:
+    ...
+time.sleep(RETRY_INTERVAL)
+if response.status == STATUS_OK:
+    ...
+if user.role == ROLE_ADMIN:
+    ...
+```
+
+好处:
+
+- **可读**:`MAX_RETRY`/`STATUS_OK`/`ROLE_ADMIN` 自解释,不用猜。
+- **可维护**:改最大重试数只改 `MAX_RETRY` 一处,全项目生效。
+- **防错**:裸 `200` 易打成 `2000`,常量名打错会 NameError 立即暴露,比静默错误强。
+- **文档作用**:常量名本身就是 documentation,`ROLE_ADMIN` 比 `"admin"` 更明确。
+- **类型检查辅助**:配合类型注解与 Final,静态检查能发现误改。
+
+常量约定的价值不止"好读",更是提升可维护性与降低 bug 率的工程手段。把散落的裸值集中为命名常量,是代码质量的基础动作。
+
+### 1.4 Python 常量的"不可变"层级
+
+既然 Python 无强制常量,实际有不同强度的"不可变"方案,从弱到强:
+
+| 方案 | 强度 | 机制 | 重新赋值 |
+|------|------|------|----------|
+| 全大写约定 | 最弱(纯约定) | 命名 + 自觉 | 允许,不报错 |
+| `Final` 类型注解 | 弱(静态检查) | mypy/Ruff 检查 | 运行时允许,静态检查报错 |
+| `Enum` 枚举 | 中 | 枚举成员只读 | 运行时禁止重新赋值枚举成员 |
+| `frozen` dataclass | 中 | 冻结实例不可改属性 | 实例属性不可改 |
+| tuple 等不可变容器 | 中 | 容器结构不可变 | 元素引用不可增删,元素本身若可变仍可改 |
+| `namedtuple` | 中 | 不可变记录 | 字段不可改 |
+
+**选择**:
+
+- 普通常量(数值、字符串):全大写约定足够,可选加 `Final` 让 mypy 检查误改。
+- 一组相关的常量(状态码、角色、颜色):用 `Enum`,语义清晰且运行时只读。
+- 配置对象:用 `frozen dataclass` 或 `namedtuple`,属性不可改。
+- 不变集合:用 `tuple`/`frozenset`。
+
+本节第 2 章逐一讲解这些方案,第 4 章讲它们的原理(为何运行时仍可能被绕过、各机制的边界)。
 
 ---
 
 ## 2. 核心内容
 
-本章详解各类标识符的命名规范(变量/函数/类/常量/模块/包)、PEP 8 命名约定、好名字的特征、常见反模式、下划线约定、类型注解与命名,给出可落地的规范。
+本章详解常量的命名约定、模块级/类级常量、Final 注解、Enum 枚举、frozen dataclass/namedtuple、配置常量组织、常量与类型注解、常量模块设计,给出可落地的规范。
 
-### 2.1 变量命名规范
+### 2.1 模块级常量
 
-变量名应**小写、单词用下划线分隔**(snake_case),且表意准确:
-
-```python
-# 好
-user_count = 10
-is_valid = True
-total_price = 99.5
-file_path = "/tmp/data.txt"
-
-# 坏
-UserCount = 10      # 类名风格,变量该用 snake_case
-x = 10              # 含义不明
-usrCnt = 10         # 驼峰+缩写,不符合 Python 风格
-```
-
-**命名要点**:
-
-- **snake_case**:全小写,单词间下划线,如 `user_count`。
-- **表意准确**:`user_count` 比 `count` 更明确(什么的数量);`is_valid`/`has_permission` 用 is/has 前缀表布尔。
-- **避免缩写**:`user_count` 优于 `usr_cnt`,除非缩写是行业通用(如 `url`、`id`、`db`)。
-- **布尔变量**:用 `is_`/`has_`/`can_`/`should_` 前缀,如 `is_active`、`has_access`。
-- **复数表集合**:`users`(多个用户)、`items`,单数 `user` 表单个。
-
-**匈牙利命名避免**:不要用 `i_count`(int 前缀)、`s_name`(str 前缀)这种带类型前缀的匈牙利命名——Python 有类型注解表达类型,命名应表意而非标类型。
-
-**临时变量**:循环计数 `i`/`j`/`k` 可接受(数学惯例);但 `for item in items` 比 `for i in items` 清晰(除非用索引)。
-
-### 2.2 函数与方法命名
-
-函数/方法名同样 **snake_case**,且应是**动词或动宾短语**(函数做动作):
+最基础的常量形式:模块顶部全大写赋值。
 
 ```python
-# 好
-def calculate_total(items): ...
-def get_user(user_id): ...
-def is_valid(email): ...
-def send_email(to, subject): ...
+"""数据库连接配置。"""
 
-# 坏
-def data(): ...        # 名词,不像动作
-def Getuser(): ...     # 大小写不规范
-def calc(): ...        # 过度缩写
+import os
+
+# 常量集中在模块顶部
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://localhost/app")
+MAX_CONNECTIONS = 10
+CONNECTION_TIMEOUT = 30       # 秒
+RETRY_TIMES = 3
+DEFAULT_PAGE_SIZE = 20
 ```
 
-**要点**:
+**约定**:
 
-- **动词开头**:函数做事情,名字应是 `get_`/`set_`/`calculate_`/`send_`/`parse_`/`validate_` 等动词。
-- **布尔返回函数**:`is_valid`/`has_access`/`can_execute`,返回 bool 的用 is/has/can。
-- **方法命名**:类内方法同样 snake_case。公开方法无前缀,私有方法单下划线 `_helper`。
-- **避免与内置/关键字冲突**:别命名 `list`、`dict`、`input`、`type`、`id` 等,会遮蔽内置。
+- 全大写、下划线分隔。
+- 放 import 之后、其他代码之前。
+- 一个常量一行,可附行内注释说明单位/含义(如 `# 秒`)。
+- 相关常量可分组,组间空行:
 
 ```python
-# 坏:遮蔽内置
-def sum(items): ...    # 遮蔽内置 sum,后续 sum([1,2]) 调你的函数
-# 好
-def calculate_sum(items): ...
+# === 数据库 ===
+DATABASE_URL = "..."
+MAX_CONNECTIONS = 10
+
+# === HTTP ===
+HTTP_TIMEOUT = 30
+HTTP_RETRY = 3
 ```
 
-**方法 vs 函数**:类内叫方法(method),模块级叫函数(function),命名风格一致(snake_case)。构造方法用 `__init__`(魔法方法,不改名)。
+**使用**:同模块内直接用名字,跨模块 `from config import DATABASE_URL` 或 `import config; config.DATABASE_URL`。
 
-### 2.3 类命名规范
+**为何集中在模块顶部**:便于查找(都在开头)、便于修改(改一处)、明确"这些是配置,运行不变"。散落在函数内的裸值难管理,提为顶部常量是规范动作。
 
-类名用 **CamelCase**(首字母大写,驼峰),单词不加分隔:
+### 2.2 类级常量
+
+类内常量作为类属性,全大写,与该类相关的不变值:
 
 ```python
-# 好
-class User: ...
-class ShoppingCart: ...
-class HttpRequest: ...
-class ValueError(Exception): ...   # 异常也是类
+class Circle:
+    PI = 3.14159              # 类常量
 
-# 坏
-class user: ...        # 小写,不像类
-class user_info: ...   # snake_case,不符合类名约定
-class userinfo: ...    # 多词无分隔,难读
+    def __init__(self, radius):
+        self.radius = radius
+
+    def area(self):
+        return Circle.PI * self.radius ** 2
+
+print(Circle.PI)              # 3.14159,通过类访问
 ```
 
-**要点**:
+**访问**:`Circle.PI`(类访问)或 `self.PI`(实例访问,但约定用类访问以表常量)。类常量属于类,所有实例共享同一份。
 
-- **CamelCase/帕斯卡命名**:每个单词首字母大写,`User`、`ShoppingCart`、`HttpRequest`。缩写词全大写或首大写(`HttpRequest` 或 `HTTPRequest`,项目内统一)。
-- **名词**:类通常表"事物",名词,如 `User`、`Order`、`Logger`。
-- **异常类**:继承 Exception,名以 `Error` 结尾,如 `ValueError`、`ConnectionError`、自定义 `InvalidUserError`。
-- **与变量/函数区分**:变量 snake_case 小写,类 CamelCase 大写,看首字母大小写就知道是类还是变量。
+**类常量 vs 实例属性**:类常量(全大写、不变)放类体;实例属性(可变、每实例不同)放 `__init__`。别混淆:
 
-**类内成员**:
+```python
+class User:
+    ROLE_ADMIN = "admin"      # 类常量,所有 User 共享,不变
 
-- 公开属性:snake_case,如 `self.name`。
-- 私有属性:`_name`(约定)或 `__name`(名称重整)。
-- 方法:snake_case,公开无前缀,私有 `_method`。
+    def __init__(self, name):
+        self.name = name      # 实例属性,每实例不同,可变
+```
 
-类名 CamelCase 与变量/函数 snake_case 的区分,是 Python 命名规范最重要的视觉约定,让代码结构一目了然。
+**类常量适合**:与类语义相关的不变值,如 `Circle.PI`、`User.ROLE_ADMIN`、`Color.RED`。它让常量"挂在"相关类上,比散在模块更有组织。
 
-### 2.4 常量命名规范
+### 2.3 常量与类型注解:Final
 
-常量用 **全大写、单词下划线分隔**(UPPER_CASE),放在模块顶部:
+`Final`(typing,Python 3.8+)给常量加静态保护:声明"此名字不应重新赋值",mypy/Ruff 静态检查会报误改:
+
+```python
+from typing import Final
+
+MAX_RETRY: Final[int] = 3
+DEFAULT_TIMEOUT: Final[int] = 30
+APP_NAME: Final[str] = "MyApp"
+
+MAX_RETRY = 5     # mypy/Ruff 报错:Cannot assign to final name "MAX_RETRY"
+```
+
+**机制**:`Final` 是类型注解,告诉静态检查器"这个名字是 final,不可重新赋值"。**运行时 Python 仍允许改**(无强制),但 mypy/Ruff 在检查阶段会报错,CI 拦截误改。
+
+**用法**:`名字: Final[类型] = 值`,或 `名字: Final = 值`(类型可推断省略)。
+
+**类内 Final**:
+
+```python
+class Config:
+    URL: Final[str] = "http://example.com"
+    PORT: Final[int] = 8080
+```
+
+**Final 的价值**:把"常量约定"从纯自觉升级为"静态检查可保证"。配合 mypy/Ruff 在 CI 跑,误改常量会在构建阶段暴露,而不是等运行时悄悄出错。这是 Python 里最接近"编译期常量保护"的方案(虽仍是静态检查,非运行时强制)。
+
+**Final 的局限**:只防"重新赋值",不防"对可变常量的就地修改"(如常量是 list,`FINAL_LIST.append(x)` Final 管不到)。要防就地改,用 tuple/frozenset 等不可变容器(2.7)。
+
+### 2.4 用 Enum 表达一组相关常量
+
+当常量是一组相关的命名值(状态码、角色、颜色、选项),用 `Enum` 比裸常量更优:
+
+```python
+from enum import Enum
+
+class Status(Enum):
+    PENDING = "pending"
+    PROCESSING = "processing"
+    SUCCESS = "success"
+    FAILED = "failed"
+
+class Role(Enum):
+    ADMIN = "admin"
+    EDITOR = "editor"
+    VIEWER = "viewer"
+
+# 使用
+order_status = Status.PENDING
+if order_status == Status.SUCCESS:
+    ...
+if user.role == Role.ADMIN:
+    ...
+```
+
+**Enum 的优势**:
+
+- **分组明确**:`Status.PENDING`/`Status.SUCCESS` 同属 Status,比散落的 `STATUS_PENDING`/`STATUS_SUCCESS` 更有组织。
+- **运行时只读**:Enum 成员不可重新赋值(`Status.PENDING = "x"` 报错),比纯约定强。
+- **防非法值**:函数参数类型注解为 `Status`,mypy 能拦截传入非 Status 值。
+- **可迭代**:`for s in Status:` 遍历所有状态;`Status["PENDING"]` 按名取;`Status("success")` 按值取。
+- **可读**:`Status.SUCCESS` 比 `"success"` 或 `200` 自解释。
+
+**Enum 的值类型**:`Enum` 成员值可任意;`IntEnum`/`StrEnum` 让成员可当 int/str 用(可与数字/字符串直接比较,3.11+ 有 StrEnum)。`auto()` 自动赋值:
+
+```python
+from enum import Enum, auto
+
+class Color(Enum):
+    RED = auto()       # 自动 1, 2, 3
+    GREEN = auto()
+    BLUE = auto()
+```
+
+**何时用 Enum**:一组有限、相关、命名的取值(状态、角色、类型、选项),用 Enum;单个独立常量(如 PI)用全大写变量。Enum 是表达"枚举常量集"的最佳方式。
+
+### 2.5 frozen dataclass 与 namedtuple:不可变记录
+
+当常量是**结构化配置对象**(多个字段的不可变组合),用 `frozen dataclass` 或 `namedtuple`:
+
+**frozen dataclass**(Python 3.7+):
+
+```python
+from dataclasses import dataclass
+
+@dataclass(frozen=True)
+class DbConfig:
+    url: str
+    max_connections: int = 10
+    timeout: int = 30
+
+DB = DbConfig(url="postgresql://localhost/app", max_connections=20)
+print(DB.url)            # 访问字段
+# DB.url = "x"          # FrozenInstanceError!frozen 禁止改属性
+```
+
+`frozen=True` 让 dataclass 实例不可变,改属性抛 `FrozenInstanceError`。适合"一组配置常量"作为不可变对象。
+
+**namedtuple**(更老,轻量):
+
+```python
+from collections import namedtuple
+
+DbConfig = namedtuple("DbConfig", ["url", "max_connections", "timeout"])
+DB = DbConfig(url="...", max_connections=20, timeout=30)
+# DB.url = "x"          # AttributeError,namedtuple 不可变
+```
+
+namedtuple 也是不可变记录,但无类型注解、无默认值方法等 dataclass 的现代特性。新项目优先 frozen dataclass。
+
+**何时用**:配置对象(数据库配置、HTTP 配置)用 frozen dataclass 表达"一组不可变配置",比散落常量更有结构、比可变对象更安全。
+
+### 2.6 不可变容器:tuple 与 frozenset
+
+常量若是集合,用不可变容器 `tuple`/`frozenset` 而非可变的 `list`/`set`:
+
+```python
+# 好:tuple 不可变
+SUPPORTED_LANGUAGES = ("zh", "en", "ja")
+ALLOWED_ORIGINS = frozenset({"https://a.com", "https://b.com"})
+
+# 坏:list 可变,常量可能被 append
+SUPPORTED_LANGUAGES = ["zh", "en", "ja"]
+SUPPORTED_LANGUAGES.append("ko")   # 不报错,常量被改了!
+```
+
+**tuple vs list**:tuple 不可变(不能增删元素),list 可变。常量集合用 tuple,防止误 append/修改。
+
+**frozenset vs set**:frozenset 不可变 set,可哈希(能做 dict 键);set 可变。常量集合用 frozenset。
+
+**注意元素可变性**:tuple 本身不可变(结构),但若元素是可变对象,元素内容仍可改:
+
+```python
+DATA = ([1, 2], [3, 4])     # tuple 含 list
+DATA[0].append(99)          # 合法!改的是 tuple 内的 list 元素
+print(DATA)                 # ([1, 2, 99], [3, 4])
+```
+
+要真正不可变,元素也需不可变(全部用 tuple/int/str)。这是不可变性的层级:容器不可变≠元素不可变,深层不可变要递归用不可变类型。
+
+### 2.7 配置常量的组织
+
+项目常量多了需要组织。常见模式:
+
+**单配置模块**:`config.py` 集中所有常量,其他模块 `from config import X`:
+
+```python
+# config.py
+DATABASE_URL = "..."
+MAX_RETRY = 3
+...
+
+# app.py
+from config import DATABASE_URL, MAX_RETRY
+```
+
+适合小项目。但大项目常量全堆一个文件会臃肿。
+
+**分领域配置**:`config/db.py`、`config/http.py`、`config/app.py`,按领域分文件:
+
+```python
+# config/db.py
+URL = "..."
+MAX_CONNECTIONS = 10
+
+# config/http.py
+TIMEOUT = 30
+RETRY = 3
+```
+
+按领域分,清晰且可维护。
+
+**环境变量驱动**:常量从环境变量读,适应多环境(开发/生产):
+
+```python
+import os
+DATABASE_URL = os.getenv("DATABASE_URL", "default")
+DEBUG = os.getenv("DEBUG", "false").lower() == "true"
+```
+
+环境变量让同一份代码在不同环境用不同配置,是部署的标准做法。配合 `.env` 文件与 `python-dotenv` 加载。
+
+**常量与配置文件**:复杂配置用 YAML/TOML/JSON 文件,程序读取为常量对象(dict/dataclass)。配置与代码分离,改配置不改代码。
+
+组织常量的原则:**小项目单 config 模块,大项目按领域分,环境差异用环境变量/配置文件**。常量集中管理、环境外置,是可维护配置的基础。
+
+### 2.8 常量与类型注解协作
+
+常量配合类型注解,提升可读性与静态检查:
+
+```python
+from typing import Final
+
+MAX_RETRY: Final[int] = 3
+DEFAULT_TIMEOUT: Final[float] = 30.0
+APP_NAME: Final[str] = "MyApp"
+SUPPORTED_FORMATS: Final[tuple[str, ...]] = ("csv", "json", "xml")
+```
+
+**收益**:
+
+- 类型注解让常量类型明确,读者一眼知 `MAX_RETRY` 是 int。
+- `Final` 让静态检查保证不被重新赋值。
+- 容器常量注解为不可变类型(`tuple[str, ...]` 而非 `list[str]`),表达"不可变集合"意图,mypy 也会阻止 append 等修改尝试。
+
+**推导与显式**:简单常量类型可推断省略(`MAX_RETRY: Final = 3`),复杂或需明确用显式注解。团队统一风格即可。
+
+类型注解 + Final + 不可变容器类型,三者协作把"常量约定"从纯命名升级为静态类型系统可保证的契约,是现代 Python 常量的最佳实践。
+
+### 2.9 常量文档与命名
+
+常量命名与文档:
+
+**命名**:全大写下划线,表意准确:
 
 ```python
 # 好
 MAX_RETRY = 3
-DEFAULT_TIMEOUT = 30
-PI = 3.14159
-DATABASE_URL = "postgresql://..."
-STATUS_OK = 200
+DEFAULT_TIMEOUT_SECONDS = 30      # 带单位更清晰
+HTTP_STATUS_OK = 200
 
 # 坏
-max_retry = 3          # 小写,看不出是常量
-MaxRetry = 3           # 类名风格
+MAX = 3                           # 过于泛
+TIMEOUT = 30                      # 不知秒/毫秒
+X = 200                           # 含义不明
 ```
 
-**要点**:
+带单位的常量名加单位(`TIMEOUT_SECONDS`/`DELAY_MS`),避免单位歧义(秒还是毫秒是经典坑)。
 
-- **全大写 + 下划线**:`MAX_RETRY`、`DEFAULT_TIMEOUT`。
-- **模块顶部**:常量集中在模块开头,便于查找。
-- **约定不可变**:全大写是"别修改我"的约定(非强制,但大家遵守)。
-- **真正的不可变用大写 + tuple/final**:如 `COLORS = ("red", "green", "blue")`(tuple 不可变),或类型注解 `Final`:
+**文档**:常量密集或含义不直观时,加注释或 docstring:
 
 ```python
+# 最大重试次数,超过即放弃并抛错
+MAX_RETRY = 3
+
+# 心跳间隔(秒),服务端据此判断客户端是否存活
+HEARTBEAT_INTERVAL = 15
+```
+
+模块级常量可在模块 docstring 说明,枚举可在每个成员加注释:
+
+```python
+class Status(Enum):
+    PENDING = "pending"        # 已创建,待处理
+    PROCESSING = "processing"  # 处理中
+    SUCCESS = "success"        # 成功
+    FAILED = "failed"          # 失败,含 error 字段
+```
+
+常量文档让"为何是这个值""单位是什么""取值含义"清晰,减少后续维护的猜测。
+
+### 2.10 完整示例:规范的常量模块
+
+一个体现各项规范的配置模块:
+
+```python
+"""应用配置常量。"""
+
+import os
+from dataclasses import dataclass
+from enum import Enum
 from typing import Final
-MAX_RETRY: Final[int] = 3   # Final 提示不可重新赋值,静态检查可校验
+
+# === 应用 ===
+APP_NAME: Final[str] = "MyApp"
+APP_VERSION: Final[str] = "1.0.0"
+DEBUG: Final[bool] = os.getenv("DEBUG", "false").lower() == "true"
+
+# === 数据库 ===
+DATABASE_URL: Final[str] = os.getenv("DATABASE_URL", "postgresql://localhost/app")
+MAX_CONNECTIONS: Final[int] = 10
+CONNECTION_TIMEOUT: Final[int] = 30  # 秒
+
+
+@dataclass(frozen=True)
+class HttpConfig:
+    """HTTP 客户端不可变配置。"""
+    timeout: int = 30          # 秒
+    retry: int = 3
+    user_agent: str = "MyApp/1.0"
+
+
+HTTP: Final[HttpConfig] = HttpConfig()
+
+
+class Status(Enum):
+    """订单状态枚举。"""
+    PENDING = "pending"
+    PROCESSING = "processing"
+    SUCCESS = "success"
+    FAILED = "failed"
+
+
+# === 不可变集合 ===
+SUPPORTED_LANGUAGES: Final[tuple[str, ...]] = ("zh", "en", "ja")
+ALLOWED_ORIGINS: Final[frozenset[str]] = frozenset({"https://a.com", "https://b.com"})
 ```
 
-常量全大写让"这是常量"一眼可辨,修改全大写变量会触发读者警觉,是有效的约定。
+此示例体现:模块 docstring、Final 类型注解、分组注释、frozen dataclass 配置、Enum 枚举、不可变容器(tuple/frozenset)、环境变量驱动、带单位注释。是常量约定的范本。
 
-### 2.5 模块与包命名
+### 2.11 魔法数消除实战
 
-模块(`.py` 文件)与包(含 `__init__.py` 的目录)名用**全小写、短、可含下划线**(但尽量不用):
+把魔法数逐步替换为常量,是提升可读性的标准动作。看一个对比:
 
 ```python
-# 好:模块名
-user.py
-database.py
-string_utils.py
+# 重构前:魔法数/字符串漫天飞
+def process_order(order):
+    if order["status"] == 1:           # 1 是什么?
+        time.sleep(2)                  # 2 秒?2 分钟?
+        if order["amount"] > 10000:
+            order["priority"] = "high"  # "high" 散落多处
+    if order["retry"] > 3:
+        raise Exception("failed")
+    return order
 
-# 好:包名
-mypackage/
-utils/
+def get_users(page):
+    return db.query("SELECT * FROM users LIMIT 20 OFFSET ?", (page * 20,))  # 20 是啥?
 ```
 
-**要点**:
-
-- **全小写**:`user.py` 而非 `User.py`。
-- **简短**:模块名一两词,如 `utils`、`models`、`auth`。
-- **可含下划线但避免**:PEP 8 建议模块名尽量不用下划线(`string_utils` 可接受,但 `stringutils` 更简短也不错)。避免用下划线开头(下划线开头模块有特殊含义,见 2.8)。
-- **避免与标准库/常见包冲突**:别命名 `os.py`、`sys.py`、`requests.py`(会遮蔽同名标准库/第三方包,导致 import 异常)。
-- **包名同模块规则**:全小写简短,如 `mypackage`。
-
-**C 扩展模块**:用 `_` 前缀表示底层 C 模块,如 `_socket`,Python 层 `socket` 包装它。这是底层惯例,普通项目不涉及。
-
-模块/包名一旦发布就难改(改名会破坏下游 import),所以起名要慎重、有前瞻性。
-
-### 2.6 类型变量(TypeVar)与泛型命名
-
-类型变量(泛型)用**单大写字母或 CamelCase**,约定首字母大写:
-
 ```python
-from typing import TypeVar
+# 重构后:常量化,自解释
+STATUS_PENDING = 1
+PRIORITY_HIGH = "high"
+PROCESS_DELAY_SECONDS = 2
+LARGE_ORDER_THRESHOLD = 10000
+MAX_RETRY = 3
+PAGE_SIZE = 20
 
-T = TypeVar("T")           # 单字母,通用类型变量
-K = TypeVar("K")           # 字典键
-V = TypeVar("V")           # 字典值
-NumberT = TypeVar("NumberT", int, float)   # 约束类型变量,CamelCase
+def process_order(order):
+    if order["status"] == STATUS_PENDING:
+        time.sleep(PROCESS_DELAY_SECONDS)
+        if order["amount"] > LARGE_ORDER_THRESHOLD:
+            order["priority"] = PRIORITY_HIGH
+    if order["retry"] > MAX_RETRY:
+        raise Exception("failed")
+    return order
+
+def get_users(page):
+    return db.query("SELECT * FROM users LIMIT ? OFFSET ?", (PAGE_SIZE, page * PAGE_SIZE))
 ```
 
-**要点**:
+重构后每处值的含义一目了然,改阈值只改常量定义一处。这种"魔法数 → 命名常量"的提取是代码质量的基础重构,几乎每个项目都该做一遍。注意常量名要准确表意(`LARGE_ORDER_THRESHOLD` 而非 `THRESHOLD`),否则换汤不换药。
 
-- 通用类型变量常用单大写字母 `T`、`K`、`V`(源自数学/泛型惯例)。
-- 有约束的类型变量用 CamelCase 描述,如 `NumberT`、`UserT`。
-- 协变/逆变类型变量加 `_co`/`_contra` 后缀(进阶)。
+### 2.12 常量与函数默认参数
 
-类型变量命名是类型注解领域的小众约定,知道 `T`/`K`/`V` 等惯例即可,深入见类型系统笔记。
+常量常用作函数默认参数值,但需注意可变常量的陷阱:
 
-### 2.7 好名字的特征
-
-总结好名字的共同特征,起名时对照:
-
-1. **准确(accurate)**:名字真实反映含义,不误导。`user_list` 就该是 list,不是 dict。
-2. **具体(specific)**:`get_user_by_email` 比 `get` 具体;`unpaid_invoices` 比 `invoices` 具体。
-3. **简洁(concise)**:在准确前提下尽量短,但不牺牲清晰。`user_count` 够,不必 `the_number_of_users`。
-4. **可读(readable)**:符合 snake_case/CamelCase,单词分隔清晰。
-5. **一致(consistent)**:同概念全项目用同名字,如都用 `user_id` 而非时而 `uid` 时而 `user_id`。
-6. **可搜索(searchable)**:避免单字母(Grep 难找),`user_count` 比 `n` 易搜索。
-7. **无歧义(unambiguous)**:`data`、`info`、`temp`、`handler` 这类过于泛的名字尽量具体化。
-
-**起名思考流程**:先想"这个名字代表什么"(语义)→ 选准确词 → 按 snake_case/CamelCase 拼 → 检查是否与内置/已有冲突 → 是否可搜索可读。好名字值得花时间,它在整个代码生命周期被读无数次。
-
-### 2.8 下划线约定详解
-
-1.4 概览了下划线含义,这里详解使用:
-
-**单下划线前缀 `_name`(约定私有)**:
+**不可变常量作默认参数(安全)**:
 
 ```python
-def _internal_helper():
-    """模块内部辅助函数,约定不外部调用,但 Python 不强制。"""
+DEFAULT_TIMEOUT = 30
+
+def fetch(url, timeout=DEFAULT_TIMEOUT):   # 不可变,安全
     ...
-
-class User:
-    def __init__(self):
-        self._cache = {}    # 约定私有属性,外部不应直接访问
 ```
 
-`_` 前缀是"君子协定":提示"内部使用,别依赖"。Python 不阻止访问(`user._cache` 仍可访问),但 linter 会警告从外部访问 `_` 前缀成员,`from module import *` 也不导入 `_` 前缀名字。用于:非公开 API、实现细节、临时辅助。
+int 不可变,作默认参数安全——每次调用都用同一 30,不会累积。
 
-**双下划线前缀 `__name`(名称重整)**:仅在类内有效,触发名称重整(第 4 章详述):
+**可变常量作默认参数(陷阱)**:与变量赋值机制里的默认参数陷阱同理,可变常量作默认参数会在多次调用间共享累积:
 
 ```python
-class Counter:
-    def __init__(self):
-        self.__count = 0    # 实际存为 self._Counter__count
-    def inc(self):
-        self.__count += 1
+DEFAULT_TAGS = []          # 可变常量(本身就不该用 list 当常量,见 2.6)
+
+def create_user(name, tags=DEFAULT_TAGS):  # 陷阱!所有调用共享同一 list
+    tags.append("new")
+    return {"name": name, "tags": tags}
+
+create_user("a")   # {'name': 'a', 'tags': ['new']}
+create_user("b")   # {'name': 'b', 'tags': ['new', 'new']}  —— 累积了!
 ```
 
-`__count` 被重整为 `_Counter__count`,一定程度避免子类同名属性覆盖。比 `_` 更强的私有,但仍有办法访问(`obj._Counter__count`),非真正私有。少用,多数场景 `_` 足够。
-
-**前后双下划线 `__name__`(魔法名字)**:Python 定义的特殊方法/属性:
+修复一:常量用不可变容器 `DEFAULT_TAGS = ()`(tuple),但 `tags.append` 就不适用了。
+修复二:用 `None` 哨兵,函数内创建:
 
 ```python
-__init__     # 构造
-__str__      # 字符串表示
-__len__      # 长度
-__name__     # 函数/类/模块名
-__file__     # 模块文件路径
+def create_user(name, tags=None):
+    if tags is None:
+        tags = []
+    tags.append("new")
+    return {"name": name, "tags": tags}
 ```
 
-这些是 Python 协议预留的,**不要自创 `__xxx__` 名字**(可能冲突)。只在你实现某协议时用对应的魔法名(如定义 `__str__` 让 print 友好)。
+**规则**:可变对象(即使是常量)绝不做函数默认参数。常量集合用 tuple/frozenset(既不可变又可作安全默认参数),或用 None 哨兵。这条与《变量赋值机制》的默认参数陷阱一脉相承,常量语境下同样适用。
 
-**单独 `_`(忽略/临时)**:
+### 2.13 常量的反模式
+
+汇总常见坏常量用法:
+
+- **可变常量**:`SUPPORTED = ["zh","en"]` 用 list 当常量,易被误改。该用 tuple。
+- **散落裸值**:该提常量的地方直接写 3/200/"admin",魔法数残留。
+- **常量命名含糊**:`MAX = 3`(什么的 max)、`DATA = ...`(什么 data)。
+- **常量不带单位**:`TIMEOUT = 30` 不知秒/毫秒。该 `TIMEOUT_SECONDS`。
+- **运行时计算的"常量"**:常量本应编译期/启动期确定,若 `BASE = compute()` 每次不同,它不是常量,是变量。
+- **常量值可变对象**:`CONFIG = {"x": [1]}` 内层 list 可改,所谓"常量"可被改内容。
+- **过度常量化**:把只在一处用、含义明显的值(如 `range(10)` 的 10)也提常量,反而绕。
+- **常量散落多处**:同值常量在多文件重复定义,改时易遗漏。该集中。
+
+识别反模式,常量才能真正发挥可读可维护作用,而非成为新的混乱源。
+
+### 2.14 跨模块常量共享与循环导入
+
+常量常需多模块共享,但放在哪个模块、如何避免循环导入是工程问题:
+
+**集中 config 模块,被各模块 import**(推荐):
 
 ```python
-for _ in range(10):     # 循环变量不用,用 _ 占位
-    print("hi")
+# config.py
+MAX_RETRY = 3
 
-a, _ = (1, 2)           # 只取 a,忽略第二个
-
-_ = compute()           # 故意忽略返回值
+# service.py
+from config import MAX_RETRY    # 单向依赖,无循环
 ```
 
-`_` 表"我不关心这个值",是 Pythonic 的忽略占位。REPL 里 `_` 还特指上一个表达式的结果。
+`config.py` 不 import 业务模块,业务模块 import config,单向依赖,无循环导入风险。这是最稳妥的常量共享方式。
 
-这套下划线约定让名字携带设计意图:私有、常量、忽略、魔法,从名字形态即可判断,是 Python 命名文化的精髓。
+**避免常量模块反向依赖业务**:若 config.py 里 `import service`(为了某常量),而 service.py 又 `from config import X`,就循环导入。保持 config 模块**只被依赖、不依赖业务**,常量定义自包含。
 
-### 2.9 避免遮蔽内置名
+**分领域 config 同理**:`config/db.py` 不 import 业务,业务 import 它。配置模块永远是依赖图的"叶子",不被反向依赖。
 
-Python 有大量内置名(built-in):`list`、`dict`、`str`、`int`、`id`、`type`、`input`、`sum`、`max`、`min`、`file`、`input` 等,以及关键字。用它们作标识符会**遮蔽**(shadow)内置,导致后续用不了该内置功能:
+**大值常量与延迟**:若常量需要复杂计算才得到(如加载大字典),可放函数延迟计算或用 lru_cache,避免模块导入即重算。但纯常量应简单,避免在常量模块做重逻辑。
+
+### 2.15 常量在测试中的处理
+
+测试时常需覆盖常量(如把 `MAX_RETRY` 改小加速测试、改 `DATABASE_URL` 指向测试库)。Python 常量可改(无强制),这反而是测试的便利:
 
 ```python
-# 坏:遮蔽 list
-list = [1, 2, 3]
-# later
-new_list = list(range(5))   # TypeError: 'list' object is not callable
-                              # 因 list 现在是 [1,2,3],不是内置 list()
+import config
+from mymodule import retry_function
+
+def test_retry(monkeypatch):
+    monkeypatch.setattr(config, "MAX_RETRY", 1)   # 测试时改小
+    retry_function()   # 用改后的常量行为
 ```
 
-修复:避免用内置名作变量,改个名:
+`monkeypatch.setattr` 在测试期间改常量,测试后自动还原。这在有强制常量的语言里难做(常量不可改),Python 的"约定式常量"反而利于测试——能临时 monkeypatch。这是 Python 无强制常量的一个意外好处。
 
-```python
-my_list = [1, 2, 3]
-new_list = list(range(5))    # OK,list 仍内置
-```
+**但生产代码勿依赖可改常量**:测试用 monkeypatch 改常量 OK,但别在生产代码里改常量(破坏约定)。常量在生产中应保持不变,可改仅是测试便利,别滥用。
 
-**常见易遮蔽的内置**:`list`、`dict`、`set`、`str`(作变量名遮蔽类型)、`id`、`type`、`input`、`file`、`sum`、`max`、`min`、`len`、`map`、`filter`。起名时自问"这是不是内置名",是则换。
+### 2.16 常量的演进与版本化
 
-**IDE/linter 帮助**:PyCharm/VS Code(Pylint/pyflakes)会高亮遮蔽内置的命名,Ruff 也能检查。借助工具避免无意遮蔽。
+常量会随项目演进变化(阈值调整、新增状态、URL 变更),如何管理:
 
-### 2.10 类型注解与命名
+- **集中管理易演进**:常量集中在 config,改一处全生效,演进方便。散落多处则改时易遗漏。
+- **常量与配置分离**:真正"运行不变"的常量(如 PI、状态码)硬编码在代码;会随环境/部署变的(URL、阈值)用环境变量/配置文件外置,改配置不重发布代码。
+- **版本化**:常量相关联的一组(如 API 版本常量)可加版本注释,便于追踪何时为何改。
+- **废弃常量缓删**:某常量不再用,先标 `# DEPRECATED` 注释一段时间(过渡),确认无引用再删,避免突然删导致依赖方报错。
+- **常量变更需测试**:改常量(尤其阈值、状态)可能影响逻辑,改后跑测试验证,别盲目改。
 
-类型注解引入新标识符(`List`、`Dict`、`Optional` 等),命名有约定:
-
-- **类型别名**:全大写或 CamelCase,如 `UserId = int`、`JSON = dict[str, Any]`。
-- **typing 模块的泛型**:`List`/`Dict`/`Optional`/`Union` 是 typing 提供的(Python 3.9+ 可直接用小写 `list`/`dict` 作泛型,更推荐):
-  ```python
-  # Python 3.9+
-  def f(items: list[int]) -> dict[str, int]: ...   # 用小写内置类型作泛型
-  ```
-- **变量类型注解**:变量名本身仍是 snake_case,注解在冒号后:`count: int = 0`。
-
-类型注解的标识符遵循类型世界的约定(类型名 CamelCase/大写),与变量(小写)区分,看注解就知道是类型。
-
-### 2.11 命名反模式集合
-
-汇总常见坏命名,自查避免:
-
-- **单字母滥用**:除循环计数 `i/j/k`、数学公式变量,避免 `a`/`b`/`x`/`y`。
-- **易混字符**:`l`(小写 L)、`O`(大写 o)、`I`(大写 i)易与 `1`/`0`/`l` 混,避免。
-- **泛名**:`data`/`info`/`temp`/`value`/`handler`/`manager` 过于泛,具体化。
-- **匈牙利命名**:带类型前缀 `i_count`/`s_name`,Python 不需要。
-- **缩写泛滥**:`usr_cnt`/`cfg_mgr`,除通用缩写(id/url/db)外,用全词。
-- **误导名**:`user_list` 实际是 dict。
-- **遮蔽内置**:`list = [...]`。
-- **风格混用**:同项目 `getUser`/`get_user`/`getuser` 混。
-- **`__dunder__` 自创**:`__my_method__` 与 Python 协议冲突风险。
-- **过长**:`the_number_of_users_in_the_system`,在准确前提下缩短。
-- **否定布尔**:`not_found` 不如 `is_missing`/`found`(正向更易读)。
-
-识别反模式是起好名的前提。code review 专门审视命名,能显著提升代码质量。
-
-### 2.12 完整示例:规范命名的模块
-
-一个体现规范的完整模块:
-
-```python
-"""订单处理模块。"""
-
-from typing import Final
-
-# 常量:全大写
-MAX_ORDER_ITEMS: Final[int] = 100
-DISCOUNT_RATE: Final[float] = 0.1
-STATUS_PENDING: Final[str] = "pending"
-
-
-def calculate_total(items: list[dict]) -> float:
-    """计算订单总金额。
-
-    Args:
-        items: 订单项列表,每项含 'price' 和 'quantity'
-
-    Returns:
-        总金额
-    """
-    total = 0.0
-    for item in items:
-        total += item["price"] * item["quantity"]
-    return total
-
-
-def _apply_discount(total: float, rate: float) -> float:
-    """应用折扣(内部辅助)。"""
-    return total * (1 - rate)
-
-
-class Order:
-    """订单。"""
-
-    def __init__(self, order_id: int, items: list[dict]):
-        self.order_id = order_id        # 公开属性
-        self.items = items
-        self._total = 0.0               # 私有属性(约定)
-
-    def process(self) -> float:
-        """处理订单,返回折扣后金额。"""
-        self._total = calculate_total(self.items)
-        return _apply_discount(self._total, DISCOUNT_RATE)
-
-
-class InvalidOrderError(Exception):
-    """无效订单异常。"""
-    pass
-```
-
-此示例体现:模块 docstring、常量全大写(+Final)、函数 snake_case 动词、私有函数 `_` 前缀、类 CamelCase、属性 snake_case、私有属性 `_`、异常以 Error 结尾、类型注解。命名规范齐全,是范本。
-
-### 2.13 命名与作用域的相互作用
-
-标识符命名需考虑作用域宽窄:作用域越宽,名字需越具体;作用域越窄,可越简短。
-
-**全局/模块级**:作用域宽,被多处引用,名字要完整具体:
-
-```python
-# 模块级,需具体
-user_session_timeout = 1800
-def calculate_monthly_revenue(records): ...
-```
-
-**函数内局部**:作用域窄,上下文明确,可适当简短:
-
-```python
-def process_user(user):
-    # 局部变量,上下文是 user,不必 user_xxx
-    name = user.name
-    age = user.age
-    # 而不是 user_name = user.name (前缀冗余,因已在 user 上下文)
-```
-
-**循环/推导局部**:更可短:
-
-```python
-for item in items:        # item 在循环上下文,简短可接受
-    process(item)
-
-total = sum(p * q for p, q in pairs)   # p, q 在推导上下文
-```
-
-原理:名字的"信息量"要匹配它被理解所需的上下文。全局无明确上下文,名字自带全部信息要具体;局部有函数/循环提供上下文,重复上下文信息(如函数内 `user_name` 当参数已是 user)是冗余。这条原则让名字既不冗长也不含糊,恰如其分。
-
-### 2.14 命名一致性与项目词汇表
-
-一致性是好命名的高阶要求:同概念全项目用同一名字,避免同义混用。
-
-**建立项目词汇表**(glossary):团队约定核心业务概念的统一用词,如:
-
-- 用户统一叫 `user`(不忽 `user` 忽 `account` 忽 `member`)
-- 用户标识统一 `user_id`(不忽 `uid` 忽 `user_id` 忽 `userId`)
-- 订单统一 `order`(不忽 `order` 忽 `purchase`)
-
-```python
-# 一致(好)
-def get_user(user_id): ...
-def delete_user(user_id): ...
-def update_user(user_id, data): ...
-
-# 不一致(坏,同义混用)
-def get_user(uid): ...
-def delete_account(user_id): ...
-def update_member(user_id, data): ...
-```
-
-词汇表的价值:降低认知负担(读者不必猜 account/member/user 是否同义)、便于搜索(一个概念一个词,Grep 一次找全)、减少 bug(同义混用易导致接对接错)。建立项目词汇表(可写在 CONTRIBUTING 或 docstring),新人入项先读,命名就有据可依。
-
-### 2.15 命名在重构中的角色
-
-命名是重构的信号与手段:
-
-**坏命名是重构信号**:`data2`、`temp`、`handle_stuff` 这类名往往暗示函数职责不清、动机不明,是拆分/重命名重构的候选。
-
-**重命名是最值钱的重构**:好名字让代码自解释,常比改结构更有效。重构时优先重命名,把 `proc` → `process_payment`、`d` → `daily_revenue`,代码可读性立刻提升。
-
-**安全重命名**:IDE(PyCharm/VS Code)的重命名重构安全更新所有引用,改动可控。对公开 API 重命名需谨慎(破坏下游),内部重命名可大胆。
-
-```python
-# 重构前
-def calc(d):
-    r = 0
-    for i in d:
-        r += i
-    return r
-
-# 重构后(重命名+具体化,清晰百倍)
-def calculate_total(prices: list[float]) -> float:
-    total = 0.0
-    for price in prices:
-        total += price
-    return total
-```
-
-命名重构成本低、收益高,是提升遗留代码可读性的首选手段。勇于重命名,别让坏名字沉淀。
-
-### 2.16 特定场景的命名约定
-
-一些特定编程场景有约定命名:
-
-**回调/高阶函数参数**:回调函数参数名常叫 `callback`、`fn`、`func`、`key`(排序键):
-
-```python
-def apply(items, func):        # func 是对每项应用的函数
-    return [func(item) for item in items]
-
-sorted(users, key=lambda u: u.age)   # key 是排序键函数
-```
-
-**装饰器**:装饰器函数名通常小写动词,被装饰函数名不变:
-
-```python
-def log_calls(func):          # 装饰器,名表"记录调用"
-    def wrapper(*args, **kwargs):
-        print(f"call {func.__name__}")
-        return func(*args, **kwargs)
-    return wrapper
-
-@log_calls
-def send_email(): ...         # 被装饰函数名仍 send_email
-```
-
-**property**:property 名是名词(属性),getter 方法通常不单独命名(用 `@property`):
-
-```python
-class Circle:
-    def __init__(self, radius):
-        self.radius = radius
-
-    @property
-    def area(self):           # property 名 area,名词,像属性
-        return 3.14 * self.radius ** 2
-```
-
-**上下文管理器**:`with` 用的对象/函数名常叫 `xxx_ctx` 或表资源:
-
-```python
-with open(path) as f: ...     # f 表文件
-with lock: ...                # lock 表锁
-```
-
-**生成器**:生成器函数名常以产出物复数 or 动词:
-
-```python
-def read_lines(path):         # 动词,产出各行
-    with open(path) as f:
-        yield from f
-```
-
-这些场景约定让代码更易读(看到 `key=` 知是排序键,看到 `@property` 知是属性),遵循它们融入 Pythonic 风格。
-
-### 2.17 国际化与 ASCII 命名
-
-Python 3 允许 Unicode 标识符(中文可命名),但工程上坚持 ASCII:
-
-**不推荐 Unicode 命名的原因**:
-
-- **跨工具风险**:某些 linter、文档生成器、旧系统、CI 环境对非 ASCII 标识符支持不一,可能乱码或报错。
-- **国际协作**:开源/跨国团队,ASCII 命名全球可读,中文命名对非中文母语者是障碍。
-- **输入便利**:ASCII 在任何键盘直接输入,中文需切换输入法,降低效率。
-- **PEP 8 建议**:PEP 8 明确建议模块/变量名用 ASCII。
-
-**例外**:教学演示(向初学者直观展示概念)、纯内部非长期脚本,可用中文命名辅助理解。但生产代码、库、协作项目,坚持 ASCII。
-
-**字符串内容可 Unicode**:注意区分——标识符(名字)用 ASCII,但字符串内容(用户可见文本、注释)可中文,这两者不冲突:
-
-```python
-greeting = "你好,世界"     # 标识符 greeting 是 ASCII,内容是中文,OK
-# 总用户数 = 100            # 标识符中文,不推荐
-```
-
-原则:**标识符 ASCII,字符串/注释可中文**。这是国际化的稳妥实践。
-
-### 2.18 命名检查工具实战
-
-用工具自动保证命名规范,比人工盯守可靠:
-
-**Ruff(含 pep8-naming 规则)**:Ruff 集成 pep8-naming,检查:
-
-- 函数是否 snake_case、类是否 CamelCase、常量是否全大写。
-- 函数名与函数内变量名混乱(`__` 自创 dunder 警告)。
-- 继承 Exception 的类是否 Error 结尾。
-
-配置(`ruff.toml` 或 `pyproject.toml`):
-
-```toml
-[tool.ruff.lint]
-select = ["N"]            # 启用 pep8-naming 规则集
-```
-
-**Pylint**:更全面的命名检查(变量/函数/类/常量/方法各规则),可配置严格度。
-
-**pydocstyle**:配合检查 docstring 风格。
-
-**IDE 实时检查**:PyCharm/VS Code(Pylance)实时高亮不合规命名(如类小写、遮蔽内置),写时即纠正。
-
-实战配置:项目用 Ruff 启用 N 规则 + IDE 实时检查,CI 跑 Ruff 不合格拒合并。这样命名规范机器保证,人专注起好名而非记规则。
+常量演进是长期维护的一部分,集中管理 + 配置外置 + 谨慎变更,让常量随项目健康发展而不成为债。
 
 ---
 
 ## 3. 最佳实践
 
-### 3.1 遵循 PEP 8 命名约定
+### 3.1 常量全大写、模块顶部、集中管理
 
-变量/函数 snake_case、类 CamelCase、常量全大写、模块全小写——PEP 8 是 Python 命名的事实标准,全项目统一遵循。用 Ruff/black 自动检查风格,保证一致。
+常量全大写下划线,放模块顶部,集中在配置模块/类。便于查找修改,符合 PEP 8 与社区共识。散落函数内的裸值提为顶部常量。
 
-### 3.2 名字表意准确具体,避免泛名
+### 3.2 用 Final 加静态保护
 
-`user_count` 优于 `count`,`unpaid_invoices` 优于 `invoices`。起名时想清楚"代表什么",选准确具体词。`data`/`info`/`temp`/`handler` 这类泛名尽量具体化。
+`名字: Final[类型] = 值` 让 mypy/Ruff 检查误改,把约定升级为静态保证。配合 CI 跑 mypy/Ruff,误改常量构建期暴露。
 
-### 3.3 不遮蔽内置名与关键字
+### 3.3 一组相关常量用 Enum
 
-避免 `list`/`dict`/`id`/`type`/`input` 等作标识符,起名时自问"是不是内置"。IDE/Ruff 高亮遮蔽,借助工具避免。
+状态码、角色、颜色等有限命名取值集,用 `Enum` 而非散落全大写常量。Enum 分组明确、运行时只读、可迭代、防非法值,是枚举常量最佳方式。
 
-### 3.4 用下划线传达意图:私有/常量/忽略/魔法
+### 3.4 配置对象用 frozen dataclass
 
-`_x` 私有、`__x` 重整(慎用)、`__x__` 只用 Python 定义的魔法、`_` 忽略占位、`NAME` 常量。让名字形态携带设计意图,是 Pythonic 命名精髓。不自创 `__dunder__`。
+结构化配置(多字段不可变组合)用 `@dataclass(frozen=True)`,不可改属性,比散落常量有结构、比可变对象安全。新项目优先 dataclass 而非 namedtuple。
 
-### 3.5 布尔用 is/has/can 前缀,集合用复数
+### 3.5 集合常量用 tuple/frozenset
 
-`is_active`/`has_access`/`can_edit` 表布尔;`users`/`items` 复数表集合。命名形态反映类型语义,提升可读。
+常量集合用 `tuple`/`frozenset` 而非 `list`/`set`,防止误 append/修改,且可哈希(能做 dict 键)。注意元素可变性,深层不可变递归用不可变类型。
 
-### 3.6 避免易混单字母与否定布尔
+### 3.6 常量带单位与注释
 
-不用 `l`/`O`/`I`(易与数字混);除循环计数/数学公式避免单字母。布尔用正向(`found` 比 `not_found` 易读)。
+数值常量带单位(`TIMEOUT_SECONDS`/`DELAY_MS`)避免单位歧义;含义不直观的加注释说明取值依据。常量文档减少维护猜测。
 
-### 3.7 团队统一命名,避免风格混用
+### 3.7 环境差异用环境变量/配置文件
 
-项目内 `getUser`/`get_user` 不混;同概念统一名字(`user_id` 始终用 `user_id`,不忽 `uid`)。统一风格让代码专业、可读。用 Ruff + 命名规范文档保证。
+部署相关常量(URL、DEBUG、密钥)从环境变量读,适应多环境;复杂配置用 YAML/TOML 文件外置。代码与配置分离,改配置不改代码。
 
-### 3.8 模块/包名慎重,避免与标准库冲突
+### 3.8 不依赖运行时强制,但用工具补强
 
-模块/包全小写简短,不与 `os`/`sys`/`requests` 等重名(遮蔽致 import 异常)。模块名一旦发布难改,起名有前瞻性。
+Python 常量无运行时强制,接受"约定为主",但用 Final(静态检查)+ Enum/frozen(运行时只读)+ Ruff(规范检查)层层补强。不指望编译器,但用工具把误改概率降到最低。
 
-### 3.9 异常类以 Error 结尾,继承 Exception
+### 3.9 常量命名表意准确,避免魔法数
 
-`InvalidUserError`、`ConnectionError`,名以 Error 结尾、继承 Exception(或其子类),让异常从命名即可辨识。
+`MAX_RETRY` 优于 `3`,`STATUS_OK` 优于 `200`。消除魔法数/魔法字符串,常量名自解释。这是常量最基本的用途。
 
-### 3.10 借助工具检查命名
+### 3.10 类相关常量挂类上
 
-Ruff(含 pep8-naming 规则)、Pylint 能检查命名是否符合 PEP 8(如函数 snake_case、类 CamelCase、常量大写)。提交前/CI 跑,机器保证规范比人工盯守可靠。
+与类语义相关的不变值(如 `Circle.PI`)作类常量,而非散落模块,让常量在结构上归属相关类,更有组织。
 
-### 3.11 code review 专门审视命名
+### 3.11 常量与类型注解配合
 
-命名是代码质量基础,review 时专门看名字是否准确、是否遮蔽、是否一致、是否泛。好名字值得在 review 中反复打磨,它在代码生命周期被读无数次。
+常量加类型注解 + Final,类型明确且静态保护。容器常量注解为不可变类型(`tuple[str, ...]`),表达并保证不可变集合意图。
 
-### 3.12 重构时勇于改名
+### 3.12 定期审视常量,清理无用
 
-发现名字不准、误导、过时,勇敢重构改名(IDE 重命名重构安全更新引用)。代码演进中名字会过时,及时改名保持代码清晰,别让坏名字沉淀。
+项目演进中常量会过时(不再用的配置、废弃的状态)。定期审视常量模块,删除无用常量,保持精简。常量模块臃肿会增加维护负担,保持只含真正在用的。
 
 ---
 
 ## 4. 原理
 
-### 4.1 标识符的词法规则与 Unicode(底层,简略)
+### 4.1 Python 为何无常量语言机制(需理解,详述)
 
-Python 标识符合法性由词法分析器(lexer)按规则判定:字母/数字/下划线组成、非数字开头、非关键字。Python 3 的标识符定义遵循 UAX-31(Unicode 标准附件),允许 Unicode 字母类别字符(如中文),但开头必须是字母/下划线(不能数字)。这套词法规则是 Python 语法层面规定,日常无需深究其实现,记住"字母数字下划线、非数字开头、非关键字"即可。Unicode 命名虽合法但 PEP 8 不推荐,因跨工具/国际协作风险,坚持 ASCII。
+Python 没有 `const`/`final` 这种语言级常量机制(运行时强制不可变),这是有意的设计选择,理解其缘由有助于把握 Python 哲学。
 
-### 4.2 名称重整 name mangling 机制(需理解,详述)
+**对比 C/Java 的硬常量**:C 的 `const int MAX = 10;` 由编译器强制,`MAX = 20` 编译报错;Java 的 `final` 同理。这是"语言层面不可变",编译期保护,试图改即报错,常量安全有保障。
 
-双下划线前缀 `__name` 在类内的名称重整机制,是命名规范里涉及"私有"语义的核心,值得详述。
+**Python 的选择**:Python 不提供这种运行时强制的常量。所有名字都是普通变量,可重新赋值。Python 用"约定"(全大写命名)+ 程序员自觉来维护常量,而非语言强制。
 
-**机制**:在类定义体内,任何形如 `__name`(至少两个前导下划线、至多一个尾随下划线)的标识符,Python 解释器会**自动把它改写为 `_ClassName__name`**——即加上下划线 + 类名前缀。
+**设计缘由**:
+
+1. **"Consenting adults" 哲学**:Python 信任程序员是成年人,自觉遵守约定,不用编译器当保姆。若你坚持要改一个全大写常量,Python 不阻拦(可能你有特殊理由,如测试时 monkeypatch)。这降低语言复杂度(无需 const 语义)。
+2. **动态语言本性**:Python 是动态语言,变量无固定类型、可在运行时重新绑定,强制的"不可变绑定"与动态本性 somewhat 张力。Python 选择保持动态一致,常量靠约定。
+3. **简单优先**:无 const 语法,语言更简单。需要强不可变时,用 Enum/frozen/tuple 等机制针对性实现,而非通用 const。
+
+**后果与应对**:
+
+- **无编译期保护**:误改常量不报错(运行时)。应对:用 `Final`(静态检查)+ mypy/Ruff 在 CI 拦截。
+- **约定靠自觉**:全大写常量可被改,只是"不该改"。应对:团队规范 + 工具检查 + code review。
+- **需要真不可变时用专门机制**:Enum 成员只读、frozen dataclass 禁改属性、tuple 结构不可变——这些是"局部强制不可变",针对特定场景提供保障。
+
+理解"Python 无通用常量机制,靠约定 + 针对性不可变类型",就能解释为何全大写常量仍可被改、为何要 Final/Enum/frozen 这些"补丁"机制。Python 的常量是"约定为主、机制为辅"的工程实践,而非语言保证。
+
+### 4.2 Final 的静态检查机制(需理解,详述)
+
+`Final` 是如何"防重新赋值"的?它是**类型注解**,被静态类型检查器(非运行时)消费。
+
+**机制**:`x: Final = 10` 把 `x` 标记为"final 名字",记录在类型信息里。Python 运行时**忽略** Final(它只是个注解,不产生运行时行为)——`x = 20` 运行时仍合法执行。但**静态检查器**(mypy、pyright、Ruff)读取这个注解,在检查阶段发现"对 final 名字重新赋值"就报错:
 
 ```python
-class Counter:
-    def __init__(self):
-        self.__count = 0        # 被 mangling 成 self._Counter__count
-
-    def inc(self):
-        self.__count += 1       # 类内 __count 都被改写为 _Counter__count
-
-c = Counter()
-print(c._Counter__count)        # 0 —— 可从外部用重整名访问
-# print(c.__count)             # AttributeError,外部用原名访问不到
+from typing import Final
+MAX: Final[int] = 3
+MAX = 5     # 运行时:正常执行,MAX 变 5
+            # mypy: error: Cannot assign to final name "MAX"
 ```
 
-`self.__count` 在类内被解释器改写为 `self._Counter__count`,外部用原名 `__count` 访问不到(因实际属性名是 `_Counter__count`),需用重整全名才能访问。
+故 Final 的保护是**静态的、可选的**(需跑 mypy/Ruff 才生效),非运行时强制。不跑类型检查,Final 等于无物。
 
-**为何要重整**:重整主要用于**避免子类与父类的属性名冲突**。若子类也定义 `__count`,经重整变成 `_Subclass__count`,与父类的 `_Counter__count` 是不同属性,互不覆盖:
+**Final 防什么、不防什么**:
+
+- **防重新赋值**:`MAX = 5` 被 Final 拦截(静态)。
+- **不防就地修改可变对象**:`FINAL_LIST: Final = [1,2]; FINAL_LIST.append(3)` Final 管不到——它防"名字重新绑定",不防"对象内容修改"。要防内容改,用 tuple 等不可变容器。
+
+**类属性 Final**:类内 `URL: Final[str] = "..."` 同理,静态防重新赋值类属性。
+
+**Final 的价值与边界**:Final 把常量约定升级为"静态类型系统可检查",在有 mypy/Ruff CI 的项目里有效拦截误改。但它本质是静态检查,运行时无常量保护——不跑检查器或用反射(`setattr`、修改 `__dict__`)仍能改。理解 Final 是"静态约定强化"而非"运行时强制",才能正确使用(配 CI 才有效)。
+
+### 4.3 Enum 的运行时只读机制(需理解,详述)
+
+Enum 成员的"只读"是**运行时强制**的,比 Final 的静态检查更强,值得了解其机制。
+
+**Enum 成员不可重新赋值**:
 
 ```python
-class Base:
-    def __init__(self):
-        self.__value = "base"      # _Base__value
+class Color(Enum):
+    RED = 1
+    GREEN = 2
 
-class Sub(Base):
-    def __init__(self):
-        super().__init__()
-        self.__value = "sub"       # _Sub__value,不覆盖父类的!
-
-s = Sub()
-print(s._Base__value)             # base
-print(s._Sub__value)              # sub
+Color.RED = 99     # AttributeError: cannot reassign member 'RED'
+Color.RED.value = 99   # AttributeError: cannot set 'value'
 ```
 
-子类的 `__value` 重整为 `_Sub__value`,不覆盖父类 `_Base__value`,二者共存。无重整的话(用单下划线 `_value`),子类 `_value` 会直接覆盖父类同名属性。重整提供了"各类有自己的私有命名空间"的隔离。
+Enum 类在创建时,通过**元类**(`EnumMeta`)的 `__setattr__`/`__delattr__` 拦截对枚举成员的修改:试图重新赋值成员或改成员属性,抛 `AttributeError`。这是运行时强制,非静态检查。
 
-**重整的边界**:
+**Enum 的数据模型**:Enum 类的每个成员是枚举类的一个**单例实例**(如 `Color.RED` 是 Color 的实例),成员的值存为实例属性。元类在类创建时锁定这些成员,禁止后续修改。
 
-- **非真正私有**:重整后仍可用 `_ClassName__name` 从外部访问,Python 无真正的访问控制,只是增加访问难度与"别这么干"的信号。
-- **仅在类内触发**:模块级的 `__name`(非类内)不重整,只是普通双下划线名字。
-- **`__name__`(前后双下划线)不重整**:重整只针对 `__name`(前导无尾随或单个尾随),dunder 不重整。
-- **少用**:重整增加复杂度(调试时看到 `_Counter__count` 困惑),多数场景单下划线 `_name` 约定私有足够。重整适合需要避免子类覆盖的特定场景。
+**边界**:
 
-**重整条数规则**:确切说,标识符若有至少两个前导下划线且至多一个尾随下划线(textually),触发重整。`__spam`→`_ClassName__spam`;`__spam__`(双尾随)是 dunder,不重整;`_spam`(单前导)不重整。
+- **成员值只读**:不能改 `Color.RED.value`。
+- **不能增删成员**:类创建后不能加新成员或删已有。
+- **但成员值对象若可变仍可改内容**(与 tuple 同理):若成员值是 list,`Color.X.value.append(...)` 可行(因改的是 value 对象内容,非成员绑定)。故 Enum 成员值宜用不可变类型(int/str/tuple)。
 
-理解名称重整,能解释"为何 `__attr` 外部访问不到但 `_Class__attr` 可以""为何子类 `__attr` 不覆盖父类"等现象,并审慎决定何时用 `__`(重整)vs `_`(约定私有)。
+**Enum vs Final vs 全大写**:
 
-### 4.3 单下划线 `_` 前缀的"私有"约定(需理解,简述)
+- 全大写:纯约定,运行时可改。
+- Final:静态检查防改,运行时可改。
+- Enum 成员:**运行时强制只读**(元类拦截),最强。
 
-单下划线前缀 `_name` 是"约定私有",无语言机制强制,但有几处实际效果:
+理解 Enum 的运行时只读机制(元类 `__setattr__` 拦截),就知道它是 Python 里"常量"保障最强的方案——不是约定、不是静态检查,而是运行时由元类强制。这解释了为何"一组相关常量推荐用 Enum":它真正在运行时保证了不可变。
 
-- **`from module import *` 不导入 `_` 前缀名**:星号导入跳过 `_` 开头的名字,除非模块 `__all__` 显式列出。即 `_helper` 不会被 `from m import *` 带入,起到"不暴露内部 API"的作用。
-- **linter 警告外部访问**:Pylint/Ruff 对从外部访问 `obj._attr` 报 warning(protected-access),提示"这是内部"。
-- **不成文约定**:社区共识"`_` 开头 = 内部,别依赖",虽可访问但视为实现细节。
+### 4.4 frozen dataclass 与 namedtuple 的不可变机制(需理解,简述)
 
-这套"约定 + 工具提示 + import 控制"的组合,使单下划线前缀成为 Python 表达"内部使用"的主流方式。它不强制(仍可访问),但提供足够信号。理解"私有靠约定不靠强制"是 Python 设计哲学的体现(we are all consenting adults)。
+`@dataclass(frozen=True)` 与 `namedtuple` 的不可变也是运行时强制的,机制类似:
 
-### 4.4 魔法方法 `__dunder__` 与协议(需理解,简述)
+**frozen dataclass**:`frozen=True` 让 dataclass 在生成 `__setattr__`/`__delattr__` 时加上"抛 `FrozenInstanceError`"的逻辑。故试图改实例属性时,`__setattr__` 拦截并报错:
 
-前后双下划线 `__name__`(dunder)是 Python 为**协议/特殊方法**预留的命名空间。Python 的很多行为通过协议实现:对象 `print` 调 `__str__`、`len()` 调 `__len__`、`[]` 调 `__getitem__`、`for` 调 `__iter__`、`+` 调 `__add__`、`with` 调 `__enter__`/`__exit__`……这些 `__x__` 名字由 Python 定义、由解释器在特定时机调用。
+```python
+@dataclass(frozen=True)
+class C:
+    x: int = 1
 
-**为何不要自创 `__x__`**:Python 未来可能引入新的 dunder 协议,若你自创了同名,可能与 Python 行为冲突或被误触发。dunder 命名空间是 Python 的"保留字",只用来实现已有协议,不自创。
+c = C()
+c.x = 2     # FrozenInstanceError: cannot assign to field 'x'
+```
 
-**约定与机制**:dunder 既是命名约定(看 `__x__` 就知是特殊方法),也是机制(这些名字被解释器查找调用)。理解这套协议命名,是掌握 Python 数据模型(对象如何参与运算/迭代/上下文等)的入口,详见面向对象笔记。
+**namedtuple**:namedtuple 是 tuple 子类,字段访问靠 `__getattr__`,因 tuple 不可变且 namedtuple 不提供 `__setattr__`(继承 tuple 的不可变),改字段抛 `AttributeError`。
+
+**边界(与 tuple 同)**:frozen/namedtuple 防"改字段绑定",不防"字段对象内容修改"(若字段是可变对象,改其内容仍可行)。深层不可变需字段也是不可变类型。
+
+**机制共性**:frozen dataclass/namedtuple/Enum/tuple 的运行时不可变,都靠"拦截 `__setattr__`/`__delattr__` 或容器结构不可变"实现。这是 Python 在无通用 const 机制下,用专门类型针对性提供运行时不可变的方案。理解这套"拦截赋值"的机制,就理解了 Python 各类"不可变对象"的统一原理。
+
+### 4.5 常量在字节码与内存的简述(底层,简略)
+
+从字节码看,常量与变量无异——`MAX = 3` 同样是 `LOAD_CONST` + `STORE_NAME`,运行时就是普通名字空间赋值。常量的"不可变"纯靠约定/类型检查/元类拦截,字节码层面无特殊处理。
+
+内存上,常量通常指向不可变对象(int/str/tuple),这些对象本身值不变(不可变类型),但名字到对象的绑定可改(除非 Final/Enum 拦截)。小整数/字符串缓存(见变量赋值机制笔记)让常量 `MAX_RETRY = 3` 的 3 可能与别处 3 共享对象,这是优化,与常量语义无关。这些底层细节日常无需深究,知道"常量在字节码层面无特殊待遇,不可变靠上层机制"即可。
 
 ---
 
@@ -800,40 +818,38 @@ print(s._Sub__value)              # sub
 
 ### 5.1 本文内容回顾
 
-- **标识符定位**:程序员自起的名字(变量/函数/类/模块/参数),区别于关键字;命名是代码质量基础。
-- **语法规则**:字母数字下划线、非数字开头、大小写敏感、非关键字;Python 3 允许 Unicode 但不推荐;长度无限制。
-- **为何需规范**:避免含义不明/误导/风格混乱/缩写泛滥/单字母滥用/遮蔽内置;统一风格、表意清晰、避免陷阱、传达意图。
-- **下划线约定速览**:`name` 公开、`_name` 私有、`__name` 重整、`__name__` 魔法、`_` 忽略、`NAME` 常量。
-- **变量命名**:snake_case、表意准确、is/has 前缀布尔、复数表集合、避免缩写与匈牙利。
-- **函数/方法命名**:snake_case、动词开头、布尔返回用 is/has、不遮蔽内置。
-- **类命名**:CamelCase、名词、异常以 Error 结尾;类大写与变量小写区分。
-- **常量命名**:全大写下划线、模块顶部、Final/tuple 表真不可变。
-- **模块/包命名**:全小写简短、避免下划线、不与标准库冲突。
-- **TypeVar 命名**:T/K/V 或 CamelCase 约束类型变量。
-- **好名字特征**:准确、具体、简洁、可读、一致、可搜索、无歧义。
-- **下划线详解**:`_` 私有约定+import 控制、`__` 重整、`__x__` 协议不自创、`_` 忽略占位。
-- **避免遮蔽内置**:不用 list/dict/id/type/input 等作标识符,IDE/Ruff 检查。
-- **类型注解命名**:类型别名 CamelCase/大写,泛型用小写内置类型(3.9+)。
-- **反模式集合**:单字母滥用、易混字符、泛名、匈牙利、缩写、误导、遮蔽、风格混用、自创 dunder、过长、否定布尔。
-- **命名与作用域**:作用域宽名字具体、作用域窄可简短,名字信息量匹配上下文。
-- **命名一致性**:建立项目词汇表,同概念统一用词,避免同义混用。
-- **命名与重构**:坏命名是重构信号,重命名是最值钱重构,IDE 安全重命名。
-- **特定场景约定**:回调 func/key、装饰器、property 名词、上下文管理器、生成器命名。
-- **国际化**:标识符坚持 ASCII(跨工具/协作/PEP8),字符串内容可中文。
-- **检查工具实战**:Ruff(pep8-naming)、Pylint、IDE 实时检查,CI 保证。
-- **完整示例**:规范命名模块范本。
-- **原理**:标识符词法规则与 Unicode(底层简略);名称重整 mangling 机制——`__name`→`_ClassName__name`、避免子类覆盖、非真私有、规则边界(详述);单下划线私有约定(import 控制+linter,简述);dunder 协议命名与不自创(简述)。
-- **最佳实践**:遵循 PEP 8、表意准确具体、不遮蔽内置、下划线传意图、布尔/集合命名约定、避免易混单字母、团队统一、模块名慎重、异常 Error 结尾、Ruff 检查、review 审命名、勇于改名。
+- **常量定位**:值不可改变的量;Python **无常量语言机制**(无 const),靠约定(全大写)+ 可选机制(Enum/Final/frozen)模拟;"consenting adults"哲学。
+- **约定形式**:全大写下划线、模块顶部、集中管理;类内常量作类属性。
+- **为何需常量**:消除魔法数/魔法字符串、集中配置、可读可维护、防错、文档作用。
+- **不可变层级**:全大写约定(最弱)→ Final(静态检查)→ Enum/frozen/namedtuple/tuple(运行时只读)。
+- **模块级常量**:顶部集中、分组、带注释。
+- **类级常量**:类属性全大写,与类语义相关的不变值。
+- **Final 类型注解**:静态检查防重新赋值,配 mypy/Ruff/CI 有效;不防就地修改可变对象。
+- **Enum 枚举**:一组相关命名常量,运行时只读(元类强制)、可迭代、防非法值,枚举常量最佳方式。
+- **frozen dataclass / namedtuple**:不可变配置对象,字段不可改,适合结构化配置。
+- **不可变容器**:tuple/frozenset 防误改集合,注意元素可变性,深层不可变递归用不可变类型。
+- **配置组织**:单 config 模块(小项目)/分领域(大项目)/环境变量+配置文件(多环境)。
+- **常量与类型注解**:Final + 类型注解 + 不可变容器类型协作,静态系统可保证契约。
+- **常量文档命名**:全大写表意、带单位、注释取值依据。
+- **魔法数消除实战**:逐步将裸值提为命名常量,重构示例。
+- **常量与默认参数**:不可变常量可作默认参数,可变常量(默认参数陷阱)用 None 哨兵或 tuple。
+- **反模式**:可变常量、散落裸值、命名含糊、不带单位、运行时计算、过度常量化、重复定义。
+- **跨模块共享**:集中 config 模块单向被依赖,避免循环导入,config 是依赖图叶子。
+- **测试处理**:monkeypatch 临时改常量便利测试,生产勿依赖可改常量。
+- **演进版本化**:集中易演进、配置外置、废弃缓删、变更需测试。
+- **完整示例**:规范常量配置模块范本。
+- **原理**:Python 为何无通用常量机制(consenting adults/动态本性/简单优先,详述);Final 静态检查机制(注解被 mypy 消费、运行时忽略、防重新赋值不防就地改,详述);Enum 运行时只读机制(元类 `__setattr__` 拦截,最强,详述);frozen/namedtuple 不可变机制(拦截 `__setattr__`,简述);字节码/内存层面常量无特殊待遇(简略)。
+- **最佳实践**:全大写顶部集中、Final 加保护、相关常量用 Enum、配置用 frozen dataclass、集合用 tuple/frozenset、带单位注释、环境变量外置、工具补强、表意准确、类相关挂类上、类型注解配合、定期清理。
 
 ### 5.2 读完本文你应能掌握
 
-- 说明标识符的语法规则(字符/开头/关键字/大小写/Unicode),区分标识符与关键字。
-- 按 PEP 8 给变量/函数/类/常量/模块/包/异常/TypeVar 起规范名字。
-- 用下划线约定传达意图:`_` 私有、`__` 重整、`__x__` 魔法(不自创)、`_` 忽略、`NAME` 常量。
-- 说明名称重整机制(`__name`→`_ClassName__name`)、为何能避免子类覆盖、其非真私有的边界。
-- 说明单下划线"私有"的约定与实际效果(`import *` 不导入、linter 警告)。
-- 避免遮蔽内置名,识别常见易遮蔽的内置并改名。
-- 识别并避免常见命名反模式(单字母、泛名、匈牙利、误导、否定布尔等)。
-- 用 Ruff/pylint 检查命名规范,在 review 中审视命名质量。
-- 阐述 dunder 协议命名空间为何不自创、Python 私有"靠约定不靠强制"的设计哲学。
-- 按最佳实践写出规范、表意、一致的标识符命名。
+- 说明 Python 无常量语言机制,靠约定 + 可选机制模拟,及"consenting adults"设计哲学。
+- 用全大写约定在模块/类级定义常量,消除魔法数,集中管理配置。
+- 用 `Final` 类型注解让静态检查器防误改,说明其"静态、需 CI、防重新赋值不防就地改"的边界。
+- 用 `Enum` 表达一组相关命名常量,说明其运行时只读(元类强制)与可迭代/防非法值优势。
+- 用 `frozen dataclass`/`namedtuple` 表达不可变配置对象,用 `tuple`/`frozenset` 表达不可变集合常量。
+- 说明容器不可变与元素不可变的区别,递归用不可变类型实现深层不可变。
+- 按项目规模组织常量(单模块/分领域/环境变量+配置文件),实现配置与代码分离。
+- 用类型注解 + Final + 不可变容器类型,把常量约定升级为静态可保证契约。
+- 阐述 Final(静态检查)、Enum(元类运行时强制)、frozen(拦截 `__setattr__`)各机制原理与强弱差异。
+- 按最佳实践写出规范、有保障、可维护的常量定义。

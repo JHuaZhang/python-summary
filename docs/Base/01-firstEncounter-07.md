@@ -3,7 +3,7 @@ group:
   title: 【01】初识python
   order: 1
 order: 7
-title: print输出详解
+title: input输入与类型转换
 nav:
   title: Python基础
   order: 1
@@ -11,789 +11,788 @@ nav:
 
 ## 1. 介绍
 
-### 1.1 什么是 print
+### 1.1 什么是 input
 
-`print` 是 Python 最重要的内置函数之一，也是绝大多数人接触 Python 时写下的第一个函数——经典的 `print("Hello, World!")`。它的作用是把对象转换成文本形式并输出到**标准输出流**（默认是控制台终端）。从分类上看，`print` 属于"输出"类工具，与 `input`（输入）相对，是程序与使用者之间最基础的交互通道。
+`input` 是 Python 的内置函数,作用是从**标准输入流**(`sys.stdin`,默认是键盘)读取一行文本。它与 `print` 相对——`print` 负责把数据"送出"到屏幕,`input` 负责把用户敲下的内容"读入"到程序。一个最简单的交互由两者构成:
 
-在实际开发中，`print` 的用途远不止"打印一句话"：
+```python
+name = input("请输入你的名字: ")
+print("你好,", name)
+```
 
-- **调试**：在排错时快速查看变量的值与程序执行到哪一步，是 Python 开发者最高频的临时调试手段。
-- **结果展示**：把程序计算的最终结果呈现给用户，尤其是脚本类工具、命令行程序。
-- **日志辅助**：在没有引入正式日志框架的小脚本里，用 `print` 输出运行信息（生产代码建议用 `logging`）。
-- **进度反馈**：长任务执行时打印进度条或百分比，让用户知道程序没卡死。
+运行时,程序会在屏幕上显示提示语 `请输入你的名字: ` 然后停住,等用户敲字并按回车。用户按回车后,`input` 把刚才那一行(不含换行符)作为字符串返回,赋给 `name`,程序继续往下执行 `print`。
 
-需要先厘清一个常见误解：`print` **不是**关键字（keyword），而是一个**内置函数**（built-in function）。关键字有 `if`、`for`、`def`、`class` 等，不能被重新赋值；而 `print` 理论上可以被重新绑定到别的名字（虽然强烈不建议这样做）。也正因为它本质是函数调用，使用时**必须加括号**——这是 Python 3 相对 Python 2 一个明显的变化，Python 2 中 `print` 是语句，`print "hello"` 合法；Python 3 中必须写 `print("hello")`。
+在实际开发中,`input` 的典型用途:
+
+- **命令行交互工具**:让用户输入参数、选择菜单项,无需复杂的命令行解析。
+- **教学/练习程序**:猜数字、计算器、问答类小程序,靠 `input` 接收用户作答。
+- **脚本中途确认**:批量删除、危险操作前用 `input("确认继续? (y/n) ")` 等待用户确认。
+- **快速取值**:调试或临时脚本里临时读一个值进来测试。
+
+需要先厘清两个关键认知:
+
+**第一,`input` 永远返回字符串。** 这是新手最容易踩的坑。无论用户输入的是 `28`、`3.14` 还是 `True`,`input` 拿到的都是 `"28"`、`"3.14"`、`"True"` 这样的**字符串**,而不是数字或布尔值。如果要拿用户输入做数学运算,必须先做类型转换,否则 `"28" + 2` 会报 `TypeError`。这就是为什么"输入"和"类型转换"总绑在一起讲——有了 `input`,几乎必然要接类型转换。
+
+**第二,`input` 是阻塞的。** 调用 `input` 后程序会**停下来等**用户输入,在用户按回车前不会继续执行后续代码。在需要非阻塞输入或后台读取的场景(如服务端、并发程序),`input` 不合适,要用 `select`、线程或专门的终端库。
+
+从分类上看,`input` 和 `print` 一样是**内置函数**(不是关键字),使用时必须加括号。Python 2 里还有一个 `raw_input` 返回字符串、`input` 会当表达式求值;Python 3 把 `raw_input` 改名为 `input`,统一返回字符串——这也是为什么 Python 3 的 `input` 比 Python 2 安全得多(不会执行用户输入的代码)。
 
 ### 1.2 基本语法与最小用法
 
-`print` 的完整函数签名如下：
+`input` 的函数签名非常简单:
 
 ```python
-print(*objects, sep=' ', end='\n', file=None, flush=False)
+input(prompt='')
 ```
 
-一个一个看签名里的部分：
+- `prompt`:可选的提示字符串,会在等待输入前输出到标准输出,**末尾不自动加换行**。若不传,则无提示直接等待。
+- 返回值:用户输入的那一行文本(字符串),**不包含结尾的换行符**。
 
-- `*objects`：星号表示**可变位置参数**，即你可以传任意多个对象给 `print`，它会依次把它们转为字符串后输出。
-- `sep=' '`：多个对象之间的分隔符，默认是一个空格。
-- `end='\n'`：所有对象输出完毕后追加的结尾符，默认是换行符。
-- `file=None`：输出目标，默认 `None` 表示使用 `sys.stdout`（标准输出）。
-- `flush=False`：是否立即刷新输出缓冲，默认 `False`。
-
-最小用法就是只传一个对象：
+最小用法是不传提示:
 
 ```python
-print("Hello, World!")   # 输出：Hello, World!
+s = input()
+print("你输入了:", s)
 ```
 
-这一行背后其实发生了：把字符串 `"Hello, World!"` 输出到 `sys.stdout`，没有别的对象所以 `sep` 不起作用，结尾加一个换行。下面看一组基础用法：
+更常用的是带提示:
 
 ```python
-# 1. 最简单的用法：输出一个字符串
-print("Hello, World!")
-
-# 2. 输出一个数字（int / float 同样可直接传入）
-print(42)
-print(3.14)
-
-# 3. 输出一个变量
-name = "Python"
-print(name)
-
-# 4. 多个参数：默认用空格连接
-print("姓名:", "张三", "年龄:", 18)
-
-# 5. print 的返回值是 None
-result = print("这一行会被打印")
-print("上一行 print 的返回值是:", result)
+name = input("请输入名字: ")
+print("你好, " + name)
 ```
 
-运行结果：
-
-```
-Hello, World!
-42
-3.14
-Python
-姓名: 张三 年龄: 18
-这一行会被打印
-上一行 print 的返回值是: None
-```
-
-这里有几个要点值得强调：
-
-1. `print` 能直接接受 `int`、`float`、`str` 甚至更复杂的对象，因为它内部会对每个对象调用 `str()` 转成字符串。
-2. 多个参数之间**默认加空格**，这是 `sep=' '` 的效果——很多人第一次写 `print("姓名:", "张三")` 看到 `姓名: 张三` 中间有个空格时会觉得奇怪，根源就在这里。
-3. `print` 的返回值永远是 `None`，它只负责"副作用"（输出），不返回打印的内容。所以 `x = print("hi")` 得到的 `x` 是 `None`，不能用 `print(print(x))` 这种方式去"拼接"输出——内层 `print` 会先打印 `x`，再把 `None` 传给外层 `print` 打印出来。
-
-### 1.3 print 是如何把对象变成文本的
-
-理解 `print` 的输出，需要知道它对每个传入对象调用了 `str()` 进行字符串化。不同类型的对象 `str()` 的行为不同：
-
-- `int`、`float`：转成其数值的十进制文本表示。
-- `str`：照原样输出，不加引号。
-- `list`、`dict`、`tuple` 等容器：调用其 `__str__`，形如 `[1, 2, 3]`、`{'a': 1}`。
-- 自定义类：默认输出形如 `<ClassName object at 0x...>`，除非该类定义了 `__str__` 方法。
+运行示例(假设用户依次输入 `张三`、`28`):
 
 ```python
-class Point:
-    def __init__(self, x, y):
-        self.x, self.y = x, y
-
-p = Point(3, 4)
-print(p)              # 默认：<Point object at 0x...>，地址每次不同
-print(str(p))         # 同上
+name = input("请输入名字: ")        # 屏幕显示: 请输入名字: 张三
+age = input("请输入年龄: ")         # 屏幕显示: 请输入年龄: 28
+print(f"{name} 今年 {age} 岁")      # 输出: 张三 今年 28 岁
 ```
 
-这就是为什么直接 `print` 一个自定义对象时往往看不到有用信息——它走的是默认 `__str__`。要让 `print` 输出自定义类的可读形式，需要在该类里实现 `__str__`：
+注意这里 `age` 是字符串 `"28"`,但因为用了 f-string 直接插值(字符串拼接),所以没报错。一旦要拿 `age` 做运算,问题就来了:
 
 ```python
-class Point:
-    def __init__(self, x, y):
-        self.x, self.y = x, y
-    def __str__(self):
-        return f"Point({self.x}, {self.y})"
-
-p = Point(3, 4)
-print(p)              # 现在输出：Point(3, 4)
+age = input("请输入年龄: ")   # 用户输入 28,age 是 "28"
+# print(age + 1)             # TypeError: can only concatenate str (not "int") to str
+print(int(age) + 1)          # 正确:先把 "28" 转成数字 28,再 + 1,输出 29
 ```
 
-这条线索会在第 4 章「原理」里再次提到——它关系到 `print` 调用链上 `str()` 与 `__str__` 的关系。
+这个 `TypeError` 几乎是每个 Python 初学者都遇过的报错,根因就是"`input` 返回字符串"。于是类型转换成了不可或缺的下一步。
+
+### 1.3 为什么需要类型转换
+
+计算机里"28"这个文本和数字 28 是两个完全不同的东西:前者是两个字符 `'2'` 和 `'8'` 组成的字符串,后者是内存里一个可以参与算术运算的整数值。`input` 只能给你前者,因为它不知道你输入的 `28` 是年龄、编号、电话号码还是别的什么。把字符串"翻译"成数字、布尔或其他类型的过程,就是**类型转换**(type conversion / type casting)。
+
+Python 提供了一组内置构造函数做显式类型转换:
+
+| 目标类型 | 转换函数 | 示例 |
+|----------|----------|------|
+| 整数 | `int()` | `int("28")` → `28` |
+| 浮点数 | `float()` | `float("3.14")` → `3.14` |
+| 字符串 | `str()` | `str(28)` → `"28"` |
+| 布尔 | `bool()` | `bool("")` → `False` |
+| 列表 | `list()` | `list("abc")` → `['a','b','c']` |
+| 元组 | `tuple()` | `tuple([1,2])` → `(1,2)` |
+| 集合 | `set()` | `set([1,1,2])` → `{1,2}` |
+
+其中与 `input` 搭配最频繁的是 `int`、`float`、`str`,因为用户输入的数字需要转成数值才能计算。
+
+类型转换分**显式**(程序员主动调用 `int()` 等)和**隐式**(Python 自动完成的,如 `1 + 2.0` 自动得 `3.0`)两种。`input` 场景下用的都是显式转换,因为 `str` 到 `int/float` 不会自动发生——Python 不会自作主张把你输入的 `"28"` 当数字。
+
+### 1.4 input 与 print 的协作
+
+`input` 的 `prompt` 参数其实内部就是先调用 `print`(写 `prompt` 到 `stdout`),再读 `stdin`。所以下面两种写法几乎等价:
+
+```python
+# 写法一:用 prompt 参数
+name = input("请输入: ")
+
+# 写法二:先 print 再 input
+print("请输入: ", end="")    # 注意 end="" 不换行,让光标停在提示后
+name = input()
+```
+
+差异在于:写法一的提示**紧跟**输入光标,无换行;写法二若忘了 `end=""`,`print` 默认会换行,提示和输入光标就分两行了。所以用 `print` + `input` 拆开写时要记得 `end=""`。一般直接用 `prompt` 参数更简洁。
 
 ---
 
 ## 2. 核心内容
 
-本章讲解 `print` 的每个参数、容易混淆的行为，以及配合字符串格式化的实战用法。
+本章讲解 `input` 的具体行为、`prompt` 参数、返回值特征,以及与各类类型转换函数的搭配,重点是"读入 → 转换 → 校验 → 使用"这条完整链路。
 
-### 2.1 多参数与 sep 分隔符
+### 2.1 prompt 提示参数
 
-`print` 接受任意多个位置参数，默认用**空格**连接它们。`sep` 就是用来改变这个分隔符的。
+`prompt` 控制在等待输入前显示什么文字,用来引导用户。
 
-**`sep` 的关键点**：
+**`prompt` 的关键点**:
 
-- 默认值是 `' '`（一个空格）。
-- `sep` 是字符串，会插在**每两个相邻对象之间**，所以 N 个对象会插入 N−1 个 `sep`。
-- `sep` 可以是空字符串 `''`（无分隔直接拼接）、单字符、多字符，甚至包含换行 `\n`、制表符 `\t` 的字符串。
-- `sep` 只在"有多个对象"时生效，只传一个对象时 `sep` 无任何作用。
+- 类型是字符串(可传任何能被 `str()` 的对象,但实践中都传字符串字面量)。
+- 输出后**不加换行**,光标紧跟在提示文字之后,让用户在同一行输入。
+- 不传时(`input()`)无任何提示,光标停在行首等输入——这在交互体验上不友好,通常只在测试或明确上下文时用。
+- `prompt` **不影响**返回值;返回值始终是用户输入的那行文本。
 
-不同 `sep` 带来的行为差异：
-
-| sep 取值 | 多参数输出效果 | 典型场景 |
-|----------|----------------|----------|
-| `' '`（默认） | 用空格连接 | 调试输出变量值 |
-| `''` | 无分隔直接拼接 | 单词/字符串拼接 |
-| `'-'` | 用连字符连接 | 日期、版本号 |
-| `'\n'` | 每个对象独占一行 | 逐行输出列表元素 |
-| `'\t'` | 用制表符分隔 | 简易表格对齐 |
-| `' \| '` | 用多字符分隔 | 日志字段拆分 |
-
-下面逐个演示 sep 的不同取值：
+不同 prompt 的效果:
 
 ```python
-# sep 默认是空格：多参数之间用空格连接
-print("2026", "07", "06")          # 输出：2026 07 06
+# 带明确提示,体验好
+name = input("姓名: ")
 
-# 自定义分隔符：把日期用 - 连接
-print("2026", "07", "06", sep="-")  # 输出：2026-07-06
+# 带括号说明格式,引导用户输入规范内容
+phone = input("手机号(11位): ")
 
-# 用空字符串做分隔符：拼成连续字符串
-print("py", "thon", sep="")         # 输出：python
-
-# 用换行做分隔符：每个参数独占一行
-print("第一行", "第二行", "第三行", sep="\n")
-
-# 用多字符分隔符：日志字段之间用 " | " 拆分
-print("INFO", "auth", "login success", sep=" | ")
+# 多行提示:prompt 里含 \n,会先输出提示文字并换行,再在同一行等输入
+intro = input("请做自我介绍\n> ")
 ```
 
-运行结果：
+最后一个例子里,`prompt` 含 `\n`,屏幕上会先显示"请做自我介绍"并换行,然后显示 `> ` 等待输入——这是命令行程序常见的提示风格(模拟 shell 的 `>`)。
 
-```
-2026 07 06
-2026-07-06
-python
-第一行
-第二行
-第三行
-INFO | auth | login success
-```
-
-**为什么需要 sep**：如果不传 `sep`，又想要自定义分隔符，常见的笨办法是手动用 `+` 或 f-string 拼接：
+**prompt 与返回值无关的验证**:
 
 ```python
-# 笨办法：手动拼接
-print("2026-" + "07-" + "06")      # 丑陋，且要自己加分隔符
+# 提示语再花哨,返回的也只是用户敲的那行字
+x = input("请输入任意内容(随便写): ")
+print(f"你实际输入的是: {x!r}")   # !r 显示 repr,能看清有无前后空格等
 ```
 
-`sep` 让你不用管拼接逻辑，把"对象列表"和"分隔符"分开表达，意图清晰。尤其在对象数量不固定时（比如来自一个列表），`sep` 比手动循环拼接方便得多。
+用 `!r` 是为了把用户输入两侧的空格、特殊字符暴露出来,调试用户输入时很有用。
 
-**sep 与 * 解包的黄金组合**：当对象在一个可迭代容器里时，可用 `*` 解包配合 `sep` 一次性输出，这往往比手动 `join` 更省事（见 2.6 节）。
+### 2.2 返回值特征:永远是字符串,且去掉换行
 
-### 2.2 end 结尾符
+`input` 返回值有两个不变的保证,务必牢记:
 
-`end` 控制所有对象输出完毕后**追加的字符**。默认是换行符 `'\n'`，所以每次 `print` 之后光标会移到下一行。
-
-**`end` 的关键点**：
-
-- 默认值 `'\n'`，即"打印完换行"。
-- `end` 是在**所有对象和 sep 之后**追加的，且只追加一次。
-- 覆盖 `end` 可实现"同行追加输出"或"自定义结尾标记"。
-- 把 `end` 设为 `''` 可以让多次 `print` 输出拼在同一行。
-
-不同 `end` 的效果对比：
-
-```python
-print("第一行")
-print("第二行")
-# 两次各占一行，因为 end 默认 \n
-
-print("加载中", end="")
-print("...完成")
-# 输出：加载中...完成（同行，因为第一次 end 为空）
-```
-
-`end` 最经典的实战是**进度条/百分比同行刷新**：用 `\r`（回车，光标回到行首）配合 `end=""`，每次输出覆盖当前行：
-
-```python
-import time
-for i in range(5):
-    print(f"\r进度: {(i+1)*20}%", end="")
-    time.sleep(0.2)
-print()   # 最后补一个换行，避免后续输出挤进进度行
-```
-
-运行时你会看到同一行的百分比从 `20%` 滚到 `100%`，而不是打印 5 行。这里有几个细节值得注意：
-
-1. `\r` 让光标回到行首，`end=""` 保证不换行，于是下一次 `print` 覆盖了上一行内容。
-2. 最后那个单独的 `print()` 很关键：它用默认 `end='\n'` 补一个换行，让后续正常输出另起一行，否则进度行会和后面的内容粘在一起。
-3. 这种"裸 print 进度条"在重定向到文件时会失效（文件里不会回退覆盖），生产环境进度展示建议用 `tqdm` 等库。
-
-**sep 与 end 的关系（容易混）**：`sep` 管"对象之间"，`end` 管"全部结束后"。一个 4 参数 `print("a","b","c")` 的输出结构是：
-
-```
-a<sep>b<sep>c<end>
-```
-
-即 `a` 和 `b` 之间、`b` 和 `c` 之间各一个 `sep`（共 2 个），最末尾一个 `end`。理解这个结构，就能预测任意 `sep`/`end` 组合的输出。
-
-### 2.3 file 输出目标
-
-`file` 指定 `print` 把内容写到哪个"文件类对象"。默认 `None`，等价于 `sys.stdout`（标准输出，通常就是终端）。
-
-**`file` 的关键点**：
-
-- 任何实现了 `write(str)` 方法的对象都能作为 `file`，这是 Python 的鸭子类型体现——`print` 不关心你是不是真的文件，只要有 `write` 方法即可。
-- `file=sys.stdout`（默认）输出到标准输出；`file=sys.stderr` 输出到标准错误。
-- 传一个用 `open()` 打开的文件对象，就能把 `print` 的内容写进文件，省去手动 `f.write(...)` 加换行的繁琐。
-
-**stdout 与 stderr 的区别**：这是 `file` 参数背后最重要的概念。操作系统给每个进程提供三个标准流：
-
-- `stdin`（标准输入，fd=0）：程序读输入的地方。
-- `stdout`（标准输出，fd=1）：程序写正常输出的地方。
-- `stderr`（标准错误，fd=2）：程序写错误/诊断信息的地方。
-
-`print` 默认写到 `stdout`。把错误信息写到 `stderr` 的好处是：当用户用 `>` 重定向时，正常结果进文件，错误信息仍留在屏幕——两者分流，互不干扰。
-
-```python
-# 错误信息走 stderr，便于与正常输出分流
-print("这条到 stdout")
-print("这条是错误信息", file=sys.stderr)
-```
-
-在命令行可以这样验证分流：
-
-```bash
-python demo.py > result.txt 2> error.txt
-# stdout 内容进 result.txt，stderr 内容进 error.txt
-```
-
-**写文件场景**：把日志/结果直接 `print` 到文件：
-
-```python
-with open("output_demo.txt", "w", encoding="utf-8") as f:
-    print("写入文件的第一行", file=f)
-    print("写入文件的第二行", file=f)
-```
-
-这里 `print(..., file=f)` 相比 `f.write("写入文件的第一行\n")` 的好处是：`print` 会自动处理换行（通过 `end`）和对象的字符串化，你只管传对象即可。下面演示写文件后读取验证：
+1. **类型恒为 `str`**,即使用户输入的是数字、看起来像列表、输 `True`/`False`,统统是字符串。
+2. **不含结尾换行符**。用户按回车,`\n` 被 `input` 消费掉了,返回的字符串不含它。这一点区别于直接用 `sys.stdin.readline()`,后者会保留 `\n`。
 
 ```python
 import sys
 
-# file 默认是 sys.stdout
-print("这条到 stdout")
+# input:自动去掉换行
+line = input("输入一行: ")          # 用户输入 hi 并回车
+print(repr(line))                   # 'hi'(无 \n)
 
-# 输出到 stderr
-print("这条是错误信息", file=sys.stderr)
-
-# 输出到文件对象
-with open("output_demo.txt", "w", encoding="utf-8") as f:
-    print("写入文件的第一行", file=f)
-    print("写入文件的第二行", file=f)
-with open("output_demo.txt", encoding="utf-8") as f:
-    print("文件内容如下:")
-    print(f.read(), end="")
+# sys.stdin.readline:保留换行
+# line2 = sys.stdin.readline()
+# print(repr(line2))               # 'hi\n'
 ```
 
-运行结果：
-
-```
-这条到 stdout
-这条是错误信息
-文件内容如下:
-写入文件的第一行
-写入文件的第二行
-```
-
-（注意 stderr 那行的显示顺序在不同终端可能略有差异，因为它和 stdout 是两个独立流。）
-
-**与 redirect_stdout 配合**：除了每次显式传 `file`，还可以用 `contextlib.redirect_stdout` 临时把**整个** `sys.stdout` 重定向，这样代码块里所有未指定 `file` 的 `print` 都会写到目标：
+去换行这个细节的好处是:你拿到的字符串直接可用,不必每次 `strip()`。但要注意它**只去结尾的换行**,不会动用户输入前后的空格:
 
 ```python
-from contextlib import redirect_stdout
-
-with open("redirect_demo.txt", "w", encoding="utf-8") as f:
-    with redirect_stdout(f):
-        print("通过 redirect_stdout 写入")   # 不到控制台，写进 f
-        print("这里看不到控制台输出")
-print("重定向结束，恢复到控制台输出")          # 出了 with 块，恢复正常
+s = input("输入: ")   # 用户输入 "  abc  "(前后有空格)并回车
+print(repr(s))        # '  abc  ' —— 前后空格保留,只去掉了末尾换行
 ```
 
-`redirect_stdout` 适合"调用了一大堆第三方函数、不想逐个改它们的 print"的场景——整体把输出抽走。但要注意它改的是 `sys.stdout` 这个全局对象，在多线程环境里需谨慎。
+若要清理前后空格,需自行 `s.strip()`。
 
-### 2.4 flush 缓冲刷新
+### 2.3 转整数:int()
 
-`flush` 控制 `print` 是否在输出后**立即刷新缓冲区**，默认 `False`。
+`int()` 把字符串(或其他对象)转成整数,是与 `input` 搭配最高频的转换。
 
-**`flush` 的关键点**：
+**`int()` 用法**:
 
-- 输出到终端时，`sys.stdout` 通常是**行缓冲**（line-buffered）：每遇到一个 `\n` 就把缓冲区内容刷出去，所以默认情况下终端里 `print` 看起来是"立即出现"的。
-- 输出被重定向到文件或管道时，`stdout` 通常是**全缓冲**（block-buffered）：要攒够一大块才刷新。这时 `print` 的内容可能迟迟不落盘。
-- `flush=True` 强制立刻刷新，保证内容立即送达目标。
+- `int("28")` → `28`:把纯数字字符串转成整数。
+- `int("  28  ")` → `28`:会自动忽略首尾空白,这点比想象中宽容。
+- `int(3.9)` → `3`:浮点转整数是**直接截断**(向零取整),不是四舍五入。
+- `int("0x1a", 16)` → `26`:第二参数指定进制,可解析二进制/八进制/十六进制字符串。
 
-**什么时候需要 `flush=True`**：
-
-1. **进度条/实时刷新**：前文的 `\r` 进度条如果输出被缓冲，可能要等循环结束才一次性刷出来，体验很差。加 `flush=True` 确保每次都立即显示。
-2. **长任务中间日志**：脚本跑很久，希望中途的 `print` 立刻写到日志文件，便于实时 `tail -f` 观察，而不是等缓冲区满。
-3. **管道/重定向场景**：`python demo.py | grep xxx` 时管道是全缓冲的，不加 flush 可能看不到中间输出。
-
-对比演示：
+**与 input 搭配**:
 
 ```python
-import time
-
-# 不 flush：重定向到文件时可能攒一批才写
-# python demo.py > log.txt  后 tail -f 看不到实时输出
-for i in range(3):
-    print(f"步骤 {i+1}")
-    time.sleep(1)
-
-# 加 flush：每步立即刷出
-for i in range(3):
-    print(f"步骤 {i+1}", flush=True)
-    time.sleep(1)
+age_str = input("请输入年龄: ")   # 假设输入 28
+age = int(age_str)                 # 转成整数 28
+print(f"明年你 {age + 1} 岁")      # 明年你 29 岁
 ```
 
-**flush 与 file 的微妙关系**：`flush=True` 本质是调用 `file.flush()`。所以只有当 `file` 对象支持 `flush()` 且确有缓冲时，`flush` 才有意义。对终端输出，行缓冲已经够用，多数场景不需要显式 `flush`；但对文件/管道输出，关键实时信息记得加。
-
-**缓冲小结**：
-
-| 输出目标 | 默认缓冲策略 | 是否需要显式 flush |
-|----------|--------------|--------------------|
-| 终端（TTY） | 行缓冲 | 一般不需要 |
-| 普通文件 | 全缓冲 | 实时要求高时需要 |
-| 管道（\|） | 全缓冲 | 需要 |
-| stderr | 无缓冲（通常） | 不需要 |
-
-### 2.5 与字符串格式化配合
-
-`print` 本身不负责"美化"内容，真正控制输出文本形态的是**字符串格式化**。`print` 负责把格式化好的字符串送出去。Python 有三种主流格式化方式，下面对比讲解。
-
-#### 2.5.1 f-string（推荐）
-
-f-string 是 Python 3.6+ 引入的格式化方式，语法 `f"..."`，在字符串前加 `f`，花括号 `{}` 内可写变量名或表达式。它是当前最推荐的写法，因为可读性最好、性能也最好。
+通常会合并成一行:
 
 ```python
-name = "张三"
-age = 28
-score = 95.5
-print(f"姓名:{name}, 年龄:{age}, 成绩:{score}")
-# 输出：姓名:张三, 年龄:28, 成绩:95.5
+age = int(input("请输入年龄: "))
 ```
 
-f-string 的花括号内支持**格式说明符**，用冒号 `:` 分隔变量与格式：
+**注意:合并写法下,类型转换失败会让整行报错。** 如果用户输入 `abc`,`int("abc")` 直接抛 `ValueError`,程序中断。所以生产代码里通常要把转换包在 `try` 里(见 3.1)。教学示例图省事常合并写,但要清楚其风险。
 
-- `{score:.2f}`：保留 2 位小数 → `95.50`。
-- `{score:>10.2f}`：宽度 10，右对齐，2 位小数。
-- `{score:<10.2f}`：左对齐。
-- `{score:^10.2f}`：居中。
-- `{n:08d}`：整数宽度 8，前补零。
+**int() 转换失败的边界**:
 
 ```python
-print(f"成绩保留 2 位: {score:.2f}")     # 成绩保留 2 位: 95.50
-print(f"[{score:>10.2f}]")              # [     95.50]
-print(f"[{score:<10.2f}]")              # [95.50     ]
-print(f"[{score:^10.2f}]")              # [  95.50   ]
-print(f"三年后年龄: {age + 3}")          # 三年后年龄: 31（可直接写表达式）
+int("3.14")    # ValueError! "3.14" 不是合法整数文本
+int("abc")     # ValueError
+int("")        # ValueError,空串不能转
+int("12.0")    # ValueError,"12.0" 含小数点,不是纯整数
 ```
 
-f-string 的优势：
+特别留意 `int("3.14")` 会失败:虽然 `3.14` 是个数字,但它不是"整数字符串"。要先把 `"3.14"` 经 `float()` 再 `int()`,即 `int(float("3.14"))` → `3`。这是初学者常困惑的点。
 
-1. **可读性**：变量直接嵌在文本里，一眼看清楚最终结构，不像 `%` 那样要把占位符和后面的元组对位。
-2. **可写表达式**：`{age + 3}`、`{len(name)}` 都行，不必先算好再插值。
-3. **性能**：f-string 在编译期解析，运行时比 `%` 和 `.format()` 都快。
+### 2.4 转浮点数:float()
 
-#### 2.5.2 str.format()
+`float()` 把字符串转成浮点数,用于需要小数计算的输入。
 
-`str.format()` 是 Python 3 早期引入的方式，用 `{}` 占位，再由 `.format(...)` 填充。在 f-string 出现前是主流，现在新代码建议优先用 f-string，但读老代码、写模板字符串时仍需了解。
+**`float()` 用法**:
+
+- `float("3.14")` → `3.14`。
+- `float("3")` → `3.0`:整数串也能转成浮点。
+- `float("  1.5  ")` → `1.5`:同样忽略首尾空白。
+- `float("1e3")` → `1000.0`:支持科学计数法。
+- `float("inf")`/`float("nan")` → 无穷/NaN:特殊浮点值。
+
+**与 input 搭配**:
 
 ```python
-print("姓名:{}, 年龄:{}".format(name, age))               # 按位置填
-print("姓名:{n}, 年龄:{a}".format(n=name, a=age))          # 按名称填
-print("进度: {}/{}".format(3, 5))                          # 进度: 3/5
+height = float(input("请输入身高(米): "))   # 假设输入 1.75
+weight = float(input("请输入体重(kg): "))   # 假设输入 68
+bmi = weight / (height ** 2)
+print(f"你的 BMI 是 {bmi:.1f}")               # 你的 BMI 是 22.2
 ```
 
-`{}` 内同样支持格式说明符（`{:.2f}` 等），语法与 f-string 一致。`.format()` 相对 f-string 的唯一优势是：**模板字符串可以预先存为变量**，运行时再填充，适合国际化、配置化场景。
+**float() 比 int() 更宽容一点**:它能接受 `"3"` 和 `"3.14"`,但不能接受 `"abc"`、空串或带其他字符的串:
 
 ```python
-template = "用户 {uid} 于 {time} 执行了 {action}"
-print(template.format(uid=1024, time="10:00", action="登录"))
+float("3")      # 3.0,合法
+float("3.14")   # 3.14,合法
+float("abc")    # ValueError
+float("")       # ValueError
+float("3,14")   # ValueError! 逗号不是小数点(中文/欧式写法会踩坑)
 ```
 
-#### 2.5.3 百分号 % （老式）
+那个 `float("3,14")` 的坑值得注意:某些地区习惯用逗号作小数点,但 Python 只认点号 `.`,输入 `3,14` 会失败。处理多语言输入时需先把逗号替换成点。
 
-`%` 是 Python 最早期的格式化方式，借鉴自 C 语言的 `printf`。语法 `"...%s..." % (值,)`。现在一般不推荐新写，但老代码、某些日志库（如 `logging` 的 `%`-style）里仍常见，需要能读懂。
+### 2.5 转字符串:str()
+
+`str()` 把任意对象转成其字符串表示。和 `input` 搭配时,`str()` 用得不多——因为 `input` 本来就返回字符串。但 `str()` 在"把计算结果转成文本后输出/拼接"时很常用,与 `print` 的字符串化机制呼应。
 
 ```python
-print("姓名:%s, 年龄:%d, 成绩:%.1f" % (name, age, score))
-# 输出：姓名:张三, 年龄:28, 成绩:95.5
+n = 28
+s = "年龄是 " + str(n)      # 手动拼接需先 str()
+print(s)                     # 年龄是 28
+
+# 更推荐用 f-string,内部自动调 str(),省去手动转换
+print(f"年龄是 {n}")
 ```
 
-常用占位符：`%s`（字符串）、`%d`（整数）、`%f`（浮点）、`%x`（十六进制）、`%%`（输出百分号本身）。`%` 的缺点是占位符和参数要严格一一对应，多了少了都会报错，可读性差。
-
-#### 2.5.4 三种方式对比
-
-| 方式 | 示例 | 可读性 | 性能 | 推荐场景 |
-|------|------|--------|------|----------|
-| f-string | `f"{n}"` | 最好 | 最好 | 新代码首选 |
-| `.format()` | `"{}".format(n)` | 较好 | 一般 | 模板需动态填充时 |
-| `%` | `"%s" % n` | 差 | 一般 | 读老代码/logging |
-
-#### 2.5.5 逗号拼接 vs 格式化拼接
-
-初学者常这样"拼接"变量与文本：
+从 `input` 角度看,`str()` 的用途是"把已经转成数字的结果再变回字符串",例如格式化输出或存盘:
 
 ```python
-score = 95.5
-print("成绩:", score)        # 输出：成绩: 95.5
+age = int(input("年龄: "))    # 输入 28 → 转成 int 28
+age_str = str(age)             # 再变回 "28"
+print("存档:", age_str + "岁")  # 存档: 28岁
 ```
 
-注意这里 `成绩:` 和 `95.5` 之间有一个**空格**（`sep` 默认值），且 `score` 按默认 `str()` 输出成 `95.5`。如果要求"成绩:95.50"（无空格、2 位小数），逗号写法做不到，必须用格式化：
+### 2.6 转布尔:bool() 与 input 的陷阱
+
+`bool()` 把对象转成布尔值。但它与 `input` 的搭配有一个**经典陷阱**:
 
 ```python
-print(f"成绩: {score:.2f}")  # 输出：成绩: 95.50
+answer = input("继续吗? (yes/no): ")    # 用户输入 no
+if bool(answer):
+    print("继续")                          # 居然打印了"继续"!
 ```
 
-**结论**：需要精细控制格式（小数位、对齐、补零）时，永远用 f-string 而非逗号拼接；逗号拼接只适合快速调试。
-
-### 2.6 用 * 解包替代手动 join
-
-当要输出的多个对象已经在一个可迭代容器（列表、元组）里时，配合 `sep` 有一个非常优雅的写法：用 `*` 解包。
-
-**`*` 解包的核心用法**：
+为什么输入 `no` 还"继续"?因为 `bool("no")` 是 `True`——**任何非空字符串都是 `True`**,哪怕字符串内容是 `"no"`、`"false"`、`"0"`,只要长度大于 0 就是 `True`。`bool()` 只看字符串是否为空,不看内容语义:
 
 ```python
-fruits = ["apple", "banana", "cherry"]
-print(*fruits, sep=", ")        # 输出：apple, banana, cherry
+bool("")       # False(空串)
+bool("no")     # True
+bool("false")  # True
+bool("0")      # True
+bool("False")  # True
+bool(" ")      # True(空格也是非空)
 ```
 
-`print(*fruits, sep=", ")` 等价于 `print("apple", "banana", "cherry", sep=", ")`——星号把列表里的元素逐个"摊开"成位置参数。这与手动用 `str.join` 拼接的效果一样，但有几个关键差异：
-
-**对比 `join`**：
+所以**不能用 `bool(input(...))` 来判断用户是否同意**。正确做法是把输入转小写后与具体值比较:
 
 ```python
-# join 写法
-print(", ".join(fruits))        # 输出：apple, banana, cherry
+answer = input("继续吗? (yes/no): ").strip().lower()
+if answer in ("yes", "y", "是"):
+    print("继续")
+else:
+    print("停止")
 ```
 
-`join` 的限制是：**元素必须全部是字符串**。如果列表里有数字，`join` 会报 `TypeError`：
+这里 `.strip()` 去前后空格、`.lower()` 统一小写,再判断是否在同意集合里,才能可靠识别用户意图。这是"读入 → 清洗 → 转换语义 → 校验"链路的典型例子。
+
+### 2.7 多值输入与 split
+
+用户常需要一次输入多个值,如"输入三个用空格隔开的数字"。`input` 一次只返回一行字符串,要拆成多个值,配合 `str.split`:
 
 ```python
-nums = [1, 2, 3, 4]
-# ", ".join(nums)  # 报错！join 要求 str
-print(", ".join(map(str, nums)))   # 要先 map(str, ...) 转换
+raw = input("输入三个数字(空格分隔): ")   # 假设输入: 10 20 30
+parts = raw.split()                          # ['10', '20', '30']
+nums = [int(p) for p in parts]               # [10, 20, 30]
+print("总和:", sum(nums))                    # 总和: 60
 ```
 
-而 `print(*nums, sep=", ")` 不需要，因为 `print` 内部会自动对每个对象调 `str()`：
+`split()` 不传参时按任意空白(空格/制表/连续空白都算)分割,且自动忽略首尾空白——这正好适合处理用户随手的输入。常见组合写法:
 
 ```python
-print(*nums, sep="-")           # 输出：1-2-3-4
+# 一行读入并转成整数列表
+nums = list(map(int, input("数字: ").split()))
+print(nums, "和 =", sum(nums))
 ```
 
-**实战场景一：打印 CSV 行**
+**逗号分隔的情况**:如果用户习惯用逗号分隔,`split()` 默认按空白分,会失败,需指定分隔符并清理:
 
 ```python
-row = ["1024", "张三", "登录成功", "2026-07-06 10:00:00"]
-print(*row, sep=",")
-# 输出：1024,张三,登录成功,2026-07-06 10:00:00
+raw = input("输入(逗号分隔): ")          # 输入: 10, 20, 30
+parts = raw.replace(" ", "").split(",")    # 去空格再按逗号分 → ['10','20','30']
+nums = [int(p) for p in parts]
 ```
 
-**实战场景二：表格输出**
+或更稳的方式:`[int(p.strip()) for p in raw.split(",")]`,对每段单独 `strip()`,既兼容 `10,20,30` 也兼容 `10, 20, 30`。
+
+### 2.8 多次输入与循环校验
+
+真实交互中,用户可能输错(输了字母却要数字)。健壮的做法是用循环反复提示,直到拿到合法输入:
 
 ```python
-headers = ["ID", "姓名", "状态"]
-print(*headers, sep="\t")
-print("-" * 20)
-for r in [["1", "张三", "在线"], ["2", "李四", "离线"]]:
-    print(*r, sep="\t")
+while True:
+    s = input("请输入年龄(整数): ")
+    try:
+        age = int(s)
+        break                       # 转换成功,跳出循环
+    except ValueError:
+        print("  输入无效,请输入数字。")
+print(f"你的年龄是 {age}")
 ```
 
-运行结果：
-
-```
-ID  姓名  状态
---------------------
-1   张三  在线
-2   李四  离线
-```
-
-**`*` 解包 vs `join` 选取原则**：
-
-- 只是要 `print` 出来 → 用 `*` 解包 + `sep`，省去 `map(str, ...)`。
-- 需要得到拼接后的**字符串**（比如还要存变量、写文件、传给别的函数）→ 用 `join`，因为 `print` 不返回拼接结果。
-
-### 2.7 特殊字符与转义
-
-`print` 输出的字符串里常涉及转义字符，了解它们能让 `end`、`sep` 用得更自如。常用转义：
-
-| 转义 | 含义 | 在 print 中的典型用途 |
-|------|------|------------------------|
-| `\n` | 换行 | 默认 `end`，sep 分行 |
-| `\t` | 制表符 | 表格对齐、sep 分列 |
-| `\r` | 回车（回行首） | 进度条覆盖同行 |
-| `\\` | 反斜杠本身 | 输出路径 |
-| `\"` `\'` | 引号 | 字符串内含引号 |
-| `\xhh` | 十六进制字符 | 特殊符号 |
+这个模式(`while True` + `try/except` + `break`)是命令行程序读取校验输入的标准范式。可以封装成函数复用:
 
 ```python
-print("第一行\n第二行")        # \n 换行
-print("列1\t列2\t列3")        # \t 制表对齐
-print("路径: C:\\Users\\name") # \\ 输出一个反斜杠
+def read_int(prompt, default=None):
+    while True:
+        s = input(prompt)
+        if s == "" and default is not None:
+            return default           # 允许回车用默认值
+        try:
+            return int(s)
+        except ValueError:
+            print("  请输入合法整数。")
+
+age = read_int("年龄(回车默认 18): ", default=18)
+print("年龄:", age)
 ```
 
-当不希望反斜杠被解释为转义时（如正则、Windows 路径），可用**原始字符串** `r"..."`：
+同理可写 `read_float`、`read_choice`(限定选项)等。把"输入+校验"封装起来,主逻辑就干净了。
+
+### 2.9 input 的阻塞特性与限制
+
+`input` 会阻塞当前线程直到用户回车。这带来几个限制:
+
+- **不能超时**:标准 `input` 没有超时参数,用户不回车程序就一直等。需要超时要用 `signal.alarm`(Unix)或线程+队列等技巧,较繁琐。
+- **不能后台读**:阻塞期间整个线程干不了别的。需要边读输入边做事的程序,通常把 `input` 放进单独线程,或改用非阻塞读取。
+- **EOF 会报错**:输入流结束时(如管道已关闭、Ctrl+D/Ctrl+Z),`input` 抛 `EOFError`。读管道输入时应捕获它。
 
 ```python
-print(r"路径: C:\Users\name")  # 原样输出反斜杠，不转义
+# 读取直到 EOF(Ctrl+D 结束)的常见写法
+lines = []
+while True:
+    try:
+        line = input()
+    except EOFError:
+        break
+    lines.append(line)
+print(f"共读入 {len(lines)} 行")
 ```
 
-**多行字符串**：用三引号 `"""..."""` 可跨行，`print` 会保留换行：
+对要处理管道输入的脚本(如 `cat data.txt | python script.py`),这种 `try/except EOFError` 循环是标配。
 
-```python
-print("""第一行
-第二行
-第三行""")
-```
+### 2.10 用 sys.stdin 替代 input
 
-### 2.8 print 不能做的事
+`sys.stdin` 是更底层的输入流对象,`input` 内部就是基于它实现的。直接用 `sys.stdin` 能做 `input` 不便做的事:
 
-了解 `print` 的边界，能避免误用：
-
-1. **不能直接输出二进制数据**：`print` 是面向文本的，强行 `print(b'\x00\x01')` 会得到 `b'\x00\x01'` 这样的字面表示，而不是把原始字节写进文件。写二进制要用 `f.write(bytes)` 而非 `print(..., file=f)`。
-2. **不返回内容**：`print` 返回 `None`，无法用它"捕获"输出。要捕获输出到字符串，需借助 `io.StringIO` + `redirect_stdout`。
-3. **不能控制对齐之外的高级排版**：复杂表格、颜色、分页等，`print` 无能为力，需要 `tabulate`、`rich`、`colorama` 等库。
-4. **不适合做生产日志**：`print` 没有时间戳、级别、文件名等结构化字段，生产环境请用 `logging`。
-
-**捕获 print 输出到字符串**（一个常用技巧）：
-
-```python
-import io
-from contextlib import redirect_stdout
-
-buf = io.StringIO()
-with redirect_stdout(buf):
-    print("被捕获的内容")
-    print("第二行")
-captured = buf.getvalue()
-print("捕获到:", captured)     # 捕获到: 被捕获的内容\n第二行\n
-```
-
-这个技巧在写单元测试、需要断言程序输出内容时非常有用。
-
-### 2.9 不同运行环境下的输出差异
-
-同一段 `print` 代码，在不同环境下表现会有差异，了解这些差异能避免"在我机器上好好的"式困惑。
-
-**终端 vs 重定向 vs IDE**：
-
-- 在真正的终端（TTY）里运行，`stdout` 是行缓冲，`print` 几乎即时出现，`\r` 进度条能正常刷新。
-- 用 `>` 重定向到文件，或通过管道 `|` 传给下个命令，`stdout` 变全缓冲，`print` 可能攒一批才落盘，`\r` 进度条在文件里会变成一长串覆盖文本。
-- 在某些 IDE（如 PyCharm 的运行窗）里，输出窗口不是真正的 TTY，缓冲行为接近全缓冲，进度条可能不刷新——这时 `flush=True` 尤其重要。
+- `sys.stdin.read()`:一次性读完所有输入(整个文件/管道),返回一个大字符串。
+- `sys.stdin.readlines()`:一次读完所有行,返回列表。
+- `for line in sys.stdin:`:逐行迭代,内存友好,适合处理大文件。
 
 ```python
 import sys
-# 判断当前 stdout 是不是真终端
-print("是否 TTY:", sys.stdout.isatty())
+
+# 逐行处理标准输入(管道场景常用)
+total = 0
+count = 0
+for line in sys.stdin:
+    line = line.strip()           # 注意 readline 保留换行,需 strip
+    if line:
+        total += int(line)
+        count += 1
+print(f"平均值: {total / count:.2f}")
 ```
 
-`sys.stdout.isatty()` 返回 `True` 表示连着终端，`False` 表示被重定向/管道。脚本可据此决定是否启用进度条或 ANSI 颜色，避免在非终端环境输出一堆控制字符。
+对比 `input`:逐行用 `for line in sys.stdin` 比 `while True: input()` 更 Pythonic,且能处理任意大输入。`input` 适合交互式弹提示,`sys.stdin` 适合批量管道数据处理,各有所长。
 
-**编码差异**：`print` 输出中文等非 ASCII 字符时，依赖 `stdout` 的编码。在 Windows 旧版控制台默认 GBK 下，偶尔会遇到 `UnicodeEncodeError`；Python 3.7+ 可用 `PYTHONUTF8=1` 或 `sys.stdout.reconfigure(encoding="utf-8")` 统一为 UTF-8：
+### 2.11 进制转换:int 的 base 参数
+
+`int` 第二参数 `base` 可解析非十进制字符串,在处理颜色码、权限位、网络地址等场景很常用:
 
 ```python
-import sys
-sys.stdout.reconfigure(encoding="utf-8")   # 强制 UTF-8 输出，规避编码报错
-print("中文输出安全")
+int("1010", 2)     # 二进制 → 10
+int("17", 8)       # 八进制 → 15
+int("1a", 16)      # 十六进制 → 26
+int("0x1a", 16)    # 带 0x 前缀,base=16 也认 → 26
+int("0o17", 8)     # 带 0o 前缀,base=8 → 15
+int("0b1010", 2)   # 带 0b 前缀,base=2 → 10
 ```
 
-**Jupyter / 交互式环境**：在 Jupyter Notebook 里，最后一个表达式的值会自动显示（相当于隐式 `repr`），不必显式 `print`；但中间步骤若想看到，仍需 `print`。例如：
+注意:指定 `base` 时,字符串可带对应前缀(`0x`/`0o`/`0b`),Python 会识别。但 `base=0` 是个特殊值——它会根据前缀自动判断进制:
 
 ```python
-"隐式显示"        # Jupyter 会自动显示这行结果
-print("显式输出")  # 显式打印
+int("0x1a", 0)    # 26,按 0x 前缀识别为十六进制
+int("0b1010", 0)  # 10
+int("10", 0)      # 10,无前缀按十进制
 ```
 
-这在普通 `.py` 脚本里不会自动显示，只有 `print` 才有输出——从 Jupyter 拷代码到脚本时要注意补 `print`。
+与 `input` 搭配读取十六进制:
+
+```python
+hex_str = input("输入颜色码(如 ffff00): ").strip()
+try:
+    code = int(hex_str, 16)
+    print(f"颜色码 {hex_str} = {code}")
+except ValueError:
+    print("不是合法的十六进制")
+```
+
+反向把数字转成各进制字符串,用 `bin`/`oct`/`hex` 或格式化:
+
+```python
+n = 26
+print(bin(n))        # 0b11010
+print(oct(n))        # 0o32
+print(hex(n))        # 0x1a
+print(f"{n:#b}")      # 0b11010(#b 带 0b 前缀)
+print(f"{n:08b}")     # 00011010(8 位宽二进制,前补零)
+```
+
+### 2.12 int 截断 vs round 四舍五入
+
+`int()` 把浮点转整数是**向零截断**,与四舍五入不同,处理用户输入的浮点时要注意:
+
+```python
+int(3.9)      # 3(截断,不是 4)
+int(-3.9)     # -3(向零截断,不是 -4)
+int(3.1)      # 3
+
+# 要四舍五入用 round
+round(3.5)    # 4( Banking rounding 下 3.5→4,2.5→2,注意)
+round(3.9)    # 4
+round(-3.9)   # -4
+```
+
+注意 Python 3 的 `round` 用"银行家舍入"(四舍六入五成双),`round(2.5)` 是 `2` 而非 `3`。需要明确"四舍五入"可在转换前加 0.5(对正数):
+
+```python
+# 从 input 拿到金额,要四舍五入到整元
+money = float(input("金额: "))          # 输入 3.5
+print(int(money))                        # 3(int 直接截断)
+print(int(money + 0.5) if money >= 0 else int(money - 0.5))  # 4(对正数近似四舍五入)
+```
+
+选 `int` 截断还是 `round`,取决于业务语义:分账取整通常截断(不四舍五入多发钱),显示用值通常四舍五入。混用会出差错。
+
+### 2.13 安全转换列表/字典:ast.literal_eval
+
+有时用户要输入结构化数据,如 `[1, 2, 3]` 或 `{"a": 1}`。直接当字符串没用,需要"还原"成 Python 对象。这里有个**危险坑**:很多人用 `eval()`:
+
+```python
+# 危险:eval 会执行任意代码!
+data = eval(input("输入: "))
+# 若用户输入 __import__('os').system('rm -rf /') —— 后果严重
+```
+
+`eval` 会执行任意 Python 表达式,处理用户输入等于把电脑交给用户操控,**绝不能用于转换不可信输入**。正确做法是 `ast.literal_eval`,它只解析字面量(数字、字符串、列表、字典、元组、布尔、None),不执行函数调用或表达式,安全:
+
+```python
+import ast
+
+raw = input("输入列表(如 [1,2,3]): ")   # 输入 [1,2,3]
+try:
+    data = ast.literal_eval(raw)
+    print(data, type(data))               # [1, 2, 3] <class 'list'>
+except (ValueError, SyntaxError):
+    print("输入不是合法的列表字面量")
+```
+
+`ast.literal_eval` 对 `"[1, 2, 3]"` 返回真列表,对 `"__import__('os')"` 直接报错(因为它不是纯字面量)。处理用户输入的结构化数据,永远用 `literal_eval` 而非 `eval`。
+
+### 2.14 菜单式交互
+
+命令行工具常有"列出选项让用户选"的需求,可用编号菜单 + `input` 实现:
+
+```python
+def show_menu():
+    print("=== 请选择操作 ===")
+    print("1. 添加记录")
+    print("2. 删除记录")
+    print("3. 查询记录")
+    print("0. 退出")
+
+while True:
+    show_menu()
+    choice = input("请输入选项: ").strip()
+    if choice == "1":
+        print("-- 添加 --")
+    elif choice == "2":
+        print("-- 删除 --")
+    elif choice == "3":
+        print("-- 查询 --")
+    elif choice == "0":
+        print("再见")
+        break
+    else:
+        print("无效选项,请重新输入")
+```
+
+把选项校验也封装一下,可复用:
+
+```python
+def read_choice(prompt, options):
+    """options: dict,如 {'1':'添加','0':'退出'}"""
+    while True:
+        s = input(prompt).strip()
+        if s in options:
+            return s
+        print(f"  无效,可选: {list(options.keys())}")
+
+opt = {"1": "添加", "2": "删除", "0": "退出"}
+c = read_choice("选择: ", opt)
+print(f"你选择了 {opt[c]}")
+```
+
+这种"菜单+校验+分发"是命令行程序的标准骨架。
+
+### 2.15 多行输入
+
+`input` 一次只读一行。需要多行输入时,有几种做法:
+
+**做法一:读到结束符**。约定一个结束标记(如空行或 `EOF`),循环读到为止:
+
+```python
+print("输入多行内容,单独一行输入 END 结束:")
+lines = []
+while True:
+    line = input()
+    if line.strip().upper() == "END":
+        break
+    lines.append(line)
+text = "\n".join(lines)
+print(f"--- 你输入了 {len(lines)} 行 ---\n{text}")
+```
+
+**做法二:读固定行数**:
+
+```python
+n = int(input("要输入几行? "))
+lines = [input(f"第{i+1}行: ") for i in range(n)]
+print("\n".join(lines))
+```
+
+**做法三:用 `sys.stdin.read()` 读到底**(管道友好,见 2.10)。
+
+多行输入在交互场景建议用结束符约定,且在提示里说明清楚,否则用户不知道何时停止。
+
+### 2.16 密码输入:getpass
+
+输入密码时,敲的字符不应回显到屏幕(防止旁边人看到)。标准 `input` 会回显,不适合输密码。`getpass` 模块提供不回显的输入:
+
+```python
+import getpass
+
+username = input("用户名: ")
+password = getpass.getpass("密码: ")   # 输入时不显示字符
+print(f"登录用户 {username},密码长度 {len(password)}")
+```
+
+`getpass.getpass` 默认提示是 `"Password: "`,可传 `prompt` 自定义。它在多数终端能正确关闭回显;某些 IDE 的运行窗口不是真终端,可能无法关闭回显(会回退到可见输入,并给出 warning),生产环境在真终端运行即可。
+
+注意 `getpass` 仍返回字符串,后续校验逻辑与 `input` 一致,只是读入阶段不显示。
+
+### 2.17 字符串输入的清洗工具
+
+用户输入常常需要清洗后再转换或使用,常用字符串方法:
+
+```python
+s = input("输入: ")
+
+s.strip()           # 去首尾空白
+s.lstrip()          # 只去左空白
+s.rstrip()          # 只去右空白(也常用于去换行)
+s.lower()           # 全小写,大小写不敏感判断时用
+s.upper()           # 全大写
+s.replace(" ", "")  # 去掉所有空格
+s.replace("，", ",") # 中文逗号转英文逗号,统一分隔符
+```
+
+这些方法返回新字符串(原串不变),常链式调用:
+
+```python
+# 典型清洗链:去空白 → 中文逗号转英文 → 按逗号拆 → 逐段去空白转数字
+raw = input("数字(逗号分隔): ")
+nums = [int(x.strip()) for x in raw.replace("，", ",").split(",")]
+print(nums)
+```
+
+清洗是"读入 → 转换"之间的重要一环,健壮的输入处理往往 70% 代码在清洗。
 
 ---
 
 ## 3. 最佳实践
 
-### 3.1 调试用 print：用完即删，或用 logging
-
-`print` 是最快的临时调试手段，但生产代码里残留 `print("这里执行了")` 会污染输出。建议：
-
-- **临时调试 print 加明显标记**，便于全局搜索清除：`print("DEBUG>>", x)`，调完用编辑器全局搜 `DEBUG>>` 删干净。
-- **正式日志用 `logging`**，它有级别（DEBUG/INFO/WARN/ERROR）、时间戳、可配置输出位置，比 `print` 适合维护。
+### 3.1 转换务必包 try,给用户改错机会
 
 ```python
-# 不推荐：生产代码里散落调试 print
-def process(data):
-    print("开始处理")          # 残留调试
-    result = transform(data)
-    print("result=", result)   # 残留调试
-    return result
+# 不推荐:用户输错直接崩溃
+n = int(input("数字: "))      # 输入 abc → ValueError 程序挂
 
-# 推荐：用 logging
-import logging
-logging.basicConfig(level=logging.INFO)
-def process(data):
-    logging.info("开始处理")
-    result = transform(data)
-    logging.debug("result=%s", result)
-    return result
-```
-
-### 3.2 错误信息走 stderr
-
-报错、警告类信息应写到 `sys.stderr`，与正常 stdout 输出分流，便于 `> file.txt` 时仍能在屏幕看到错误：
-
-```python
-import sys
-
-def load_config(path):
+# 推荐:捕获异常,提示重输
+while True:
     try:
-        with open(path) as f:
-            return f.read()
-    except FileNotFoundError:
-        print(f"配置文件不存在: {path}", file=sys.stderr)
-        return None
+        n = int(input("数字: "))
+        break
+    except ValueError:
+        print("  不是合法数字,请重输。")
 ```
 
-### 3.3 实时输出记得 flush
+交互程序绝不能因用户手误而崩溃,`try/except` 是底线。
 
-长任务写日志、进度条、管道场景，关键输出加 `flush=True`，避免被缓冲延迟：
+### 3.2 先清洗再转换
+
+用户输入常带前后空格、大小写不一,转换前先 `.strip()`(必要时 `.lower()`):
 
 ```python
-# 推荐：长任务实时刷日志
-for i in range(100):
-    do_step(i)
-    print(f"完成 {i+1}/100", flush=True)
+# 不推荐:用户输了空格就转换失败
+n = int(input("数字: "))        # 输入 " 28 " → 不报错(int 会 strip),但语义不清
+
+# 推荐:显式清洗
+raw = input("数字: ").strip()
+n = int(raw)
+
+# 布尔判断类:清洗+小写+集合判断
+ans = input("(y/n): ").strip().lower()
+if ans in ("y", "yes"):
+    ...
 ```
 
-### 3.4 拼接优先 f-string，而非 + 或逗号
+显式 `strip()` 让代码意图清晰,也避免依赖"某函数恰好会 strip"这种隐式行为。
+
+### 3.3 不要用 bool(input()) 判断意图
+
+如 2.6 所述,`bool("no")` 是 `True`。判断用户意图要比较具体内容,而非依赖 `bool()`:
 
 ```python
-# 不推荐：用 + 拼接，易出错还低效
-print("姓名:" + name + ",年龄:" + str(age))
+# 错误
+if bool(input("继续? ")):
+    ...
 
-# 不推荐：逗号拼接无法控制格式且多空格
-print("姓名:", name, "年龄:", age)
-
-# 推荐：f-string
-print(f"姓名:{name},年龄:{age}")
+# 正确
+if input("继续? ").strip().lower() in ("y", "yes"):
+    ...
 ```
 
-### 3.5 批量元素输出用 * 解包 + sep
+### 3.4 多值输入优先 split + 推导式
 
 ```python
-# 不推荐：循环逐个 print，每行一个，难控制分隔
-for x in items:
-    print(x)
-
-# 推荐：一行用 sep 控制
-print(*items, sep=", ")
+# 一次读多个值,用 split 拆分后转换
+nums = [int(x) for x in input("数字(空格分隔): ").split()]
 ```
 
-### 3.6 不要重定义 print
+比反复调多次 `input` 让用户分多行输入更友好。
 
-虽然 `print` 可被重新绑定（它是内置函数名），但千万别在自己的代码里写 `print = my_logger`，这会让后续所有 `print` 行为异常，排查极痛苦。需要定制输出请另起名字。
+### 3.5 交互式用 input,管道用 sys.stdin
 
-### 3.7 注意 sep/end 默认值带来的"隐性空格和换行"
+- 需要给用户提示、等用户回应 → `input`(带 prompt)。
+- 处理文件/管道批量数据 → `for line in sys.stdin` 或 `sys.stdin.read()`。
 
-很多初学者困惑的输出形态都源于没意识到默认值：
+混用会丢体验:`for line in sys.stdin` 不会显示提示,交互场景不友好;`input` 读大管道又慢又繁琐。按场景选对工具。
 
-- `print("a:", "b")` 中间的空格来自 `sep=' '`，要消掉用 `sep=""`。
-- 两次 `print` 之间换行来自 `end='\n'`，要同行追加用 `end=""`。
+### 3.6 提示语要明确格式
 
-牢记"N 个对象插 N−1 个 sep，末尾一个 end"这个结构，即可预测任意输出。
+```python
+# 模糊
+x = input("输入: ")
+
+# 明确:告诉用户期望的格式和单位
+age = input("年龄(整数,岁): ")
+height = input("身高(如 1.75,米): ")
+choice = input("选择 [1]/[2]/[3]: ")
+```
+
+提示越具体,用户输错越少,程序越不需要复杂的校验逻辑。
+
+### 3.7 处理 EOFError
+
+读管道/重定向输入时,务必捕获 `EOFError`,避免输入流意外结束导致崩溃:
+
+```python
+try:
+    s = input("内容: ")
+except EOFError:
+    s = ""
+    print("\n(输入已结束)")
+```
 
 ---
 
 ## 4. 原理
 
-### 4.1 print 的执行链路（底层支持，简略）
+### 4.1 input 的执行链路(底层支持,简略)
 
-`print` 是内置函数，由 CPython 的 C 代码实现。对使用者而言，它的完整行为可以用一段等价的纯 Python 模型描述：
+`input` 是内置函数,底层(CPython)实现是先输出 `prompt` 到 `stdout`,再从 `sys.stdin` 读一行。抛开 C 细节,其行为可用等价 Python 模型描述:
 
 ```python
-def my_print(*objects, sep=" ", end="\n", file=None, flush=False):
+def my_input(prompt=""):
     import sys
-    out = file if file is not None else sys.stdout
-    text = sep.join(str(o) for o in objects) + end
-    out.write(text)
-    if flush:
-        out.flush()
+    sys.stdout.write(prompt)            # 输出提示,不换行
+    sys.stdout.flush()                  # 立即刷出,让用户看到提示
+    line = sys.stdin.readline()         # 读一行(含末尾换行)
+    if not line:                        # 读到 EOF
+        raise EOFError("EOF when reading a line")
+    return line.rstrip("\n")            # 去掉结尾换行后返回
 ```
 
-核心就是 `sep.join(...)` 把每个对象 `str()` 后用 `sep` 拼起、末尾加 `end`，再一次性 `write`。底层 C 实现细节不必深究，记住这个模型即可预测任意参数组合的输出。
+核心就是"写 prompt → flush → readline → 去换行"。其中 `flush` 很关键:不刷缓冲用户可能迟迟看不到提示。`readline` 遇到 EOF(输入结束)返回空串,`input` 据此抛 `EOFError`。底层细节无需深究,记住这个模型即可解释 `input` 的阻塞、去换行、EOF 报错等行为。
 
-### 4.2 str() 与 __str__ 协议的调用链（需手动实现，详述）
+### 4.2 类型转换的协议:__int__ / __float__ / __str__(需手动实现,详述)
 
-`print` 能把任意对象变文本，关键在对每个对象调用了 `str()`。而 `str(obj)` 最终走的是对象的**双下划线协议方法** `__str__` / `__repr__`——这正是开发者需要自己实现、且必须理解其调用顺序才能正确控制输出的地方。
+`int()`、`float()`、`str()` 这些转换函数,本质是在调用对象类型上的**双下划线协议方法**。理解这条调用链,才能解释"为什么有的对象能转、有的不能",并能自定义类支持类型转换。
 
-**完整查找链**：当 `print` 调用 `str(obj)` 时，Python 按以下顺序决定输出什么文本：
+**int(obj) 的调用链**:
 
-1. 查找类型上的 `__str__` 方法。若定义了，调用 `obj.__str__()`，返回值即为输出文本。
-2. 若类型未定义 `__str__`，回退查找 `__repr__`，用其返回值。
-3. 若两者都未定义，使用 `object` 基类的默认实现，输出形如 `<ClassName object at 0x7f...>`（含内存地址，每次运行不同）。
+1. 若 `obj` 是字符串,走字符串解析逻辑:去除首尾空白后,按整数文法(可选正负号 + 数字,或带进制的 `0x`/`0o`/`0b` 前缀)逐字符解析。任一字符不合法就抛 `ValueError`。
+2. 若 `obj` 是浮点数,直接截断小数取整(`int(3.9)` → `3`)。
+3. 若 `obj` 是其他类型,查找并调用其 `__int__` 方法,用返回值(须为 int)作为结果;若无 `__int__`,抛 `TypeError`。
 
-注意第 2 步的回退方向：`str()` 找不到 `__str__` 时会**自动用 `__repr__` 顶上**，但反过来不行——`repr()` 找不到 `__repr__` 时不会用 `__str__`。这就引出一个常见坑：只实现了 `__str__` 而没实现 `__repr__` 的类，在交互式终端、调试器、容器里仍显示难看的默认表示（因为那些场景走的是 `repr`）。
+这解释了 2.3 的几个现象:`int("3.14")` 失败是因字符串解析阶段 `"3.14"` 不符合整数文法(出现了点和小数);`int(" 28 ")` 成功是因解析前先去了空白;`int(float("3.14"))` 成功是因先转成浮点 3.14,再走浮点截断分支。
 
-用一个例子完整验证这条链：
+**自定义类支持 int 转换**:
 
 ```python
-class A:
-    """两个方法都不实现"""
-    pass
+class Price:
+    def __init__(self, cents):
+        self.cents = cents          # 内部以分为单位存
+    def __int__(self):
+        return self.cents           # int(price) 返回分
 
-class B:
-    """只实现 __repr__"""
-    def __repr__(self):
-        return "B(via repr)"
-
-class C:
-    """只实现 __str__"""
-    def __str__(self):
-        return "C(via str)"
-
-class D:
-    """同时实现两者"""
-    def __str__(self):
-        return "D(via str)"
-    def __repr__(self):
-        return "D(via repr)"
-
-# print 走 str()：有 __str__ 用 __str__，否则回退 __repr__，否则默认
-print(A())    # <A object at 0x...>（两者都无，默认）
-print(B())    # B(via repr)（无 __str__，回退 __repr__）
-print(C())    # C(via str)（有 __str__）
-print(D())    # D(via str)（有 __str__，优先）
-
-# 放进容器：列表/字典对元素用 repr()，不是 str()
-print([C(), D()])   # [<C object at 0x...>, D(via repr)]
-# 注意 C 在 print 里单独显示 "C(via str)"，但在列表里却显示默认地址——
-# 因为容器对元素调用的是 repr()，而 C 没实现 __repr__
+p = Price(9990)
+print(int(p))                       # 9990
 ```
 
-上面 `print([C(), D()])` 的输出最能说明问题：`C` 单独 `print` 时是可读的 `"C(via str)"`，但放进列表却变成 `<C object at 0x...>`——这正是 `repr` 回退缺失导致的。**结论**：自定义类通常应**同时**实现 `__str__`（给人看的简洁描述）和 `__repr__`（给开发者看的、最好能重建对象的可信表示），否则在容器、调试、日志等 `repr` 场景下会暴露难看的默认值。
+实现了 `__int__`,`int(p)` 才能正常工作。同理,要让对象能被 `float()` 转换,实现 `__float__`;能被 `str()` 转换,实现 `__str__`(这和 print 的字符串化是同一套机制,详见 print 笔记原理章)。
 
-**str 与 repr 的分工**：
+**float(obj) 与 str(obj) 的链路**:
 
-- `str()` → 调 `__str__`，面向**终端用户**的可读文本，如 `"张三 (28岁)"`。
-- `repr()` → 调 `__repr__`，面向**开发者**的明确表示，理想情况下 `eval(repr(obj))` 能重建该对象，如 `"Person(name='张三', age=28)"`。
-- `print` 显式走 `str()`；交互式终端直接敲变量名、`%r`/`!r` 格式化、容器内元素展示走 `repr()`。
+- `float()`:字符串走浮点文法解析(`"3.14"`、`"1e3"`、`"inf"` 等合法);其他类型调用 `__float__`。
+- `str()`:调用 `__str__`,没有则回退 `__repr__`,都没有用默认 `object` 表示。见 print 笔记 4.2 节详述。
 
-理解这条调用链后，你就能精准控制对象在各种场景的输出形态，而不是"明明写了 `__str__` 却不生效"地困惑。
+**字符串解析为何严格**:字符串到数字的转换必须"逐字符合法",因为字符串里可能混入任何字符,Python 不会猜你的意图。`int("12个")` 失败不是因为不会处理"个",而是文法规定整数串只允许数字和正负号。这种"严格解析 + 失败抛 ValueError"的设计,迫使程序员显式处理非法输入,比"悄悄返回 0"或"取前面能转的部分"更安全。
 
-### 4.3 缓冲机制（底层支持，简略）
+理解这条协议链后,你能解释所有类型转换的成功/失败,也能让自定义类自然地参与 `int()`/`float()`/`str()` 转换。
 
-`stdout` 的缓冲策略由底层 C 标准库决定，CPython 启动时按输出目标是否为 TTY 选择策略：终端走行缓冲（遇 `\n` 即刷），文件/管道走全缓冲（攒满一块才刷）。这解释了 2.4 节"重定向到文件时 print 变慢"——缓冲策略变了。`flush=True` 主动调用底层 `fflush` 绕过缓冲立即落盘；`stderr` 通常无缓冲，故错误信息总能即时出现。底层细节无需深究，记住"终端即时、重定向延迟、flush 强刷"即可。
+### 4.3 input 与 input() 阻塞的底层(底层支持,简略)
 
-### 4.4 print 是函数带来的灵活性
+`input` 的阻塞来自 `sys.stdin.readline`,它最终调用操作系统的阻塞式读终端系统调用——没数据来时线程被内核挂起,直到用户回车产生数据才唤醒。这是 OS 级别的 I/O 阻塞,Python 层面无法设超时,故标准 `input` 不支持超时。需要超时/非阻塞只能绕道 `signal`、线程或 `select`,底层细节不必深究。
 
-`print` 是函数而非语句，因此能接受关键字参数 `sep`/`end`/`file`/`flush`、把输出目标 `file` 作为参数动态传入、甚至被赋值或包装（如 `logging` 内部可改写其行为）。这是 Python 3 把 `print` 从语句改为函数的核心收益。
+### 4.4 显式转换为何不自动发生
+
+Python 在数值运算时会做**隐式转换**(`1 + 2.0` → `3.0`,int 自动提升为 float),但 `str` 与 `int` 之间**不会隐式转换**——`"28" + 2` 直接报错。原因是:字符串到数字的转换有"可能失败"的风险(用户输入未必是数字),若 Python 猜测式自动转换,会掩盖错误、产生隐蔽 bug。Python 选择"危险/可能失败的转换必须显式声明"(`int(input(...))`),让程序员明确为这种不确定性负责。这是 Python 类型系统的一条设计哲学:**显式优于隐式**。
 
 ---
 
@@ -801,29 +800,25 @@ print([C(), D()])   # [<C object at 0x...>, D(via repr)]
 
 ### 5.1 本文内容回顾
 
-本文系统讲解了 Python 内置函数 `print`，覆盖：
-
-- **概念定位**：`print` 是面向文本输出的内置函数，不是关键字，必须加括号；它通过对每个对象调 `str()` 字符串化后输出到默认的 `sys.stdout`。
-- **完整签名**：`print(*objects, sep=' ', end='\n', file=None, flush=False)`，五个参数各司其职。
-- **sep**：控制多对象间分隔符，默认空格，支持空串、换行、制表符等，N 个对象插 N−1 个 sep。
-- **end**：控制输出结尾符，默认换行，设为空串可同行追加，配合 `\r` 实现进度条。
-- **file**：指定输出目标，默认 `sys.stdout`，可传 `sys.stderr` 分流错误、传文件对象写文件、配合 `redirect_stdout` 整体重定向。
-- **flush**：强制刷新缓冲，重定向/长任务/管道实时输出时需要。
-- **格式化配合**：f-string（推荐）、`.format()`、`%` 三种方式对比，逗号拼接 vs 格式化拼接的差异。
-- **`*` 解包 + sep**：优雅替代手动 `join` 批量输出，且能自动处理非字符串元素。
-- **转义字符**：`\n`/`\t`/`\r`/`\\` 等在 sep/end 中的应用，原始字符串 `r"..."`。
-- **边界**：print 不写二进制、不返回内容、不做高级排版、不当生产日志。
-- **最佳实践**：调试 print 用完即删或换 logging、错误走 stderr、实时输出 flush、用 f-string 拼接、批量用 `*` 解包、勿重定义 print、牢记 sep/end 结构。
-- **原理**：`sep.join + end` 的一次 write 模型、`str()`/`__str__`/`__repr__` 关系、TTY 决定的缓冲策略、函数化带来的灵活性。
+- **input 定位**:从 `sys.stdin` 读一行文本的内置函数,与 `print` 相对;阻塞式,用户回车才返回。
+- **核心特性**:返回值恒为字符串、不含结尾换行;`prompt` 参数输出提示且不换行。
+- **类型转换必要性**:input 只给字符串,做数值运算必须显式转换。
+- **转换函数**:`int()`(整数,支持进制、会 strip、字符串可能 ValueError)、`float()`(浮点,支持科学计数法)、`str()`(任意→字符串)、`bool()`(注意非空串恒真陷阱)。
+- **多值输入**:`input().split()` + 推导式/`map` 拆分转换,兼容逗号分隔需指定分隔符。
+- **循环校验**:`while True` + `try/except` + `break` 的健壮输入范式,可封装成 `read_int` 等函数。
+- **阻塞与限制**:input 不支持超时、不能后台读、EOF 抛 `EOFError`;管道批量数据改用 `sys.stdin`。
+- **进阶用法**:int 的 `base` 参数解析二/八/十六进制及 `base=0` 自动识别;`int` 截断与 `round` 银行家舍入的差异;`ast.literal_eval` 安全还原列表/字典字面量(替代危险的 `eval`);菜单式交互与封装;多行输入(结束符/固定行数/读到底);`getpass` 不回显输密码;字符串清洗工具链(strip/lower/replace)。
+- **最佳实践**:转换包 try、先 strip 清洗、不用 bool 判断意图、交互用 input/管道用 stdin、提示语明确格式、捕获 EOFError。
+- **原理**:input 的"写 prompt→flush→readline→去换行"模型;类型转换走 `__int__`/`__float__`/`__str__` 协议链,字符串解析严格故可能失败;阻塞源于 OS 级阻塞 I/O;str→int 不自动转换体现"显式优于隐式"。
 
 ### 5.2 读完本文你应能掌握
 
-- 说出 `print` 全部五个参数的作用与默认值，并解释"N 个对象插 N−1 个 sep、末尾一个 end"的输出结构。
-- 根据场景正确选用 `sep`、`end`：日期用 `sep="-"`、逐行输出用 `sep="\n"`、同行追加用 `end=""`、进度条用 `\r`+`end=""`+`flush`。
-- 区分 `stdout` 与 `stderr`，会用 `file=sys.stderr`/`file=f`/`redirect_stdout` 控制输出目标。
-- 说明何时需要 `flush=True` 及背后缓冲机制（行缓冲 vs 全缓冲，TTY 判定）。
-- 在 f-string / `.format()` / `%` 三者间做出合理选择，并用 f-string 格式说明符控制小数位、对齐、补零。
-- 用 `print(*iterable, sep=...)` 替代手动 `join` 批量输出，并说明两者差异与各自适用场景。
-- 让自定义类通过 `__str__` 控制 `print` 输出形态，区分 `str` 与 `repr`。
-- 用 `io.StringIO` + `redirect_stdout` 捕获 `print` 输出到字符串（用于测试）。
-- 在工程上正确使用 `print`：调试不留残、错误走 stderr、实时输出 flush、不重定义 print、生产日志用 logging。
+- 说明 `input` 返回值恒为字符串、去结尾换行的行为,并解释为何 `int(input())` 拿用户输入做运算时常报 `TypeError`/`ValueError`。
+- 正确使用 `prompt` 参数,以及用 `print(end="") + input()` 等价拆分写法。
+- 用 `int`/`float`/`str`/`bool` 对 input 结果转换,并说明各函数的合法输入边界(`int("3.14")` 为何失败、`float("1e3")` 如何处理)。
+- 识别并规避 `bool(input())` 判断用户意图的陷阱,改用 strip+lower+集合比较。
+- 用 `split` + 推导式一次读入并转换多个值,兼容空格/逗号分隔。
+- 编写 `while True` + `try/except` 的健壮输入校验循环,并封装成可复用函数。
+- 在交互场景用 `input`、在管道场景用 `for line in sys.stdin`,并正确捕获 `EOFError`。
+- 说明类型转换背后的 `__int__`/`__float__`/`__str__` 协议链,让自定义类支持相应转换。
+- 阐述 Python 为何不在 str 与 int 间做隐式转换("显式优于隐式"设计哲学)。
