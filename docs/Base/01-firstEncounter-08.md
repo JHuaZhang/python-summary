@@ -9,525 +9,550 @@ nav:
   order: 1
 ---
 
+# 注释规范
+
 ## 1. 介绍
 
 ### 1.1 什么是注释
 
-注释(comment)是源代码里**写给人看、被解释器忽略**的文字。Python 解释器在执行时会跳过注释内容,它们不产生任何运行时行为,纯粹用于向阅读代码的人解释代码的意图、背景、注意事项。在一个 `# print("hello")` 里,`#` 之后的部分就是注释,程序运行时这行等于不存在。
+注释是写给人类看的代码说明文字，Python 解释器在执行时会跳过注释内容。注释的核心价值是让代码更易读、更易维护——几个月后你回来看代码，或者新人接手项目时，注释能大大降低理解成本。
 
-注释与代码的关系可以这样理解:代码描述"怎么做"(how),注释补充"为什么这么做"(why)。机器只执行代码,但维护代码的是人,人在阅读时需要知道这段代码的目的、它解决什么问题、为何选这种实现——这些信息往往无法从代码本身直接看出来,正是注释的用武之地。
+Python 中的注释分为两大类：
 
-Python 里的"注释"其实有几种形态,初学者容易混淆,先分清:
-
-- **行内注释**:`#` 开头的单行注释,最常用。
-- **块注释**:连续多行 `#` 注释,用于解释一段代码。
-- **文档字符串(docstring)**:三引号 `"""..."""` 包裹、放在模块/函数/类/方法开头的字符串,它**不是传统意义的注释**——它是一个真实的字符串表达式,会被 Python 当作文档对象保存,能被 `help()`、`__doc__`、文档生成工具读取消费。docstring 是"结构化文档",地位远高于普通注释。
-
-这也是为什么本节标题是"注释规范"而非单纯"注释"——我们需要把普通注释与 docstring 都讲清楚,并给出如何写好它们的规范。混淆注释与 docstring 是新手常见误区,1.4 节会专门区分。
-
-注释在实际开发中的作用:
-
-- **解释意图**:说明这段代码为何这么写,解决什么业务问题。
-- **标注待办/警告**:`# TODO`、`# FIXME`、`# XXX` 标记待处理或隐患。
-- **屏蔽调试代码**:临时注释掉一行代码不执行(如 `# print(x)`),排错时常用,但正式代码应清理。
-- **复杂逻辑说明**:算法、正则、绕过的坑,用注释点明,免得后人重新踩。
-- **文档(docstring)**:为模块/函数/类提供结构化文档,支撑 `help`、IDE 提示、自动文档生成。
-
-### 1.2 为什么需要注释规范
-
-随便写注释不难,难的是写"好注释"。坏的注释比没有注释更糟——它会误导、过时、增加噪音。所以需要一套规范来约束:
-
-**问题一:注释与代码不一致**。代码改了注释没改,注释变成谎言,比没注释更坑人。规范要求注释解释"意图"而非"实现细节",实现常变而意图稳定,降低不一致风险。
-
-**问题二:废话注释**。`x = x + 1  # x加1` 这种把代码翻译成中文的注释毫无价值,纯噪音。规范要求注释提供代码无法表达的信息。
-
-**问题三:过度注释**。每行都注释,淹没了真正需要解释的关键处。规范要求注释精炼,只在必要时写。
-
-**问题四:docstring 缺失或随意**。函数没 docstring,或 docstring 写得无法被 `help` 有效消费。规范要求 docstring 遵循格式,真正发挥文档作用。
-
-**问题五:用注释替代坏命名/坏结构**。变量名 `d` 加注释 `# d是字典` 不如直接命名 `data_dict`;复杂到要长篇注释的代码不如重构。规范要求"注释救不了坏设计",优先改进代码可读性。
-
-一套注释规范的价值在于:让团队的注释风格统一、信息密度高、不易过时、docstring 可被工具消费,从而真正提升代码可维护性,而非沦为噪音。本节既讲 Python 注释语法,也讲如何写好注释的工程规范。
-
-### 1.3 基本语法
-
-Python 单行注释以 `#` 开头,从 `#` 到行尾都是注释:
-
-```python
-# 这是一个独立行注释
-x = 10  # 这是行尾注释,解释这一行
-# print(x)  # 这行代码被注释掉了,不会执行
+```text
+注释体系
+├── 单行注释    →  以 # 开头，解释器忽略该行 # 后面的内容
+├── 多行注释    →  连续多行 # 注释，或用三引号字符串"伪装"
+└── 文档字符串  →  三引号字符串放在函数/类/模块的第一条语句位置
+                   →  被解释器捕获到 __doc__ 属性，可被 help() 读取
+                   →  是 Python 的"正式文档"机制
 ```
 
-`#` 之前可以有代码(行尾注释),`#` 之后到行尾全是注释。`#` 与注释文字间建议留一个空格(PEP 8),如 `# 注释` 而非 `#注释`。行尾注释与代码间至少留两个空格。
+其中，文档字符串（docstring）是 Python 的特色——大多数语言只有普通注释，Python 把"文档"提升为了语言层面的概念，有自己的属性 `__doc__` 和工具 `help()` 来访问。
 
-Python **没有专门的多行注释语法**(不像 C 的 `/* */`)。所谓"块注释"就是连续的 `#` 单行注释:
+### 1.2 最简示例
 
-```python
-# 这是一个块注释,
-# 用于解释下面这段代码。
-# 多行都用 # 开头。
-def process(data):
-    ...
-```
-
-另一种"伪多行注释"是用三引号字符串:
+单行注释：
 
 ```python
-"""
-这看起来像多行注释,
-但其实是未被赋值的字符串字面量(表达式语句)。
-"""
+# 这是一个单行注释，解释器会忽略 # 后面的内容
+age = 25  # 行尾注释：记录用户年龄
 ```
 
-三引号字符串若不在函数/类/模块开头(那时它是 docstring,见 1.4),就只是一个"不绑定到任何名字的字符串表达式",运行时被求值后丢弃,效果上像注释。但这种用法**不推荐当多行注释**,因为它在函数/模块开头会被当成 docstring 消费,有副作用、易混淆;真正的多行注释应逐行 `#`。这点 1.4 与第 4 章会详述。
-
-### 1.4 注释 vs docstring:关键区别
-
-这是本节最易混、也最重要的区分。看两个例子:
+文档字符串：
 
 ```python
-# 普通注释:被解释器完全忽略
-def add(a, b):
-    # 返回两数之和
-    return a + b
+def greet(name: str) -> str:
+    """向指定的人打招呼。
 
-# docstring:被 Python 当作文档保存,可被 help/__doc__ 读取
-def add(a, b):
-    """返回 a 与 b 的和。"""
-    return a + b
+    Args:
+        name: 对方姓名
+
+    Returns:
+        问候字符串
+    """
+    return f"你好，{name}！"
 ```
 
-两者都"看起来像说明",但本质不同:
+文档字符串和普通注释的关键区别在于：注释只是给人看的，文档字符串还能被 Python 解释器捕获，通过 `help(greet)` 就能查看：
 
-| 维度 | 普通注释(`#`) | docstring(`"""..."""`) |
-|------|----------------|------------------------|
-| 是否被执行 | 完全忽略 | 作为字符串表达式求值,但不产生副作用 |
-| 是否可访问 | 不可,运行时消失 | 可,存为对象的 `__doc__` 属性 |
-| `help()` 能否读取 | 不能 | 能 |
-| IDE 悬停提示 | 不显示 | 显示 |
-| 文档生成工具(Sphinx) | 不消费 | 消费生成文档 |
-| 适用位置 | 任意处 | 模块/类/函数/方法的开头第一个语句 |
-| 目的 | 解释代码实现/意图 | 提供结构化 API 文档 |
+```python
+>>> help(greet)
+Help on function greet in module __main__:
 
-**记忆要点**:`#` 注释是"给人看的旁注,机器丢弃";docstring 是"机器也认的文档,被工具消费"。所以:
+greet(name: str) -> str
+    向指定的人打招呼。
 
-- 想让 `help(func)`、IDE 悬停、Sphinx 文档里有说明 → 写 docstring。
-- 想在某行/某段临时说明实现思路、标 TODO、屏蔽调试代码 → 写 `#` 注释。
+    Args:
+        name: 对方姓名
 
-新手常把该写 docstring 的地方写成 `#` 注释,结果 `help` 查不到、IDE 不提示;或把 docstring 当普通注释乱放(不在开头),失去文档作用。规范的核心规则之一:**模块/类/函数/方法,开头写 docstring 描述其 API;行内实现说明、TODO、调试屏蔽用 `#` 注释**。下文第 2 章分别详述两者怎么写。
+    Returns:
+        问候字符串
+```
 
 ---
 
 ## 2. 核心内容
 
-本章详解普通注释的写法、docstring 的格式与协议、常用标记(TODO/FIXME)、注释与可读性的关系,给出可落地的规范。
+### 2.1 单行注释（#）
 
-### 2.1 行内注释与块注释的写法
+单行注释以 `#` 开头，Python 解释器遇到 `#` 后，该行 `#` 后面的内容全部忽略。
 
-**行内注释(code comment)**:跟在代码之后的 `#` 注释,用于解释这一行。
+`#` 可以独占一行，也可以跟在代码后面：
 
 ```python
-x = 10  # 初始计数,稍后循环递增
-offset = len(data) // 2  # 取中点,奇数向下取整不影响结果
+# 独占一行：说明接下来这段代码的意图
+total = 0
+for score in scores:
+    total += score  # 行尾注释：累加每个分数
+
+# 跟在代码后：简短补充说明
+MAX_CONNECTIONS = 10  # 连接池上限，超过会排队等待
 ```
 
-写法要点(PEP 8):
-
-- 与代码间至少**两个空格**。
-- `#` 与注释文字间**一个空格**。
-- **避免废话注释**(把代码翻译一遍),如 `x = 10  # 把10赋给x` 是垃圾注释。
-- 解释"为什么"而非"是什么":代码已说明是什么,注释应补充意图。
-
-**块注释(block comment)**:一段或多行 `#` 注释,放在它解释的代码块上方,缩进与代码一致。
+**单行注释的核心原则**：注释解释"为什么这么写"，而不是"这行在做什么"。解释器已经知道代码在做什么，注释的价值在于补充代码无法自表达的设计意图。
 
 ```python
-# 先过滤掉无效记录,再按时间排序。
-# 过滤标准:status 为 None 或空字符串视为无效。
-valid = [r for r in records if r.status]
-valid.sort(key=lambda r: r.time)
+# 不好的注释：废话翻译，代码本身已经说明了一切
+x = x + 1  # x 加 1
+
+# 好的注释：解释意图，代码本身看不出来的"为什么"
+retry_count = 0  # 失败重试计数，最多 MAX_RETRY 次
+if retry_count > MAX_RETRY:
+    break  # 超过重试上限，放弃本次请求
 ```
 
-要点:
+### 2.2 多行注释
 
-- 块注释每行都以 `#` 开头(不用三引号当块注释)。
-- 与下方代码同缩进,且与代码间空一行(段间分隔)。
-- 句号结尾,完整句子,讲清这段代码在做什么、为什么。
+Python 没有专门的多行注释语法。两种写法可以"伪装"多行注释：
 
-**句首大写与标点**:PEP 8 建议块注释是完整句子,首字母大写、句末句号。行内注释可简短不强制,但语义完整。
-
-### 2.2 何时该写注释、何时不该
-
-注释不是越多越好。核心原则:**注释解释代码无法自表达的意图,不重复代码已说明的内容**。
-
-**该写注释的场景**:
-
-- **非显而易见的意图**:为什么用这个魔法数字、为何绕过常规写法、某行修复了哪个具体 bug(可附 issue 链接)。
-- **业务规则背景**:`# 金额以分为单位存储,展示时除以100`,这种业务约定代码看不出。
-- **复杂算法/正则**:`# 匹配手机号:1开头,第二位3-9,共11位`,正则难读,注释救命。
-- **性能 hack**:`# 用列表推导比 for 快约2倍(基准测试见 issue#123)`,说明反常写法的原因。
-- **TODO/FIXME 标记**:待办、已知问题。
-
-**不该写注释的场景**:
-
-- **废话翻译**:`count = 0  # count等于0` —— 零信息。
-- **好的命名能替代的**:`d = {}  # 用户字典` 不如 `user_dict = {}`。
-- **显而易见的**:`for i in range(10):  # 循环10次` —— 看代码就知道。
-- **能用函数/变量名表达的**:把一段逻辑提炼成命名好的函数,比注释更优。
-
-判断标准:写下注释前自问"如果删掉这行注释,读者会不会困惑或踩坑?"会则留,不会则删。好代码尽量自解释(self-documenting),注释只补其不能表达的。
-
-### 2.3 TODO/FIXME 等标记
-
-用 `# TODO`、`# FIXME`、`# XXX`、`# HACK` 等标记注释,标识待办与隐患,搜索时一目了然:
+**方式一：连续多行 #**
 
 ```python
-# TODO: 支持大文件流式处理,当前一次性读入内存
-data = f.read()
-
-# FIXME: 时区处理有 bug,跨日制时日期可能错,见 issue#45
-result = calc(data)
-
-# HACK: 临时绕过第三方库的缓存 bug,上游修复后移除
-time.sleep(0.1)
-
-# XXX: 这里并发安全未验证,高并发下可能出错
-cache[key] = value
+# 这是多行注释的第一行
+# 这是第二行
+# 每行都要以 # 开头
+# 适合短小的说明文字
 ```
 
-约定含义:
-
-- **TODO**:待实现/待完善的功能。
-- **FIXME**:已知有 bug,待修复。
-- **HACK**:临时绕过方案,不够优雅,日后应重构。
-- **XXX**:警示,这里可能有问题需注意。
-
-建议标记后带**署名与日期/issue 链接**,便于追溯:`# TODO(alice, 2026-07): 支持流式`。多数 IDE 能高亮这些标记,`grep "TODO"` 能列出全部待办。规范用法:用标记暴露已知问题而非掩盖,且定期清理(别让 TODO 堆积成考古层)。
-
-### 2.4 注释屏蔽代码
-
-排错时常临时注释掉代码不执行:
+**方式二：三引号字符串**
 
 ```python
-# print("调试:", x)  # 临时注释,排错时用
-result = compute(x)
-```
-
-这是合法用法,但有规范:
-
-- **正式提交前清理**:注释掉的死代码不该进生产,它增加噪音、让人困惑"这行还要不要"。
-- **不用注释做版本控制**:别用注释保留旧实现(`# 旧代码 # result = old_compute(x)`),历史由 git 管,代码库只留当前版本。
-- **长期不用的代码直接删**:需要时 git 历史能找回,不必注释保留。
-
-规范原则:**注释用于解释,不用于保留死代码**。临时屏蔽排错 OK,但别让屏蔽的代码成为永久残留。
-
-### 2.5 docstring 的位置与基本写法
-
-docstring 是放在**模块、类、函数、方法**定义之后、第一条语句之前的字符串字面量(通常是三引号)。它被存为该对象的 `__doc__` 属性,可被 `help()` 与文档工具读取。
-
-**函数 docstring**:
-
-```python
-def add(a, b):
-    """返回 a 与 b 的和。
-
-    Args:
-        a: 第一个加数(int/float)
-        b: 第二个加数(int/float)
-
-    Returns:
-        两数之和,类型与输入一致
-    """
-    return a + b
-```
-
-**类 docstring**:
-
-```python
-class User:
-    """表示一个用户。
-
-    Attributes:
-        name: 用户名
-        age: 年龄
-    """
-    def __init__(self, name, age):
-        self.name = name
-        self.age = age
-```
-
-**模块 docstring**:文件开头第一行的三引号字符串,描述整个模块用途:
-
-```python
-"""用户数据处理工具。
-
-提供用户数据的清洗、校验、统计功能。
 """
-import re
-...
+这看起来像多行注释，
+但它其实是一个没有赋值给任何变量的字符串字面量。
+Python 解释器执行时会创建这个字符串对象然后丢弃。
+"""
 ```
 
-**方法 docstring**(类里的方法,与函数同,但 `__init__` 等特殊方法可省略或简写)。
-
-要点:
-
-- docstring 必须是定义后**第一个语句**(在 `import`/代码之前),否则不视为 docstring。
-- 用**三引号** `"""..."""`(双或单三引号,约定双),即使一行也用三引号保持一致。
-- 第一行是**简短摘要**(一行,祈使句,句号结尾),空一行后是详细说明。
-- 公开的 API(模块、公开类/函数)应有 docstring;私有(下划线前缀)可省略。
-
-### 2.6 docstring 的格式风格
-
-docstring 内容格式有几套约定,常见的:
-
-**Google 风格**(清晰易读,推荐):
+需要注意，三引号字符串作为多行注释使用时，它并不是真正的注释——解释器会解析它、创建字符串对象，只是没有赋值给变量，所以没有副作用。在函数、类、模块内部，如果三引号字符串出现在**第一条语句**的位置，它会被当作文档字符串。出现在其他位置时，它只是一个被丢弃的字符串表达式。
 
 ```python
-def fetch(url, timeout=10):
+def example():
+    """这是 docstring，会被存入 __doc__ 属性。"""
+    x = 1
+    """这不是 docstring，只是一个被丢弃的字符串。"""
+    return x
+```
+
+**推荐做法**：模块级、函数级、类级的文档用三引号 docstring；代码内部的说明用 `#` 注释。不要在代码中间用三引号字符串当注释，容易和 docstring 混淆。
+
+### 2.3 文档字符串（docstring）概述
+
+文档字符串是 Python 中一种特殊的注释形式——用三引号（`"""` 或 `'''`）包裹的字符串，放在函数、类、模块的第一条语句位置时，Python 解释器会自动将它存入对象 的 `__doc__` 属性。
+
+**docstring 与普通注释的区别**：
+
+| 维度 | 普通注释（#） | 文档字符串（docstring） |
+|------|-------------|----------------------|
+| 语法 | `#` 开头 | 三引号字符串 |
+| 被解释器捕获 | 否 | 是，存入 `__doc__` |
+| 可被 `help()` 读取 | 否 | 是 |
+| 可被 IDE 悬浮提示 | 否 | 是 |
+| 可被文档生成工具提取 | 否 | 是（Sphinx 等） |
+| 适用位置 | 任何位置 | 函数/类/模块的第一条语句 |
+| 含义 | 给开发者看 | 给使用者看 |
+
+docstring 有三种主要风格：Google 风格、NumPy 风格和 reST 风格。下面逐一讲解。
+
+### 2.4 Google 风格 docstring
+
+Google 风格是可读性最好的 docstring 风格，用 `Args:`、`Returns:`、`Raises:` 等小节标签来组织参数、返回值和异常说明。它的特点是结构清晰、格式紧凑，不依赖特殊指令语法，用 Markdown 风格的缩进即可。
+
+**基本结构**：
+
+```python
+def fetch(url: str, timeout: int = 10) -> str:
     """发起 HTTP GET 请求并返回响应文本。
 
     Args:
         url: 请求地址
-        timeout: 超时秒数,默认 10
+        timeout: 超时秒数，默认 10
 
     Returns:
         响应文本字符串
 
     Raises:
         TimeoutError: 请求超时
-        ConnectionError: 连接失败
+        ValueError: url 为空时
     """
+    if not url:
+        raise ValueError("url 不能为空")
+    return f"GET {url} (timeout={timeout}s)"
 ```
 
-**NumPy 风格**(科学计算常用,参数用表格):
+**运行结果**：
+
+```text
+>>> fetch("https://api.example.com")
+'GET https://api.example.com (timeout=10s)'
+>>> fetch("")
+Traceback (most recent call last):
+  ...
+ValueError: url 不能为空
+```
+
+**关键点说明**：
+
+- 第一行是简短摘要（一行），描述函数做什么
+- 摘要后空一行，然后是小节标签
+- `Args:` 列出每个参数，格式为 `参数名: 说明`
+- `Returns:` 描述返回值
+- `Raises:` 列出可能抛出的异常及触发条件
+- 各小节都是可选的——没有参数的函数不需要 `Args:`
+
+**Google 风格的参数类型说明**：类型信息已在函数签名的类型注解中表达，docstring 中不需要重复写类型，只写语义说明即可。这也体现了类型注解与 docstring 的分工——注解表达"是什么类型"，docstring 表达"做什么、有什么约束"。
+
+### 2.5 NumPy 风格 docstring
+
+NumPy 风格在科学计算社区（NumPy、SciPy、pandas）中广泛使用。与 Google 风格相比，它的参数和返回值用下划线分隔的标题行来标记，可读性稍差但格式更统一，适合参数较多的函数。
+
+**基本结构**：
 
 ```python
-def fetch(url, timeout=10):
-    """发起 HTTP GET 请求并返回响应文本。
+def calc_bmi(weight: float, height: float) -> float:
+    """计算 BMI 指数。
 
     Parameters
     ----------
-    url : str
-        请求地址
-    timeout : int, optional
-        超时秒数,默认 10
+    weight : float
+        体重（kg）
+    height : float
+        身高（米）
 
     Returns
     -------
-    str
-        响应文本
+    float
+        BMI 值，保留一位小数
     """
+    return round(weight / (height ** 2), 1)
 ```
 
-**reStructuredText(Sphinx 原生)**:
+**运行结果**：
+
+```text
+>>> calc_bmi(68, 1.75)
+22.2
+```
+
+**NumPy 风格的特点**：
+
+- `Parameters` 和 `Returns` 用下划线行（`----------`）作为标题分隔
+- 每个参数格式为 `参数名 : 类型`，下一行缩进写说明
+- 返回值格式为 `类型`，下一行缩进写说明
+- 适合参数多、类型复杂的科学计算函数
+
+**Google vs NumPy 对比**：
+
+| 维度 | Google 风格 | NumPy 风格 |
+|------|------------|-----------|
+| 参数格式 | `url: 请求地址` | `weight : float` + 缩进说明 |
+| 分隔方式 | `Args:` 标签 | `Parameters` + 下划线行 |
+| 紧凑性 | 高，一行一个参数 | 低，每个参数占两行 |
+| 可读性 | 更好，像散文 | 一般，更像表格 |
+| 适用场景 | 通用开发 | 科学计算社区 |
+| 主流支持 | PyCharm、VS Code 原生 | Sphinx + napoleon 插件 |
+
+### 2.6 reST 风格 docstring
+
+reST（reStructuredText）风格是 Sphinx 文档生成工具的原生格式，用 `:param`、`:returns`、`:raises` 等指令来标注参数和返回值。
+
+**基本结构**：
 
 ```python
-def fetch(url, timeout=10):
-    """发起 HTTP GET 请求并返回响应文本。
+def divide(a: float, b: float) -> float:
+    """返回 a / b。
 
-    :param url: 请求地址
-    :param timeout: 超时秒数
-    :returns: 响应文本
-    :raises TimeoutError: 请求超时
+    :param a: 被除数
+    :param b: 除数，不能为 0
+    :returns: 商
+    :raises ZeroDivisionError: b 为 0 时
     """
+    if b == 0:
+        raise ZeroDivisionError("除数不能为0")
+    return a / b
 ```
 
-**选型**:团队统一一种即可。**Google 风格**可读性最佳,人读舒服,工具(如 `pydoc`、`sphinx` 配 napoleon 插件)也能解析,推荐新项目用。无论哪种,关键是**统一**,混用会让文档工具解析错乱。
+**运行结果**：
 
-**一行 docstring**:简单函数用一行即可,仍三引号:
-
-```python
-def is_even(n):
-    """判断 n 是否为偶数。"""
-    return n % 2 == 0
+```text
+>>> divide(10, 3)
+3.3333333333333335
+>>> divide(10, 0)
+Traceback (most recent call last):
+  ...
+ZeroDivisionError: 除数不能为0
 ```
 
-### 2.7 docstring 的消费:help 与 __doc__
+**reST 风格的特点**：
 
-docstring 不只是写给人看,它被 Python 当作对象文档存储,可程序化访问——这是它区别于 `#` 注释的核心价值。
+- 用 `:param 名称: 说明` 标注每个参数
+- 用 `:returns: 说明` 标注返回值
+- 用 `:raises 异常名: 说明` 标注异常
+- 是 Sphinx 的原生格式，配合 Sphinx 可以自动生成 API 文档
+- 格式略显冗长，相比 Google 风格可读性稍差
 
-**`help(obj)`**:交互式查看对象文档,直接显示其 docstring:
+**三种风格快速对比**：
+
+| 风格 | 参数写法 | 返回值写法 | 社区偏好 |
+|------|---------|-----------|---------|
+| Google | `Args:` + `name: 说明` | `Returns:` + 说明 | 通用开发，推荐首选 |
+| NumPy | `Parameters` + `name : type` | `Returns` + `type` | 科学计算 |
+| reST | `:param name: 说明` | `:returns: 说明` | Sphinx 生态 |
+
+### 2.7 docstring 的 `__doc__` 属性与 `help()` 函数
+
+Python 会把函数、类、模块的 docstring 存入 `__doc__` 属性。你可以直接访问这个属性，也可以用内置的 `help()` 函数格式化查看。
+
+**访问 `__doc__` 属性**：
 
 ```python
->>> help(add)
+def add(a: int, b: int) -> int:
+    """返回 a 与 b 的和。
+
+    >>> add(1, 2)
+    3
+    """
+    return a + b
+
+# 直接访问 docstring 文本
+print(add.__doc__)
+```
+
+**运行结果**：
+
+```text
+返回 a 与 b 的和。
+
+    >>> add(1, 2)
+    3
+```
+
+**用 `help()` 查看**：
+
+```python
+help(add)
+```
+
+**运行结果**：
+
+```text
 Help on function add in module __main__:
 
-add(a, b)
+add(a: int, b: int) -> int
     返回 a 与 b 的和。
+
+    >>> add(1, 2)
+    3
+```
+
+`help()` 和 `__doc__` 的区别：
+
+| 维度 | `help(obj)` | `obj.__doc__` |
+|------|------------|---------------|
+| 输出格式 | 格式化后的可读文档 | docstring 原始文本 |
+| 包含签名 | 是，含函数签名 | 否，只有 docstring 正文 |
+| 支持分页 | 是，终端中自动分页 | 否，一次性输出 |
+| 在 REPL 中 | 交互式查看 | 直接打印 |
+
+**实用场景**：在交互式环境中，用 `help()` 查看某个库函数的文档是最快的方式：
+
+```python
+>>> help(print)
+Help on built-in function print in module builtins:
+
+print(*args, sep=' ', end='\n', file=None, flush=False)
     ...
 ```
 
-**`obj.__doc__`**:直接访问 docstring 字符串:
+### 2.8 docstring 第一条语句规则
+
+docstring 必须出现在函数体（或类体、模块体）的**第一条语句**位置。如果第一条语句是别的代码，即使后面有三引号字符串，Python 也不会将它当作 docstring。
+
+**正确写法**：docstring 是函数体第一条语句
 
 ```python
->>> print(add.__doc__)
-返回 a 与 b 的和。
-...
+def has_docstring():
+    """这是 docstring，__doc__ 有值。"""
+    x = 1
+    return x
+
+print(f"has_docstring.__doc__: {has_docstring.__doc__!r}")
 ```
 
-**模块/类同理**:
+**运行结果**：
 
-```python
-import math
-print(math.__doc__)       # 模块 docstring
-print(int.__doc__)        # int 类 docstring
+```text
+has_docstring.__doc__: '这是 docstring，__doc__ 有值。'
 ```
 
-**IDE/编辑器消费**:VS Code/PyCharm 鼠标悬停函数,显示其 docstring;调用时参数提示也来自 docstring 的参数描述。所以写好 docstring,开发体验直接提升。
-
-**文档生成**:Sphinx 等工具扫描 docstring 生成 HTML/PDF API 文档(reStructuredText 或 Google 风格配 napoleon)。写规范 docstring,文档自动生成,无需手写独立文档。
-
-理解 docstring "被消费"的特性,就会认真写它——它会被 help、IDE、文档工具反复读取,质量直接影响开发体验与文档质量。这是普通 `#` 注释做不到的。
-
-### 2.8 docstring 的规范要点
-
-写好 docstring 的几条规范:
-
-1. **首行摘要**:一行说清做什么,祈使句(`返回...` 而非 `这个函数返回...`),句号结尾,<=79 字符。
-2. **公开 API 必写**:模块、公开类/函数/方法必有 docstring;私有可省。
-3. **描述参数、返回值、异常**:复杂函数用 Args/Returns/Raises 段;简单函数一行摘要即可。
-4. **避免与函数名重复**:`def add` 的 docstring 写"返回两数之和"即可,不必"add 函数返回两数之和"。
-5. **保持与代码同步**:改了参数/行为,同步改 docstring,过时 docstring 是谎言。
-6. **统一风格**:全项目用一种(Google/NumPy/reST),别混。
-7. **代码示例(可选)**:复杂 API 在 docstring 附 doctest 可运行的示例,既是文档又是测试。
-
-**doctest 示例**(docstring 内嵌可运行示例):
+**错误写法**：docstring 不是第一条语句
 
 ```python
-def add(a, b):
+def no_docstring():
+    x = 1  # 第一条语句是赋值，不是字符串
+    """这不是 docstring，__doc__ 为 None。"""  # noqa
+    return x
+
+print(f"no_docstring.__doc__: {no_docstring.__doc__!r}")
+```
+
+**运行结果**：
+
+```text
+no_docstring.__doc__: None
+```
+
+在上面的例子中，`no_docstring` 函数内的三引号字符串不是第一条语句，Python 不会将它存入 `__doc__` 属性，`__doc__` 的值是 `None`。这个字符串只是一个被丢弃的字符串表达式，没有任何副作用。
+
+**规则总结**：
+
+- docstring 必须是函数体/类体/模块体中的第一条语句
+- 第一条语句之前的注释（`#`）不影响 docstring 的判定
+- docstring 之前不能有任何可执行语句
+- 如果想在 docstring 之前写注释，可以用 `#` 注释，但不能有赋值、表达式等可执行语句
+
+### 2.9 doctest：docstring 内嵌可运行示例
+
+doctest 是 Python 标准库中的一个模块，它可以从 docstring 中提取 `>>>` 开头的示例代码并自动运行验证。这让 docstring 不仅仅是文档，还是可执行的测试用例——文档和代码不会"脱节"。
+
+**在 docstring 中写 doctest 示例**：
+
+```python
+def add(a: int, b: int) -> int:
     """返回 a 与 b 的和。
 
     >>> add(1, 2)
     3
     >>> add(-1, 1)
     0
+    >>> add(0, 0)
+    0
     """
     return a + b
+
+
+def is_even(n: int) -> bool:
+    """判断 n 是否为偶数。
+
+    >>> is_even(4)
+    True
+    >>> is_even(7)
+    False
+    """
+    return n % 2 == 0
 ```
 
-`python -m doctest module.py` 会运行这些 `>>>` 示例验证,既是文档又保文档不过时。适合纯函数库。
-
-### 2.9 注释与可读性:优先改进代码
-
-注释规范的更高层面:**好代码胜过好注释**。当代码需要大量注释才能看懂时,往往说明代码本身可读性差,应优先改进代码而非堆注释。
-
-**用命名替代注释**:
+**运行 doctest 验证**：
 
 ```python
-# 坏:靠注释解释
-d = 3600  # 一小时的秒数
-# 坏
-u = get_u(data)  # u是用户数
+import doctest
 
-# 好:名字自解释
-SECONDS_PER_HOUR = 3600
-user_count = count_users(data)
+import examples
+
+# 对 examples 模块运行 doctest
+results = doctest.testmod(examples, verbose=True)
+print(f"尝试数: {results.attempted}, 失败数: {results.failed}")
 ```
 
-**用函数拆分替代块注释**:一段长逻辑加长篇块注释,不如拆成命名好的小函数:
+**运行结果**：
 
-```python
-# 坏:长函数+长注释解释每段
-def process(data):
-    # 第一步:过滤
-    ...
-    # 第二步:排序
-    ...
-    # 第三步:聚合
-    ...
+```text
+Trying:
+    add(1, 2)
+Expecting:
+    3
+ok
+Trying:
+    add(-1, 1)
+Expecting:
+    0
+ok
+Trying:
+    add(0, 0)
+Expecting:
+    0
+ok
+Trying:
+    is_even(4)
+True
+ok
+Trying:
+    is_even(7)
+Expecting:
+    False
+ok
+5 passed and 0 failed.
 
-# 好:每个步骤是命名函数,函数名即注释
-def process(data):
-    valid = filter_invalid(data)
-    sorted_data = sort_by_time(valid)
-    return aggregate(sorted_data)
+  尝试数: 5, 失败数: 0
 ```
 
-**用类型注解减少注释**:参数类型/返回类型用类型注解表达,不必在注释里写"a 是 int":
+**doctest 的关键要素**：
+
+- `>>>` 开头表示一条 Python 语句
+- 下一行写期望的输出结果
+- `doctest.testmod()` 会扫描模块中所有函数的 docstring，提取 `>>>` 示例并执行
+- 如果实际输出与期望不一致，doctest 会报告失败
+- `verbose=True` 会打印每个测试的详细信息
+
+**doctest 的价值**：文档中的示例代码永远是"活的"——如果函数的行为变了但 docstring 没更新，doctest 会跑失败，提醒你同步更新文档。这比"写完就过时"的普通注释好得多。
+
+### 2.10 类型注解与 docstring 协作
+
+Python 3.5+ 引入了类型注解（Type Hints），可以在函数签名中标注参数和返回值类型。类型注解和 docstring 不是替代关系，而是互补关系——注解表达"是什么类型"，docstring 表达"做什么、有什么约束"。
+
+**协作示例**：
 
 ```python
-# 坏
-def add(a, b):  # a,b是int,返回int
-    return a + b
+def find_user(users: list[dict], user_id: int) -> dict | None:
+    """在用户列表中按 id 查找用户。
 
-# 好
-def add(a: int, b: int) -> int:
-    return a + b
-```
-
-原则:**注释解释"为什么",代码表达"是什么"**。能用命名、结构、类型注解表达的,就用代码表达;只有代码无法说清的意图与背景,才用注释。这样注释量少而精,每条都有价值。
-
-### 2.10 PEP 257 与社区规范
-
-**PEP 257** 是 Python 官方的 docstring 规范,要点:
-
-- docstring 用 `"""`,即使单行。
-- 首行摘要句号结尾,祈使句。
-- 多行 docstring:首行摘要 → 空行 → 详细说明。
-- 模块 docstring 描述模块及其内容;类 docstring 描述行为、列出重要属性;函数 docstring 总结行为、说明参数/返回/异常。
-- 单行 docstring 适用于简单函数,但仍三引号。
-
-**PEP 8** 关于注释:
-
-- 块注释与代码同缩进,每行 `#` 开头。
-- 行内注释谨慎用,避免废话。
-- `#` 后一个空格。
-
-**社区工具**:Ruff/flake8/pydocstyle 等能自动检查 docstring 是否符合 PEP 257(如缺摘要、格式错)。配 Ruff 的 pydocstyle 规则,提交前自动保证 docstring 规范,比人工盯守可靠。
-
-规范不是死条文,而是"让代码与文档可维护"的手段。PEP 257/PEP 8 + Ruff 检查,是落地注释规范的标准组合。
-
-### 2.11 注释与国际化
-
-涉及中文注释与英文注释的选择:
-
-- **个人/国内项目**:中文注释可读性高,团队约定中文即可。
-- **开源/国际项目**:用英文注释与 docstring,便于全球贡献者。
-- **混合**:代码标识符英文,注释中文,是国内常见且可接受的折中。
-
-无论哪种,**统一**是关键。一个项目里中英文注释混用会显得杂乱。团队定一种语言后坚持。docstring 的语言尤其要统一,因为文档生成工具与 `help` 都会原样展示。
-
-### 2.12 完整示例:规范的注释与 docstring
-
-一个体现规范的完整模块示例:
-
-```python
-"""用户数据处理工具。
-
-提供用户数据的清洗、校验、统计功能。
-"""
-
-from typing import List
-
-# 年龄合法范围,超过视为脏数据
-AGE_MIN, AGE_MAX = 0, 150
-
-
-def is_valid_age(age: int) -> bool:
-    """判断年龄是否在合法范围内。
+    类型注解表达"参数/返回是什么类型"，
+    docstring 表达"做什么、约束"，两者不重叠。
 
     Args:
-        age: 待校验的年龄
+        users: 用户字典列表，每个含 'id' 键
+        user_id: 要查找的用户 id
 
     Returns:
-        True 表示合法, False 表示非法
+        匹配的用户字典，未找到返回 None
     """
-    return AGE_MIN <= age <= AGE_MAX
+    for u in users:
+        if u.get("id") == user_id:
+            return u
+    return None
+```
 
+**运行结果**：
 
-def filter_users(users: List[dict]) -> List[dict]:
-    """过滤掉年龄非法的用户记录。
+```text
+>>> users = [{"id": 1, "name": "张三"}, {"id": 2, "name": "李四"}]
+>>> find_user(users, 2)
+{'id': 2, 'name': '李四'}
+>>> find_user(users, 99)
+None
+```
 
-    Args:
-        users: 用户字典列表,每个含 'age' 键
+**分工原则**：
 
-    Returns:
-        年龄合法的用户子集
-    """
-    # 只保留年龄合法的;TODO: 后续加邮箱格式校验
-    return [u for u in users if is_valid_age(u.get("age", -1))]
+| 信息 | 由谁表达 | 示例 |
+|------|---------|------|
+| 参数类型 | 类型注解 | `user_id: int` |
+| 返回值类型 | 类型注解 | `-> dict \| None` |
+| 功能描述 | docstring 摘要 | "在用户列表中按 id 查找用户" |
+| 参数语义 | docstring Args | "要查找的用户 id" |
+| 返回值语义 | docstring Returns | "匹配的用户字典，未找到返回 None" |
+| 异常及触发条件 | docstring Raises | "KeyError: 字典缺少 'id' 键时" |
 
+**常见误区**：有了类型注解就不写 docstring 了。这是错误的做法——类型注解只能告诉你 `user_id` 是 `int`，但不会告诉你它的合法范围（"必须是正整数"），也不会告诉你函数的行为（"未找到返回 None"）。两者各有分工，缺一不可。
 
+### 2.11 类 docstring 与 property docstring
+
+类级别的 docstring 描述类的整体职责，使用 `Attributes:` 小节描述实例属性。property 装饰器修饰的方法也可以有自己的 docstring，描述这个计算属性的语义。
+
+**类 docstring 示例**：
+
+```python
 class UserStat:
     """用户统计结果。
 
@@ -542,288 +567,339 @@ class UserStat:
 
     @property
     def valid_rate(self) -> float:
-        """有效用户占比(0~1)。"""
+        """有效用户占比（0~1）。"""
         return self.valid / self.total if self.total else 0.0
 ```
 
-这个示例体现了:模块 docstring、常量注释、函数 docstring(Google 风格)、行内注释解释意图+TODO、类 docstring+属性、property docstring。命名自解释、类型注解表达类型、注释精而准。是规范注释的范本。
-
-### 2.13 注释与类型注解的协作
-
-类型注解(type hints)与注释分工表达不同信息,理解协作能各取所长:
-
-- **类型注解**表达"参数/返回是什么类型",机器可查(Pylance/mypy 检查),IDE 能提示。
-- **docstring** 表达"做什么、语义、约束、示例",类型注解表达不了的。
-- **`#` 注释**表达"实现意图、坑、TODO"。
+**使用示例**：
 
 ```python
-# 类型注解 + docstring 协作
-def divide(a: float, b: float) -> float:
-    """返回 a / b。
-
-    Args:
-        a: 被除数
-        b: 除数,不能为 0
-
-    Returns:
-        商
-
-    Raises:
-        ZeroDivisionError: b 为 0 时
-    """
-    if b == 0:  # 显式抛错而非让程序自然崩溃,便于上层捕获统一处理
-        raise ZeroDivisionError("除数不能为0")
-    return a / b
+stat = UserStat(total=100, valid=85)
+print(f"总人数: {stat.total}")
+print(f"有效人数: {stat.valid}")
+print(f"有效率: {stat.valid_rate:.1%}")
 ```
 
-这里类型注解说"进出都是 float",docstring 说"b 不能为 0、抛什么异常",行内注释说"为何显式抛错"。三者不重叠,各司其职。规范原则:**类型能用注解表达就不用注释写类型;语义与约束用 docstring;实现意图用 `#` 注释**。三者协作,代码信息完整且不冗余。
+**运行结果**：
 
-### 2.14 魔法数与常量注释
+```text
+总人数: 100
+有效人数: 85
+有效率: 85.0%
+```
 
-代码里直接出现的字面量(如 `if count > 100:`)如果意义不明,叫**魔法数(magic number)**,是可读性陷阱。两个手段消除:
-
-**手段一:提取为命名常量**,名字即说明,常量处附简短注释:
+**用 help() 查看类文档**：
 
 ```python
-# 坏
-if retry > 3:  # 为什么是3?
-    ...
-
-# 好
-MAX_RETRY = 3  # 重试上限,超过即放弃
-if retry > MAX_RETRY:
-    ...
+help(UserStat)
 ```
 
-**手段二:实在要内联,行内注释点明含义**:
+**运行结果**：
+
+```text
+Help on class UserStat in module __main__:
+
+class UserStat(builtins.object)
+ |  UserStat(total: int, valid: int)
+ |
+ |  用户统计结果。
+ |
+ |  Attributes:
+ |      total: 总人数
+ |      valid: 有效人数
+ |
+ |  Readonly properties defined here:
+ |
+ |  valid_rate
+ |      有效用户占比（0~1）。
+```
+
+**关键点说明**：
+
+- 类 docstring 放在 `class` 语句之后的第一行
+- `Attributes:` 小节列出实例属性（`__init__` 中 `self.xxx` 赋值的属性）
+- property 的 docstring 放在 `@property` 装饰的方法体第一行
+- `help(UserStat)` 会同时显示类 docstring、方法签名和 property docstring
+
+### 2.12 TODO/FIXME/HACK 特殊注释标记
+
+在开发过程中，经常需要标记"待办事项""已知问题""临时方案"。社区约定了一些特殊的注释标记前缀，方便工具和编辑器搜索定位。
+
+**常用标记**：
+
+| 标记 | 含义 | 使用场景 |
+|------|------|---------|
+| `TODO` | 待完成的功能/优化 | 功能还没写完，先标记位置 |
+| `FIXME` | 已知 bug，需要修复 | 发现问题但当前来不及修 |
+| `HACK` | 临时解决方案，不够优雅 | 先跑通再说，后续要重构 |
+| `XXX` | 需要注意的危险代码 | 逻辑脆弱，改了容易出问题 |
+
+**使用示例**：
 
 ```python
-time.sleep(0.1)  # 0.1s 间隔避免打满第三方 API 限速
+def find_user(users: list[dict], user_id: int) -> dict | None:
+    """在用户列表中按 id 查找用户。"""
+    # TODO(alice, 2026-08): 后续支持模糊查找
+    for u in users:
+        if u.get("id") == user_id:
+            return u
+    return None
 ```
 
-规范:**魔法数优先提取为命名常量(常量名+注释说明来源),无法提取时才内联并注释**。常量集中在模块顶部,带注释说明各值含义与取值依据(如来自配置/标准/经验),是消除魔法数、提升可读性的标准做法。
+**标记的推荐写法**：
 
-### 2.15 注释的反模式集合
+- `TODO(谁, 什么时候): 做什么`——带上负责人和计划时间
+- `FIXME: 问题描述`——简要说明什么 bug
+- `HACK: 为什么临时这样做`——说明"不优雅但能跑"的原因
 
-汇总常见坏注释(反模式),自查避免:
-
-- **废话翻译**:`x = 0  # x等于0`,把代码翻译成中文,零信息。
-- **过时注释**:代码改了注释没改,变成误导。
-- **冗余注释**:每行都注释,淹没关键。
-- **误导注释**:注释说的与代码做的不符(常因过时)。
-- **注释噪声**:`# 下面是循环` 这种显而易见的。
-- **大段被注释的死代码**:历史残留,应删。
-- **用注释掩盖坏命名**:`d  # 字典` 不如命名好。
-- **注释里讲无关事**:如代码旁大段离职交接、闲聊。
-- **docstring 当普通注释**:把该是 docstring 的写成 `#`,help 查不到。
-- **三引号当块注释**:在函数开头被误当 docstring。
-
-识别这些反模式,是写好注释的前提。一个好习惯:code review 时专门审视注释——删废话、修过时、补意图,让注释保持高质量。
-
-### 2.16 docstring 与抽象层级
-
-docstring 应写在**与对象抽象层级匹配**的粒度,不越界:
-
-- **模块 docstring**:讲模块整体做什么、提供什么,不深入每个函数细节。
-- **类 docstring**:讲类的职责、核心属性、用法,不逐方法展开。
-- **函数 docstring**:讲这个函数做什么、参数/返回/异常,不暴露内部实现步骤。
-- **私有方法**:可省 docstring 或极简,因其是实现细节。
-
-```python
-class DataPipeline:
-    """数据处理流水线,串联清洗、转换、输出三阶段。
-
-    用法:
-        pipe = DataPipeline(config)
-        result = pipe.run(data)
-    """
-    def _clean(self, raw):  # 私有方法,实现细节,docstring 可省
-        ...
-```
-
-规范:**docstring 描述"做什么"(接口契约),不描述"怎么做"(实现细节)**,后者属 `#` 注释范畴。这样 docstring 稳定(接口少变),实现注释可变,各自生命周期清晰。越界的 docstring(讲实现步骤)易随实现变动而过时。
-
-### 2.17 文档生成实战(Sphinx 简述)
-
-docstring 的终极价值之一是**自动生成项目文档**。Sphinx 是 Python 主流文档工具,流程概览:
-
-1. 写规范 docstring(推荐 Google 风格)。
-2. 配 Sphinx 项目(`sphinx-quickstart`),启用 `napoleon` 扩展解析 Google 风格。
-3. 用 `autodoc` 指令让 Sphinx 自动从源码提取 docstring 生成 API 文档。
-4. `sphinx-build` 生成 HTML,得到带目录、参数表、搜索的项目文档站。
-
-这样**改 docstring 即改文档**,源码与文档天然同步,无需手写独立 API 文档。这是"文档即代码"工作流的基础。理解这点,就会重视 docstring 规范——它直接决定自动文档的质量。开源库(如 requests、django 的文档)基本都是这么生成的。初学了解流程,做库时再深入。
-
-### 2.18 注释的维护成本与策略
-
-注释是资产也是负债:它需要随代码维护,过时则成害。控制维护成本的策略:
-
-- **写得少而精**:只在必要处写,少则维护负担小。
-- **写意图不写实现**:意图稳定少变,实现常变,降低过时概率。
-- **用 doctest 钉住示例**:示例是可执行的,代码改了示例测试会失败,强制同步。
-- **用 Ruff 检查**:机器保证格式规范,人工只管内容。
-- **code review 审注释**:把注释纳入 review,及时发现过时与废话。
-- **敢删旧注释**:重构后不再适用的注释果断删,别留"考古"。
-
-注释维护是长期工程,策略性对待:宁少而准,勿多而废。一个项目若注释普遍过时,常因缺乏上述策略——写了不管,最终失去价值。规范注释 + 持续维护,才能让注释真正帮到人而非困扰人。
+这些标记是团队协作的信号——grep `TODO|FIXME|HACK` 就能列出项目中所有待处理项。但要注意：**这些标记不应该留在正式发布的生产代码中**，发布前应处理掉或者转为 issue 跟踪。
 
 ---
 
 ## 3. 最佳实践
 
-### 3.1 注释解释"为什么",而非"是什么"
+### 3.1 推荐 vs 不推荐写法对比
 
-代码已表达"是什么",注释应补充意图、背景、坑:
+**场景一：注释内容**
 
 ```python
-# 坏
-x = x + 1  # x加1
+# ---- 不推荐 ----
+x = x + 1  # x 加 1
 
-# 好
-retry_count += 1  # 失败重试,最多3次
+# ---- 推荐 ----
+retry_count += 1  # 失败重试计数，最多 MAX_RETRY 次
 ```
 
-每条注释自问"删了读者会困惑吗",会则留。
+不推荐的原因：`x = x + 1` 本身已经说明了"加一"操作，注释只是翻译代码，没有增加任何信息。推荐写法解释了"为什么"加一——因为这是重试计数逻辑。
 
-### 3.2 docstring 用统一风格,Google 推荐
+**场景二：魔法数**
 
-全项目一种风格(Google/NumPy/reST),别混。Google 风格人读舒服、工具能解析,新项目首选。配 Ruff/napoleon 保证一致。
+```python
+# ---- 不推荐 ----
+if retry > 3:
+    print("超过重试上限")
 
-### 3.3 公开 API 必有 docstring,首行摘要
+# ---- 推荐 ----
+MAX_RETRY = 3  # 重试上限，超过即放弃（来自运维经验值）
+if retry > MAX_RETRY:
+    print("超过重试上限")
+```
 
-模块、公开类/函数/方法必有 docstring,首行一行摘要(祈使句、句号结尾)。这是 `help`/IDE/文档生成的基础,缺失等于没有 API 文档。
+不推荐的原因：`3` 是一个魔法数——读者不知道 3 是从哪来的、代表什么。提取为命名常量后，名字本身就是注释，常量旁边再补充来源说明。
 
-### 3.4 优先改进代码,注释救不了坏设计
+**场景三：用注释解释坏命名**
 
-需长篇注释才能懂的代码,先重构:改命名、拆函数、加类型注解。好代码自解释,注释只补其不能表达的。注释是补充而非救赎。
+```python
+# ---- 不推荐 ----
+d = {}  # 用户字典
 
-### 3.5 用 TODO/FIXME 标记暴露问题,且定期清理
+# ---- 推荐 ----
+user_dict = {"id": 1, "name": "张三"}
+```
 
-标记暴露待办与已知 bug,带署名日期/issue,便于追溯。但别让 TODO 无限堆积,定期清理或转 issue 跟踪。标记是临时信号,不是永久存储。
+不推荐的原因：命名 `d` 太糟糕，需要注释才能理解。好的命名应该自解释——`user_dict` 一看就知道是用户字典，不需要额外注释。
 
-### 3.6 注释屏蔽代码只临时,提交前清理
+**场景四：docstring 与注释的分工**
 
-排错临时注释掉代码 OK,但提交前清理死代码。历史由 git 管,代码库只留当前版本。别用注释做版本控制。
+```python
+# ---- 不推荐 ----
+# 这个函数用来查找用户，参数是用户列表和 id，返回匹配的用户
+def find_user(users, user_id):
+    ...
 
-### 3.7 docstring 与代码同步更新
+# ---- 推荐 ----
+def find_user(users: list[dict], user_id: int) -> dict | None:
+    """在用户列表中按 id 查找用户。
 
-改了参数/行为,同步改 docstring。过时 docstring 是谎言,比没文档更坑。把"改代码同时改 docstring"作为习惯,或用 Ruff 检查辅助。
+    Args:
+        users: 用户字典列表，每个含 'id' 键
+        user_id: 要查找的用户 id
 
-### 3.8 用 Ruff/pydocstyle 自动检查
+    Returns:
+        匹配的用户字典，未找到返回 None
+    """
+    ...
+```
 
-配 Ruff(含 pydocstyle 规则)自动检查注释与 docstring 规范,提交前/CI 跑,不合格拒合并。机器检查比人工可靠,是规范落地的保障。
+不推荐的原因：用普通注释写函数说明，无法被 `help()` 读取，也无法被 IDE 和文档生成工具使用。应该用 docstring。
 
-### 3.9 不用三引号当普通多行注释
+### 3.2 docstring 风格选择建议
 
-多行注释逐行 `#`,别用 `"""..."""` 当块注释——它在函数/模块开头会变 docstring 有副作用,易混淆。三引号字符串只用于真正的 docstring。
+| 场景 | 推荐风格 | 原因 |
+|------|---------|------|
+| 通用项目/个人项目 | Google 风格 | 可读性最好，主流 IDE 原生支持 |
+| 科学计算/数据分析项目 | NumPy 风格 | 社区惯例，与 numpy/scipy 一致 |
+| 需要生成 API 文档 | reST 风格或 Google 风格 + napoleon | Sphinx 原生支持 |
+| 简单的内联函数 | 一行摘要即可 | 不需要完整结构 |
 
-### 3.10 注释与标识符语言统一
+**实际建议**：如果没有特殊需求，选 Google 风格。它在可读性、IDE 支持（PyCharm、VS Code）、工具兼容性之间取得了最好的平衡。
 
-项目注释语言统一(中文或英文),docstring 尤其要统一(影响 help/文档生成)。中英混用显得杂乱,团队定一种坚持。
+### 3.3 注释屏蔽代码的注意事项
 
-### 3.11 doctest 兼作文档与测试
+在调试过程中，用 `#` 注释掉一段代码是常见操作，但有两个注意点：
 
-纯函数库的 docstring 用 `>>>` 示例,`python -m doctest` 验证。示例既是文档又防文档过时,一举两得。适合数学/工具函数。
+```python
+data = [1, 2, 3, 4, 5]
 
-### 3.12 注释密度适中,关键处精写
+# 临时注释掉调试代码（提交前应删除）:
+# for item in data:
+#     print(f"调试: {item}")
 
-不必每行注释,也不必一段不注。在意图非显而易见处、业务约定、复杂算法处精写注释;显而易见处保持简洁。注释密度服务于可读性,不是越多越好。
+# 正式代码
+total = sum(data)
+print(f"数据总和: {total}")
+```
+
+**注意事项**：
+
+1. **提交前删除**：注释掉的代码不应出现在版本控制中。版本控制（如 Git）本身就是"历史记录"，不需要用注释来备份旧代码。
+2. **不要用三引号字符串屏蔽代码**：虽然三引号可以"注释掉"多行代码，但这样做有风险——如果代码本身包含三引号字符串，会导致语法错误。用 `#` 注释更安全，IDE 也有快捷键可以批量注释/取消注释。
+
+**用 Git stash 代替注释屏蔽**：如果临时需要切换功能，`git stash` 比"把代码注释掉再取消"更干净，不会在代码中留下注释痕迹。
+
+### 3.4 何时该写注释，何时不该写
+
+**该写注释的情况**：
+
+- 解释"为什么"这样设计（代码本身只能表达"做什么"，不能表达"为什么"）
+- 标注业务规则、约束条件（如"此值不能超过 100，因为 API 限制"）
+- 标注临时的 workaround 或待处理项（TODO/FIXME）
+- 补充代码无法自表达的上下文（如"这个延迟 500ms 是为了等数据库写入完成"）
+
+**不该写注释的情况**：
+
+- 代码已经自解释——好命名 + 清晰的结构比注释更强
+- 注释只是翻译代码——`x = 1  # x 等于 1` 是噪音
+- 注释过时了——如果代码改了但注释没更新，过时注释比没注释更糟
+- 用注释代替函数名——与其写 `# 这个函数检查年龄是否合法`，不如给函数起名 `is_valid_age`
+
+**核心原则**：注释回答"为什么"，代码回答"做什么"。如果注释只是在重复代码，删掉它。
 
 ---
 
 ## 4. 原理
 
-### 4.1 注释如何被解释器忽略(底层,简略)
+### 4.1 docstring 的底层机制：`__doc__` 属性
 
-Python 词法分析器(lexer)在扫描源码时,遇到 `#` 即把从 `#` 到行尾的内容当作**注释 token 丢弃**,不进入语法树(AST),更不会被编译成字节码。所以注释在运行时完全不存在,不占运行开销(仅占源码文件空间)。这一机制是 Python 语法层面的规定,无需深究实现,记住"`#` 之后到行尾被丢弃"即可。
+Python 在编译阶段会扫描函数、类、模块体的第一条语句。如果它是一个字符串字面量（三引号或单引号），Python 编译器会将这个字符串存入对象的 `__doc__` 属性。
 
-### 4.2 docstring 如何成为对象文档(需理解,详述)
-
-docstring 与普通注释的根本差异在于它**被 Python 当作对象文档存储**,这条链路值得详述,因为它解释了 docstring 为何能被 `help`/IDE/工具消费。
-
-**第一步:docstring 作为字符串表达式被求值**。Python 中,模块/类/函数体的第一条语句若是一个字符串字面量(如 `"""..."""`),Python 会把它当作该对象的**文档字符串**。它仍是一个普通的字符串表达式(会被求值),但 Python 额外把它存起来。
-
-**第二步:存入 `__doc__` 属性**。Python 把这条 docstring 赋给对象的 `__doc__` 属性。函数有 `func.__doc__`、类有 `Class.__doc__`、模块有 `module.__doc__`。所以 `add.__doc__` 能取到 docstring 字符串——它真实存在于对象上。
-
-**第三步:必须是"第一条语句"**。这是关键规则:docstring 必须紧跟在 `def`/`class`/模块开头、在所有其他语句(包括 `import`)之前。若第一条语句不是字符串,或字符串前有其他代码,Python 就不认它是 docstring,`__doc__` 为 `None`:
+**验证性代码**：
 
 ```python
-def f():
-    x = 1        # 第一条语句是赋值,不是字符串
-    """这不是 docstring"""  # __doc__ 为 None,这句话只是普通字符串表达式
-    return x
+def foo():
+    """这是一个 docstring。"""
+    pass
 
-def g():
-    """这才是 docstring"""  # 第一条语句是字符串 → __doc__ 有值
-    x = 1
-    return x
+# __doc__ 属性存储了 docstring 的原始文本
+print(type(foo.__doc__))   # <class 'str'>
+print(repr(foo.__doc__))   # '这是一个 docstring。'
 
-print(f.__doc__)  # None
-print(g.__doc__)  # 这才是 docstring
+def bar():
+    pass
+
+# 没有 docstring 时，__doc__ 为 None
+print(repr(bar.__doc__))   # None
 ```
 
-这个"必须是第一条语句"的规则,解释了为何 docstring 要放在函数体最开头。
+**运行结果**：
 
-**第四步:`help()` 读取 `__doc__`**。`help(obj)` 内部访问 `obj.__doc__`(及签名等)格式化展示。所以 docstring 写进 `__doc__` 后,`help` 自然能读。
+```text
+<class 'str'>
+'这是一个 docstring。'
+None
+```
 
-**第五步:IDE 与文档工具消费**。IDE(Pylance/PyCharm)静态分析源码识别 docstring,悬停时显示;Sphinx 扫描源码提取 docstring 生成文档。它们都依赖"模块/类/函数开头的三引号字符串是 docstring"这一约定。
+这个机制是 Python 语言层面的——不是某个工具的约定，而是 CPython 解释器的核心行为。`help()` 函数正是通过读取 `__doc__` 属性来展示文档的。
 
-理解这条链路:string 字面量(第一条语句) → 存 `__doc__` → `help`/IDE/工具读取,就能解释:为何 docstring 不能当普通注释乱放(不在开头就不存 `__doc__`)、为何 `help` 能查到、为何 IDE 悬停有提示、为何改 docstring 即改文档。这条"文档即对象属性"的机制,是 docstring 区别于 `#` 注释的本质。
+### 4.2 模块级 docstring 与函数级 docstring
 
-### 4.3 三引号字符串当注释的副作用(需理解)
+docstring 不仅适用于函数，也适用于模块和类。模块级 docstring 放在文件开头（import 之前），类级 docstring 放在 `class` 语句之后的第一行。
 
-`"""..."""` 不在对象开头时,它是一个"表达式语句"——Python 求值这个字符串后丢弃结果(因没赋给任何变量)。效果上像注释(不产生作用),但有细微副作用:
+**模块级 docstring**：
 
-- **字符串常量被求值并加载**:虽被丢弃,但字节码里这条字符串字面量仍被构造(Python 3 部分情况会优化掉),理论上比 `#` 注释稍多有微量开销(可忽略)。
-- **在函数开头会被当 docstring**:这是最大陷阱——你本想当代码块说明用 `"""`,若它恰在函数/模块开头,Python 把它存为 `__doc__`,你的"注释"成了"文档"被 `help` 显示,可能不是你想要的。
-- **混淆读者**:三引号块让人不确定它是注释还是 docstring,增加认知负担。
+```python
+"""这是模块的 docstring。
 
-因此规范:**真正的多行注释用逐行 `#`,三引号字符串只用于真正的 docstring**。这条规范的根源正是本节所述机制——避免三引号被误当 docstring 消费、避免混淆。
+描述这个模块的用途和内容。
+"""
 
-### 4.4 docstring 协议与工具链的协作(需理解,简述)
+import os  # import 语句在 docstring 之后
 
-docstring 不仅是字符串,它是一套**协议**:约定了格式(Google/NumPy/reST)、位置(对象开头)、消费方(`help`/IDE/Sphinx)。写 docstring 时,你实际在参与这个协议——按格式写,`help` 才能友好展示、Sphinx 才能解析参数表、IDE 才能给参数提示。乱写(如首行不是摘要、参数段格式错)虽不报错(`__doc__` 仍存字符串),但下游工具解析不出结构,文档质量打折。所以 docstring 规范的本质是"遵守这套被多工具消费的协议",格式统一才有价值。
+
+def my_function():
+    """函数 docstring。"""
+    ...
+```
+
+**类级 docstring**：
+
+```python
+class MyClass:
+    """这是类的 docstring。"""
+
+    def my_method(self):
+        """方法的 docstring。"""
+        ...
+```
+
+可以通过 `help()` 或 `__doc__` 分别访问各级别 docstring：
+
+```python
+print(help(my_function))   # 函数 docstring
+print(help(MyClass))        # 类 docstring + 方法 docstring
+```
+
+**层级关系**：
+
+```text
+模块 docstring（文件开头）
+├── 函数 docstring（函数体第一行）
+├── 类 docstring（class 语句后第一行）
+│   ├── 方法 docstring（方法体第一行）
+│   └── property docstring（@property 方法体第一行）
+└── 函数 docstring（函数体第一行）
+```
+
+每一层级的 docstring 都是独立的，存入各自对象的 `__doc__` 属性。`help(类名)` 会显示类 docstring 和所有公共方法的 docstring。
+
+### 4.3 docstring 与代码对象的绑定
+
+Python 中，函数、类、模块在编译后都会生成一个"代码对象"（code object），`__doc__` 是代码对象的属性之一。这也解释了为什么 docstring 必须是第一条语句——Python 编译器只在第一条语句位置检查是否为字符串字面量，如果是则提取为 `__doc__`。
+
+```python
+import types
+
+def example():
+    """docstring 示例。"""
+    pass
+
+# 检查 __doc__ 属性的类型
+print(isinstance(example.__doc__, str))   # True
+
+# 函数对象有一个 __code__ 属性指向代码对象
+print(type(example.__code__))             # <class 'code'>
+```
+
+**运行结果**：
+
+```text
+True
+<class 'code'>
+```
+
+docstring 不会被编译进字节码——它在编译阶段被提取出来，存为对象的属性，函数体执行时不会"运行"docstring。这就是为什么把 docstring 放在函数第一行的开销几乎为零：它只在模块加载时解析一次，之后只在 `__doc__` 属性中存储文本字符串。
 
 ---
 
 ## 5. 总结
 
-### 5.1 本文内容回顾
+本文围绕 Python 注释规范展开，主要介绍了以下内容：
 
-- **注释定位**:源码里给人看、被解释器忽略的文字;Python 注释有 `#` 普通注释与 docstring 两类,本质不同。
-- **注释 vs docstring**:`#` 注释机器丢弃、不可访问;docstring 存 `__doc__`、被 `help`/IDE/工具消费。
-- **基本语法**:`#` 单行/块注释(无专门多行注释语法)、三引号字符串可当伪注释但不推荐。
-- **行内/块注释写法**:PEP 8 的空格规范、解释"为什么"非"是什么"、避免废话。
-- **何时写注释**:非显而易见意图、业务背景、复杂算法、TODO 标记;不写废话翻译、显而易见处。
-- **TODO/FIXME/HACK/XXX 标记**:暴露待办与隐患,带署名日期,定期清理。
-- **注释屏蔽代码**:临时排错可用,提交前清理,不用注释做版本控制。
-- **docstring 位置**:模块/类/函数/方法开头第一条语句,三引号,首行摘要。
-- **docstring 格式**:Google/NumPy/reST 风格,统一一种,Google 推荐;一行 docstring 要点。
-- **docstring 消费**:`help()`/`__doc__`/IDE 悬停/Sphinx 文档生成都读 docstring,这是其核心价值。
-- **docstring 规范**:首行摘要、公开 API 必写、描述参数/返回/异常、与代码同步、统一风格、可选 doctest。
-- **注释与可读性**:优先用命名/拆函数/类型注解让代码自解释,注释只补不能表达的。
-- **PEP 257/PEP 8**:官方 docstring 与注释规范,Ruff/pydocstyle 自动检查落地。
-- **国际化**:注释语言统一,docstring 尤需统一。
-- **注释与类型注解协作**:类型用注解、语义用 docstring、意图用 `#`,三者不重叠各司其职。
-- **魔法数与常量**:魔法数优先提取为命名常量(名+注释),无法提取才内联并注释。
-- **反模式集合**:废话翻译、过时、冗余、误导、注释噪声、死代码、掩盖坏命名、docstring 误用、三引号当块注释等。
-- **docstring 抽象层级**:模块/类/函数各写匹配层级的 docstring,描述"做什么"不描述"怎么做"。
-- **文档生成实战**:Sphinx + autodoc + napoleon 从 docstring 自动生成 API 文档,改 docstring 即改文档。
-- **维护成本策略**:少而精、写意图、doctest 钉示例、Ruff 检查、review 审注释、敢删旧。
-- **完整示例**:规范注释与 docstring 的范本模块。
-- **原理**:`#` 注释被词法器丢弃;docstring 经"第一条字符串语句→存 `__doc__`→help/IDE/工具读取"链路成为对象文档;三引号当注释的副作用;docstring 是被多工具消费的协议。
-- **最佳实践**:解释 why、统一 docstring 风格、公开 API 必写、优先改代码、TODO 定期清理、屏蔽代码提交前清、与代码同步、Ruff 检查、不用三引号当块注释、语言统一、doctest、密度适中。
-
-### 5.2 读完本文你应能掌握
-
-- 区分 `#` 普通注释与 docstring 的本质差异(是否被存为对象文档、能否被工具消费)。
-- 按 PEP 8 写规范的行内注释与块注释,避免废话注释。
-- 判断何时该写注释、何时不该,以"解释 why 不解释 what"为准则。
-- 用 TODO/FIXME 等标记暴露待办并定期清理,临时屏蔽代码提交前清理。
-- 在模块/类/函数/方法正确位置写 docstring,用 Google 风格描述参数/返回/异常。
-- 用 `help()`、`__doc__` 访问 docstring,说明其被 IDE/Sphinx 消费的价值。
-- 用命名、函数拆分、类型注解让代码自解释,减少对注释的依赖。
-- 用 Ruff/pydocstyle 自动检查注释与 docstring 规范。
-- 阐述 docstring "第一条字符串语句→存 `__doc__`→被消费"的原理链路,解释其为何不能乱放。
-- 说明为何不用三引号字符串当普通多行注释(会被当 docstring 消费、易混淆)。
-- 按最佳实践写出规范、信息密度高、与代码同步的注释与 docstring。
+- Python 注释分两大类：单行注释（`#`）和文档字符串（docstring），docstring 是 Python 的特色机制，被存入 `__doc__` 属性，可通过 `help()` 查看
+- docstring 有三种主流风格：Google 风格（推荐，可读性最好）、NumPy 风格（科学计算社区约定）、reST 风格（Sphinx 原生格式）
+- docstring 必须是函数/类/模块体的第一条语句，否则不会被捕获为 `__doc__` 属性
+- doctest 可以将 docstring 中的 `>>>` 示例变为可执行的测试用例，让文档"永不脱节"
+- 类型注解与 docstring 是互补关系——注解表达"是什么类型"，docstring 表达"做什么、有什么约束"
+- 类 docstring 用 `Attributes:` 描述实例属性，property 也可以拥有自己的 docstring
+- TODO/FIXME/HACK 是社区约定的特殊注释标记，方便搜索定位待处理项
+- 注释的核心原则是解释"为什么"而非"做什么"——好的命名和清晰的结构比注释更重要，注释应该补充代码无法自表达的设计意图
