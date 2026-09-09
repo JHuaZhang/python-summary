@@ -32,7 +32,7 @@ nav:
 
 ```python
 print(*objects, sep=' ', end='\n', file=None, flush=False)
-```text
+```
 
 一个一个看签名里的部分：
 
@@ -46,7 +46,7 @@ print(*objects, sep=' ', end='\n', file=None, flush=False)
 
 ```python
 print("Hello, World!")   # 输出：Hello, World!
-```text
+```
 
 这一行背后其实发生了：把字符串 `"Hello, World!"` 输出到 `sys.stdout`，没有别的对象所以 `sep` 不起作用，结尾加一个换行。下面看一组基础用法：
 
@@ -68,7 +68,7 @@ print("姓名:", "张三", "年龄:", 18)
 # 5. print 的返回值是 None
 result = print("这一行会被打印")
 print("上一行 print 的返回值是:", result)
-```text
+```
 
 运行结果：
 
@@ -80,7 +80,7 @@ Python
 姓名: 张三 年龄: 18
 这一行会被打印
 上一行 print 的返回值是: None
-```text
+```
 
 这里有几个要点值得强调：
 
@@ -105,7 +105,7 @@ class Point:
 p = Point(3, 4)
 print(p)              # 默认：<Point object at 0x...>，地址每次不同
 print(str(p))         # 同上
-```text
+```
 
 这就是为什么直接 `print` 一个自定义对象时往往看不到有用信息——它走的是默认 `__str__`。要让 `print` 输出自定义类的可读形式，需要在该类里实现 `__str__`：
 
@@ -118,7 +118,7 @@ class Point:
 
 p = Point(3, 4)
 print(p)              # 现在输出：Point(3, 4)
-```text
+```
 
 这条线索会在第 4 章「原理」里再次提到——它关系到 `print` 调用链上 `str()` 与 `__str__` 的关系。
 
@@ -167,7 +167,7 @@ print("第一行", "第二行", "第三行", sep="\n")
 
 # 用多字符分隔符：日志字段之间用 " | " 拆分
 print("INFO", "auth", "login success", sep=" | ")
-```text
+```
 
 运行结果：
 
@@ -179,14 +179,14 @@ python
 第二行
 第三行
 INFO | auth | login success
-```text
+```
 
 **为什么需要 sep**：如果不传 `sep`，又想要自定义分隔符，常见的笨办法是手动用 `+` 或 f-string 拼接：
 
 ```python
 # 笨办法：手动拼接
 print("2026-" + "07-" + "06")      # 丑陋，且要自己加分隔符
-```text
+```
 
 `sep` 让你不用管拼接逻辑，把"对象列表"和"分隔符"分开表达，意图清晰。尤其在对象数量不固定时（比如来自一个列表），`sep` 比手动循环拼接方便得多。
 
@@ -213,7 +213,7 @@ print("第二行")
 print("加载中", end="")
 print("...完成")
 # 输出：加载中...完成（同行，因为第一次 end 为空）
-```text
+```
 
 `end` 最经典的实战是**进度条/百分比同行刷新**：用 `\r`（回车，光标回到行首）配合 `end=""`，每次输出覆盖当前行：
 
@@ -223,7 +223,7 @@ for i in range(5):
     print(f"\r进度: {(i+1)*20}%", end="")
     time.sleep(0.2)
 print()   # 最后补一个换行，避免后续输出挤进进度行
-```text
+```
 
 运行时你会看到同一行的百分比从 `20%` 滚到 `100%`，而不是打印 5 行。这里有几个细节值得注意：
 
@@ -235,7 +235,7 @@ print()   # 最后补一个换行，避免后续输出挤进进度行
 
 ```text
 a<sep>b<sep>c<end>
-```text
+```
 
 即 `a` 和 `b` 之间、`b` 和 `c` 之间各一个 `sep`（共 2 个），最末尾一个 `end`。理解这个结构，就能预测任意 `sep`/`end` 组合的输出。
 
@@ -261,14 +261,14 @@ a<sep>b<sep>c<end>
 # 错误信息走 stderr，便于与正常输出分流
 print("这条到 stdout")
 print("这条是错误信息", file=sys.stderr)
-```text
+```
 
 在命令行可以这样验证分流：
 
 ```bash
 python demo.py > result.txt 2> error.txt
 # stdout 内容进 result.txt，stderr 内容进 error.txt
-```text
+```
 
 **写文件场景**：把日志/结果直接 `print` 到文件：
 
@@ -276,7 +276,7 @@ python demo.py > result.txt 2> error.txt
 with open("output_demo.txt", "w", encoding="utf-8") as f:
     print("写入文件的第一行", file=f)
     print("写入文件的第二行", file=f)
-```text
+```
 
 这里 `print(..., file=f)` 相比 `f.write("写入文件的第一行\n")` 的好处是：`print` 会自动处理换行（通过 `end`）和对象的字符串化，你只管传对象即可。下面演示写文件后读取验证：
 
@@ -296,7 +296,7 @@ with open("output_demo.txt", "w", encoding="utf-8") as f:
 with open("output_demo.txt", encoding="utf-8") as f:
     print("文件内容如下:")
     print(f.read(), end="")
-```text
+```
 
 运行结果：
 
@@ -306,7 +306,7 @@ with open("output_demo.txt", encoding="utf-8") as f:
 文件内容如下:
 写入文件的第一行
 写入文件的第二行
-```text
+```
 
 （注意 stderr 那行的显示顺序在不同终端可能略有差异，因为它和 stdout 是两个独立流。）
 
@@ -320,7 +320,7 @@ with open("redirect_demo.txt", "w", encoding="utf-8") as f:
         print("通过 redirect_stdout 写入")   # 不到控制台，写进 f
         print("这里看不到控制台输出")
 print("重定向结束，恢复到控制台输出")          # 出了 with 块，恢复正常
-```text
+```
 
 `redirect_stdout` 适合"调用了一大堆第三方函数、不想逐个改它们的 print"的场景——整体把输出抽走。但要注意它改的是 `sys.stdout` 这个全局对象，在多线程环境里需谨慎。
 
@@ -355,7 +355,7 @@ for i in range(3):
 for i in range(3):
     print(f"步骤 {i+1}", flush=True)
     time.sleep(1)
-```text
+```
 
 **flush 与 file 的微妙关系**：`flush=True` 本质是调用 `file.flush()`。所以只有当 `file` 对象支持 `flush()` 且确有缓冲时，`flush` 才有意义。对终端输出，行缓冲已经够用，多数场景不需要显式 `flush`；但对文件/管道输出，关键实时信息记得加。
 
@@ -382,7 +382,7 @@ age = 28
 score = 95.5
 print(f"姓名:{name}, 年龄:{age}, 成绩:{score}")
 # 输出：姓名:张三, 年龄:28, 成绩:95.5
-```text
+```
 
 f-string 的花括号内支持**格式说明符**，用冒号 `:` 分隔变量与格式：
 
@@ -398,7 +398,7 @@ print(f"[{score:>10.2f}]")              # [     95.50]
 print(f"[{score:<10.2f}]")              # [95.50     ]
 print(f"[{score:^10.2f}]")              # [  95.50   ]
 print(f"三年后年龄: {age + 3}")          # 三年后年龄: 31（可直接写表达式）
-```text
+```
 
 f-string 的优势：
 
@@ -414,14 +414,14 @@ f-string 的优势：
 print("姓名:{}, 年龄:{}".format(name, age))               # 按位置填
 print("姓名:{n}, 年龄:{a}".format(n=name, a=age))          # 按名称填
 print("进度: {}/{}".format(3, 5))                          # 进度: 3/5
-```text
+```
 
 `{}` 内同样支持格式说明符（`{:.2f}` 等），语法与 f-string 一致。`.format()` 相对 f-string 的唯一优势是：**模板字符串可以预先存为变量**，运行时再填充，适合国际化、配置化场景。
 
 ```python
 template = "用户 {uid} 于 {time} 执行了 {action}"
 print(template.format(uid=1024, time="10:00", action="登录"))
-```text
+```
 
 #### 2.5.3 百分号 % （老式）
 
@@ -430,7 +430,7 @@ print(template.format(uid=1024, time="10:00", action="登录"))
 ```python
 print("姓名:%s, 年龄:%d, 成绩:%.1f" % (name, age, score))
 # 输出：姓名:张三, 年龄:28, 成绩:95.5
-```text
+```
 
 常用占位符：`%s`（字符串）、`%d`（整数）、`%f`（浮点）、`%x`（十六进制）、`%%`（输出百分号本身）。`%` 的缺点是占位符和参数要严格一一对应，多了少了都会报错，可读性差。
 
@@ -449,13 +449,13 @@ print("姓名:%s, 年龄:%d, 成绩:%.1f" % (name, age, score))
 ```python
 score = 95.5
 print("成绩:", score)        # 输出：成绩: 95.5
-```text
+```
 
 注意这里 `成绩:` 和 `95.5` 之间有一个**空格**（`sep` 默认值），且 `score` 按默认 `str()` 输出成 `95.5`。如果要求"成绩:95.50"（无空格、2 位小数），逗号写法做不到，必须用格式化：
 
 ```python
 print(f"成绩: {score:.2f}")  # 输出：成绩: 95.50
-```text
+```
 
 **结论**：需要精细控制格式（小数位、对齐、补零）时，永远用 f-string 而非逗号拼接；逗号拼接只适合快速调试。
 
@@ -468,7 +468,7 @@ print(f"成绩: {score:.2f}")  # 输出：成绩: 95.50
 ```python
 fruits = ["apple", "banana", "cherry"]
 print(*fruits, sep=", ")        # 输出：apple, banana, cherry
-```text
+```
 
 `print(*fruits, sep=", ")` 等价于 `print("apple", "banana", "cherry", sep=", ")`——星号把列表里的元素逐个"摊开"成位置参数。这与手动用 `str.join` 拼接的效果一样，但有几个关键差异：
 
@@ -477,7 +477,7 @@ print(*fruits, sep=", ")        # 输出：apple, banana, cherry
 ```python
 # join 写法
 print(", ".join(fruits))        # 输出：apple, banana, cherry
-```text
+```
 
 `join` 的限制是：**元素必须全部是字符串**。如果列表里有数字，`join` 会报 `TypeError`：
 
@@ -485,13 +485,13 @@ print(", ".join(fruits))        # 输出：apple, banana, cherry
 nums = [1, 2, 3, 4]
 # ", ".join(nums)  # 报错！join 要求 str
 print(", ".join(map(str, nums)))   # 要先 map(str, ...) 转换
-```text
+```
 
 而 `print(*nums, sep=", ")` 不需要，因为 `print` 内部会自动对每个对象调 `str()`：
 
 ```python
 print(*nums, sep="-")           # 输出：1-2-3-4
-```text
+```
 
 **实战场景一：打印 CSV 行**
 
@@ -499,7 +499,7 @@ print(*nums, sep="-")           # 输出：1-2-3-4
 row = ["1024", "张三", "登录成功", "2026-07-06 10:00:00"]
 print(*row, sep=",")
 # 输出：1024,张三,登录成功,2026-07-06 10:00:00
-```text
+```
 
 **实战场景二：表格输出**
 
@@ -509,7 +509,7 @@ print(*headers, sep="\t")
 print("-" * 20)
 for r in [["1", "张三", "在线"], ["2", "李四", "离线"]]:
     print(*r, sep="\t")
-```text
+```
 
 运行结果：
 
@@ -518,7 +518,7 @@ ID  姓名  状态
 --------------------
 1   张三  在线
 2   李四  离线
-```text
+```
 
 **`*` 解包 vs `join` 选取原则**：
 
@@ -542,13 +542,13 @@ ID  姓名  状态
 print("第一行\n第二行")        # \n 换行
 print("列1\t列2\t列3")        # \t 制表对齐
 print("路径: C:\\Users\\name") # \\ 输出一个反斜杠
-```text
+```
 
 当不希望反斜杠被解释为转义时（如正则、Windows 路径），可用**原始字符串** `r"..."`：
 
 ```python
 print(r"路径: C:\Users\name")  # 原样输出反斜杠，不转义
-```text
+```
 
 **多行字符串**：用三引号 `"""..."""` 可跨行，`print` 会保留换行：
 
@@ -556,7 +556,7 @@ print(r"路径: C:\Users\name")  # 原样输出反斜杠，不转义
 print("""第一行
 第二行
 第三行""")
-```text
+```
 
 ### 2.8 print 不能做的事
 
@@ -579,7 +579,7 @@ with redirect_stdout(buf):
     print("第二行")
 captured = buf.getvalue()
 print("捕获到:", captured)     # 捕获到: 被捕获的内容\n第二行\n
-```text
+```
 
 这个技巧在写单元测试、需要断言程序输出内容时非常有用。
 
@@ -597,7 +597,7 @@ print("捕获到:", captured)     # 捕获到: 被捕获的内容\n第二行\n
 import sys
 # 判断当前 stdout 是不是真终端
 print("是否 TTY:", sys.stdout.isatty())
-```text
+```
 
 `sys.stdout.isatty()` 返回 `True` 表示连着终端，`False` 表示被重定向/管道。脚本可据此决定是否启用进度条或 ANSI 颜色，避免在非终端环境输出一堆控制字符。
 
@@ -607,14 +607,14 @@ print("是否 TTY:", sys.stdout.isatty())
 import sys
 sys.stdout.reconfigure(encoding="utf-8")   # 强制 UTF-8 输出，规避编码报错
 print("中文输出安全")
-```text
+```
 
 **Jupyter / 交互式环境**：在 Jupyter Notebook 里，最后一个表达式的值会自动显示（相当于隐式 `repr`），不必显式 `print`；但中间步骤若想看到，仍需 `print`。例如：
 
 ```python
 "隐式显示"        # Jupyter 会自动显示这行结果
 print("显式输出")  # 显式打印
-```text
+```
 
 这在普通 `.py` 脚本里不会自动显示，只有 `print` 才有输出——从 Jupyter 拷代码到脚本时要注意补 `print`。
 
@@ -645,7 +645,7 @@ def process(data):
     result = transform(data)
     logging.debug("result=%s", result)
     return result
-```text
+```
 
 ### 3.2 错误信息走 stderr
 
@@ -661,7 +661,7 @@ def load_config(path):
     except FileNotFoundError:
         print(f"配置文件不存在: {path}", file=sys.stderr)
         return None
-```text
+```
 
 ### 3.3 实时输出记得 flush
 
@@ -672,7 +672,7 @@ def load_config(path):
 for i in range(100):
     do_step(i)
     print(f"完成 {i+1}/100", flush=True)
-```text
+```
 
 ### 3.4 拼接优先 f-string，而非 + 或逗号
 
@@ -685,7 +685,7 @@ print("姓名:", name, "年龄:", age)
 
 # 推荐：f-string
 print(f"姓名:{name},年龄:{age}")
-```text
+```
 
 ### 3.5 批量元素输出用 * 解包 + sep
 
@@ -696,7 +696,7 @@ for x in items:
 
 # 推荐：一行用 sep 控制
 print(*items, sep=", ")
-```text
+```
 
 ### 3.6 不要重定义 print
 
@@ -727,7 +727,7 @@ def my_print(*objects, sep=" ", end="\n", file=None, flush=False):
     out.write(text)
     if flush:
         out.flush()
-```text
+```
 
 核心就是 `sep.join(...)` 把每个对象 `str()` 后用 `sep` 拼起、末尾加 `end`，再一次性 `write`。底层 C 实现细节不必深究，记住这个模型即可预测任意参数组合的输出。
 
@@ -777,7 +777,7 @@ print(D())    # D(via str)（有 __str__，优先）
 print([C(), D()])   # [<C object at 0x...>, D(via repr)]
 # 注意 C 在 print 里单独显示 "C(via str)"，但在列表里却显示默认地址——
 # 因为容器对元素调用的是 repr()，而 C 没实现 __repr__
-```text
+```
 
 上面 `print([C(), D()])` 的输出最能说明问题：`C` 单独 `print` 时是可读的 `"C(via str)"`，但放进列表却变成 `<C object at 0x...>`——这正是 `repr` 回退缺失导致的。**结论**：自定义类通常应**同时**实现 `__str__`（给人看的简洁描述）和 `__repr__`（给开发者看的、最好能重建对象的可信表示），否则在容器、调试、日志等 `repr` 场景下会暴露难看的默认值。
 
