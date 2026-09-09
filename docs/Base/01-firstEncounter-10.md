@@ -9,831 +9,997 @@ nav:
   order: 1
 ---
 
+# 标识符命名规范
+
 ## 1. 介绍
 
 ### 1.1 什么是标识符
 
-标识符(identifier)是程序员在代码里自己起的名字——变量名、函数名、类名、模块名、参数名,统统是标识符。当你写 `count = 0`、`def calc_total(items):`、`class User:` 时,`count`、`calc_total`、`User` 就是标识符。它是代码里出现频率最高的元素,几乎每一行都包含若干标识符。
+标识符（Identifier）是 Python 中用来给变量、函数、类、模块等程序元素起名字的符号序列。简单来说，你写的每一行代码中出现的 `count`、`calculate_total`、`Order`、`MAX_SIZE`，都是标识符。
 
-标识符与关键字(keyword)不同:关键字是 Python 语言保留、有固定含义的名字(`if`、`for`、`def`、`class`、`return` 等),你不能用它们做标识符;而标识符是你可以自由命名的名字,只要遵守命名规则。区分二者:`if` 是关键字不能作变量名,`iff`、`condition` 可以。
+Python 对标识符有一套明确的语法规则：哪些字符可以用、哪些不能用、哪些名字是保留给语言自身的。同时，Python 社区还有一套约定俗成的命名风格（PEP 8），规定了不同类型的程序元素应该用什么"样子"的名字——变量用小写下划线、类名用驼峰、常量用全大写等等。
 
-标识符命名看似是"起名字的小事",实则是代码质量的基础。理由:
+掌握标识符命名规范，有两个层面的意义：
 
-- **可读性**:代码读的次数远多于写,好名字让代码自解释,少写注释。
-- **可维护性**:命名混乱的代码,后人接手如读天书,维护成本陡增。
-- **协作**:团队统一命名风格,代码风格一致,降低沟通成本。
-- **避免错误**:坏名字(如 `l`、`O`、单字母)易与数字混淆、易拼错,埋下 bug。
+- **语法层面**：不违反规则，代码能跑起来，不会遇到 `SyntaxError` 或遮蔽内置函数的坑。
+- **协作层面**：写出别人一看就懂的名字，降低阅码成本。好的命名是自文档化代码的基石。
 
-业界有句共识:"命名是计算机科学里两大难题之一"(另一是缓存失效)。起好名字不简单,需要遵循规则与约定,这正是本节要讲的——既讲 Python 标识符的**语法规则**(什么名字合法),也讲**命名规范**(什么名字是好名字)。
+### 1.2 最简示例
 
-### 1.2 标识符的语法规则
-
-Python 对标识符有硬性语法规则,违反就是 `SyntaxError`,代码根本跑不了。规则如下:
-
-**合法字符**:标识符由**字母、数字、下划线**组成,且**不能以数字开头**。
+先看一组最简单的标识符使用：
 
 ```python
-# 合法
-count = 1
-_user = 2
-user2 = 3
-总人数 = 4        # Python 3 允许 Unicode 字母,中文可用(但不推荐,见规范)
-__init__ = 5
+count = 1            # 变量：snake_case 风格
+Count = 2            # 类名风格（仅演示，不推荐变量这样用）
+MAX_COUNT = 3        # 常量：全大写 + 下划线
+
+def calculate_total(items):
+    return sum(item["price"] * item["quantity"] for item in items)
+
+class Order:
+    def __init__(self, order_id):
+        self.order_id = order_id
 ```
 
-```python
-# 非法
-2count = 1        # SyntaxError: 数字开头
-my-var = 2        # SyntaxError: 含连字符(- 会被当减号)
-my var = 3        # SyntaxError: 含空格
-class = 4         # SyntaxError: class 是关键字
+运行结果：
+
+```text
+count = 1, Count = 2, MAX_COUNT = 3
 ```
 
-**大小写敏感**:`count`、`Count`、`COUNT` 是三个不同的标识符。
-
-```python
-count = 1
-Count = 2
-COUNT = 3
-print(count, Count, COUNT)   # 1 2 3
-```
-
-**不能是关键字**:关键字列表可用 `keyword.kwlist` 查看:
-
-```python
-import keyword
-print(keyword.kwlist)
-# ['False', 'None', 'True', 'and', 'as', 'assert', 'async', 'await', ...]
-```
-
-**长度无限制**:理论上标识符可任意长,但实务上应简洁有意义。
-
-**Python 3 的 Unicode 支持**:Python 3 允许标识符含 Unicode 字母(中文、日文等),如 `变量 = 1` 合法。但这**强烈不推荐**——非 ASCII 命名在跨工具(某些 linter、文档工具、旧系统)、国际协作时易出问题,且不符合 PEP 8。除非特殊场景(教学演示),标识符应坚持用 ASCII 字母。
-
-**下划线的特殊含义**:下划线开头的标识符有约定含义(单下划线 `_x`、双下划线 `__x`、前后双下划线 `__x__`),这涉及访问控制与魔法方法,1.4 与第 4 章详述。
-
-记住这套语法规则是"合法"的下限;真正决定代码质量的是"规范",即起什么样的好名字,这是第 2 章重点。
-
-### 1.3 为什么需要命名规范
-
-语法规则只保证名字"合法",规范保证名字"好"。没有规范的命名会出现:
-
-- **含义不明**:`d = get_d(x)` —— `d` 是什么?data?date?distance?看不懂。
-- **误导**:`user_list = {"a": 1}` —— 名字说 list 实际是 dict,误导读者。
-- **风格混乱**:`getUserData`、`get_user_data`、`getuserdata` 三种风格混用,显得业余。
-- **缩写泛滥**:`usr_cnt`、`cfg_mgr` —— 缩写过多,新人看不懂。
-- **单字母滥用**:`l = [1,2]; O = 0` —— `l` 易与 `1` 混、`O` 易与 `0` 混。
-- **命名冲突/遮蔽**:`list = [1,2]` 遮蔽了内置 `list`,之后 `list()` 用不了。
-
-一套命名规范的价值:
-
-- **统一风格**:全项目一致(studly_case 变量、CamelCase 类),阅读流畅。
-- **表意清晰**:名字准确反映含义,代码自解释。
-- **避免陷阱**:不遮蔽内置、不用易混单字母。
-- **传达约定**:下划线前缀表达"私有"、全大写表达"常量",名字本身携带设计意图。
-
-Python 有 PEP 8 官方命名约定,加上类型注解、社区实践,形成一套成熟规范。本节讲 Python 的命名规则与 PEP 8 命名规范,帮你起出专业的好名字。
-
-### 1.4 命名约定速览:下划线的含义
-
-Python 用下划线的不同形式表达不同约定,这是命名规范的核心,先概览:
-
-| 形式 | 含义 | 示例 |
-|------|------|------|
-| `name` | 公开(普通) | `count`、`def calc():` |
-| `_name` | 内部使用(约定私有) | `_helper`、`_internal_var` |
-| `__name` | 类私有,触发名称重整 | `class C: __private` |
-| `__name__` | 魔法方法/特殊属性(Python 定义) | `__init__`、`__len__`、`__name__` |
-| `_` | 临时/忽略的变量 | `for _ in range(10):` |
-| `NAME`(全大写) | 常量 | `MAX_RETRY = 3` |
-
-要点:
-
-- **单下划线前缀 `_x`**:约定"内部使用",提示"别从外部访问我",但 Python 不强制(仍可访问)。多用于模块内私有函数/变量、非公开 API。
-- **双下划线前缀 `__x`**(在类内):触发**名称重整**(name mangling),变成 `_ClassName__x`,一定程度避免子类覆盖。比单下划线更强的"私有"。
-- **前后双下划线 `__x__`**:Python 保留的"魔法"名字(dunder,double underscore),用于特殊方法/属性,如 `__init__`、`__str__`、`__name__`。**不要自己发明 `__xxx__` 名字**,会与 Python 未来/现有机制冲突。
-- **全大写 `NAME`**:约定常量,提示"不应修改"。
-- **单独 `_`**:常作"我不关心这个值"的占位,如 `for _ in range(10)` 或解包忽略 `a, _ = pair`。
-
-这套下划线约定是 Python 命名文化的精髓,理解它就能从名字看出设计意图。第 4 章会详述名称重整等机制,第 2 章讲各种标识符的命名规范。
-
----
+这段代码涉及了变量名、函数名、类名、方法名、参数名，每种都有各自约定。后面会逐一拆解每种命名场景的规则和风格。
 
 ## 2. 核心内容
 
-本章详解各类标识符的命名规范(变量/函数/类/常量/模块/包)、PEP 8 命名约定、好名字的特征、常见反模式、下划线约定、类型注解与命名,给出可落地的规范。
+### 2.1 标识符语法规则
 
-### 2.1 变量命名规范
+Python 标识符的合法字符有一套严格的规定，不是所有字符都能用在名字里。
 
-变量名应**小写、单词用下划线分隔**(snake_case),且表意准确:
+**合法字符集**：
+
+- 字母（a-z, A-Z）
+- 数字（0-9）
+- 下划线（_）
+- Unicode 字符（如中文、日文等）
+
+**规则**：
+
+- 标识符**不能以数字开头**，但可以以字母或下划线开头。
+- 标识符**不能包含**空格、连字符（`-`）、`@`、`$`、`%` 等特殊字符。
+- 标识符**不能是 Python 关键字**（如 `class`、`for`、`if` 等）。
+- Python 3 允许 Unicode 字符（如中文）作为标识符，但不推荐在实际项目中使用。
+
+Python 提供了两个内置工具来帮助你验证标识符的合法性：
+
+- `str.isidentifier()`：判断一个字符串是否是合法标识符（但不排除关键字）。
+- `keyword.kwlist`：列出所有 Python 关键字。
+
+**示例**：
 
 ```python
-# 好
-user_count = 10
-is_valid = True
-total_price = 99.5
-file_path = "/tmp/data.txt"
+import keyword
 
-# 坏
-UserCount = 10      # 类名风格,变量该用 snake_case
-x = 10              # 含义不明
-usrCnt = 10         # 驼峰+缩写,不符合 Python 风格
+candidates = {
+    "count": "合法（普通变量名）",
+    "_user": "合法（单下划线开头）",
+    "user2": "合法（含数字但非数字开头）",
+    "__init__": "合法（前后双下划线，魔法名）",
+    "总人数": "合法（Unicode，但不推荐）",
+    "2count": "非法（数字开头，SyntaxError）",
+    "my-var": "非法（含连字符，被当减号）",
+    "my var": "非法（含空格）",
+    "class": "非法（关键字，SyntaxError）",
+    "for": "非法（关键字，SyntaxError）",
+}
+
+keywords = set(keyword.kwlist)
+print(f"Python 关键字数量：{len(keywords)} 个")
+print("标识符合法性检查：")
+for name, reason in candidates.items():
+    is_kw = name in keywords
+    is_valid = name.isidentifier() and not is_kw
+    tag = "合法" if is_valid else "非法"
+    print(f"  {name!r:12s} -> {tag} ({reason})")
 ```
 
-**命名要点**:
+运行结果：
 
-- **snake_case**:全小写,单词间下划线,如 `user_count`。
-- **表意准确**:`user_count` 比 `count` 更明确(什么的数量);`is_valid`/`has_permission` 用 is/has 前缀表布尔。
-- **避免缩写**:`user_count` 优于 `usr_cnt`,除非缩写是行业通用(如 `url`、`id`、`db`)。
-- **布尔变量**:用 `is_`/`has_`/`can_`/`should_` 前缀,如 `is_active`、`has_access`。
-- **复数表集合**:`users`(多个用户)、`items`,单数 `user` 表单个。
-
-**匈牙利命名避免**:不要用 `i_count`(int 前缀)、`s_name`(str 前缀)这种带类型前缀的匈牙利命名——Python 有类型注解表达类型,命名应表意而非标类型。
-
-**临时变量**:循环计数 `i`/`j`/`k` 可接受(数学惯例);但 `for item in items` 比 `for i in items` 清晰(除非用索引)。
-
-### 2.2 函数与方法命名
-
-函数/方法名同样 **snake_case**,且应是**动词或动宾短语**(函数做动作):
-
-```python
-# 好
-def calculate_total(items): ...
-def get_user(user_id): ...
-def is_valid(email): ...
-def send_email(to, subject): ...
-
-# 坏
-def data(): ...        # 名词,不像动作
-def Getuser(): ...     # 大小写不规范
-def calc(): ...        # 过度缩写
+```text
+Python 关键字数量：35 个
+标识符合法性检查：
+  'count'      -> 合法 (合法（普通变量名）)
+  '_user'      -> 合法 (合法（单下划线开头）)
+  'user2'      -> 合法 (合法（含数字但非数字开头）)
+  '__init__'   -> 合法 (合法（前后双下划线，魔法名））
+  '总人数'     -> 合法 (合法（Unicode，但不推荐）)
+  '2count'     -> 非法 (非法（数字开头，SyntaxError）)
+  'my-var'     -> 非法 (非法（含连字符，被当减号））
+  'my var'     -> 非法 (非法（含空格））
+  'class'      -> 非法 (非法（关键字，SyntaxError））
+  'for'        -> 非法 (非法（关键字，SyntaxError））
 ```
 
-**要点**:
+**关键点**：
 
-- **动词开头**:函数做事情,名字应是 `get_`/`set_`/`calculate_`/`send_`/`parse_`/`validate_` 等动词。
-- **布尔返回函数**:`is_valid`/`has_access`/`can_execute`,返回 bool 的用 is/has/can。
-- **方法命名**:类内方法同样 snake_case。公开方法无前缀,私有方法单下划线 `_helper`。
-- **避免与内置/关键字冲突**:别命名 `list`、`dict`、`input`、`type`、`id` 等,会遮蔽内置。
+- `str.isidentifier()` 只检查语法合法性，**不排除关键字**。所以 `class.isidentifier()` 返回 `True`，但 `class` 不能用作标识符。必须同时用 `keyword.kwlist` 排除关键字。
+- `my-var` 中的 `-` 会被 Python 解析为减号运算符，所以 `my-var = 1` 实际上是 `my - var = 1`，会报 `SyntaxError`。
+- 虽然中文标识符合法，但在实际项目中不推荐使用——不利于跨团队协作和国际化。
+
+### 2.2 大小写敏感
+
+Python 是**大小写敏感**的语言。`count`、`Count`、`COUNT` 是三个完全不同的标识符。
+
+**示例**：
 
 ```python
-# 坏:遮蔽内置
-def sum(items): ...    # 遮蔽内置 sum,后续 sum([1,2]) 调你的函数
-# 好
-def calculate_sum(items): ...
+count = 1       # 变量：snake_case
+Count = 2       # 类名风格（仅演示同名不同义，不推荐变量这样用）
+MAX_COUNT = 3   # 常量：全大写
+
+print(f"count = {count}, Count = {Count}, MAX_COUNT = {MAX_COUNT}")
+print("三者是完全不同的标识符，体现了变量/类/常量的命名区分")
 ```
 
-**方法 vs 函数**:类内叫方法(method),模块级叫函数(function),命名风格一致(snake_case)。构造方法用 `__init__`(魔法方法,不改名)。
+运行结果：
 
-### 2.3 类命名规范
-
-类名用 **CamelCase**(首字母大写,驼峰),单词不加分隔:
-
-```python
-# 好
-class User: ...
-class ShoppingCart: ...
-class HttpRequest: ...
-class ValueError(Exception): ...   # 异常也是类
-
-# 坏
-class user: ...        # 小写,不像类
-class user_info: ...   # snake_case,不符合类名约定
-class userinfo: ...    # 多词无分隔,难读
+```text
+count = 1, Count = 2, MAX_COUNT = 3
+三者是完全不同的标识符，体现了变量/类/常量的命名区分
 ```
 
-**要点**:
+大小写敏感的实际影响体现在两个层面：
 
-- **CamelCase/帕斯卡命名**:每个单词首字母大写,`User`、`ShoppingCart`、`HttpRequest`。缩写词全大写或首大写(`HttpRequest` 或 `HTTPRequest`,项目内统一)。
-- **名词**:类通常表"事物",名词,如 `User`、`Order`、`Logger`。
-- **异常类**:继承 Exception,名以 `Error` 结尾,如 `ValueError`、`ConnectionError`、自定义 `InvalidUserError`。
-- **与变量/函数区分**:变量 snake_case 小写,类 CamelCase 大写,看首字母大小写就知道是类还是变量。
+1. **避免意外碰撞**：你在代码中定义了 `count`，不会意外覆盖另一个叫 `Count` 的变量。Python 把它们当作两个独立的名称。
+2. **利用大小写区分用途**：PEP 8 建议用不同的命名风格区分变量、类和常量，大小写敏感是实现这一约定的基础。
 
-**类内成员**:
-
-- 公开属性:snake_case,如 `self.name`。
-- 私有属性:`_name`(约定)或 `__name`(名称重整)。
-- 方法:snake_case,公开无前缀,私有 `_method`。
-
-类名 CamelCase 与变量/函数 snake_case 的区分,是 Python 命名规范最重要的视觉约定,让代码结构一目了然。
-
-### 2.4 常量命名规范
-
-常量用 **全大写、单词下划线分隔**(UPPER_CASE),放在模块顶部:
+**容易踩的坑**：
 
 ```python
-# 好
-MAX_RETRY = 3
+name = "Alice"
+# 过了几十行代码后
+Name = "Bob"    # 拼错了，本意是更新 name，实际创建了新变量 Name
+print(name)     # 仍然是 "Alice"，不是 "Bob"
+```
+
+Python 不会像某些语言那样给你警告。保持命名一致性需要靠自己和团队规范。
+
+### 2.3 命名风格约定（PEP 8）
+
+PEP 8 是 Python 社区公认的代码风格指南，对命名风格有明确的约定。不同类型的程序元素使用不同的命名风格，这让你一眼就能从名字判断出它是变量、函数、类还是常量。
+
+| 元素类型 | 命名风格 | 示例 | 说明 |
+|----------|---------|------|------|
+| 变量 | snake_case | `user_name`、`order_id` | 全小写，单词用下划线分隔 |
+| 函数 | snake_case | `calculate_total()`、`get_user_info()` | 全小写，单词用下划线分隔 |
+| 方法 | snake_case | `is_empty()`、`process_order()` | 同函数风格 |
+| 类 | PascalCase（CamelCase） | `Order`、`InvalidOrderError` | 每个单词首字母大写，无下划线 |
+| 常量 | UPPER_SNAKE_CASE | `MAX_ORDER_ITEMS`、`DISCOUNT_RATE` | 全大写，单词用下划线分隔 |
+| 模块 | snake_case | `user_service.py`、`order_models.py` | 全小写，简短 |
+| 包 | snake_case | `utils`、`models` | 全小写，简短，不含下划线最好 |
+| 私有成员 | _leading_underscore | `_status`、`_has_discount()` | 单下划线前缀，约定为内部使用 |
+| 魔法方法 | \_\_double_underscore\_\_ | `__init__`、`__str__` | 前后双下划线，Python 内部约定 |
+| 异常类 | CamelCase + Error | `InvalidOrderError`、`ConnectionError` | 类名以 Error 或 Exception 结尾 |
+
+**命名风格对比示例**：
+
+```python
+# === 常量：全大写、单词下划线分隔 ===
+MAX_SIZE = 100
 DEFAULT_TIMEOUT = 30
-PI = 3.14159
-DATABASE_URL = "postgresql://..."
-STATUS_OK = 200
 
-# 坏
-max_retry = 3          # 小写,看不出是常量
-MaxRetry = 3           # 类名风格
+# === 类名：CamelCase ===
+class UserAccount:
+    def __init__(self, user_id: int, user_name: str):
+        self.user_id = user_id          # 实例属性：snake_case
+        self.user_name = user_name
+        self._is_active = True          # 私有属性：单下划线前缀
+
+    # 方法名：snake_case
+    def get_display_name(self) -> str:
+        return self.user_name
+
+    # 布尔返回方法：is_ 或 has_ 前缀
+    def is_active(self) -> bool:
+        return self._is_active
+
+# === 异常类：CamelCase + Error 结尾 ===
+class InvalidUserError(Exception):
+    pass
+
+# === 函数名：snake_case，动词开头 ===
+def calculate_discount(price: float, rate: float) -> float:
+    return price * (1 - rate)
 ```
 
-**要点**:
+**关键约定**：
 
-- **全大写 + 下划线**:`MAX_RETRY`、`DEFAULT_TIMEOUT`。
-- **模块顶部**:常量集中在模块开头,便于查找。
-- **约定不可变**:全大写是"别修改我"的约定(非强制,但大家遵守)。
-- **真正的不可变用大写 + tuple/final**:如 `COLORS = ("red", "green", "blue")`(tuple 不可变),或类型注解 `Final`:
+- **函数/方法名用动词开头**：因为函数是"做事情"的，名字应该描述"做什么"。如 `get_user`、`calculate_total`、`fetch_data`、`send_email`。
+- **布尔返回的函数/方法用 `is_` 或 `has_` 前缀**：如 `is_empty()`、`has_permission()`，让调用者一眼就知道返回的是布尔值。
+- **避免缩写**：`calculate_total` 比 `calc_tot` 好，`user_name` 比 `usr_nm` 好。拆开几个字母换来可读性是值得的。除非缩写是行业通用术语（如 `url`、`id`、`db`）。
+- **类名用名词**：因为类是"东西"，不是"动作"。如 `Order`、`UserAccount`，而不是 `CreateOrder`（`CreateOrder` 听起来像函数名）。
+
+### 2.4 下划线的特殊含义
+
+下划线在 Python 中有特殊的语义，不同位置和数量的下划线代表不同含义。这是一个 Python 独有的命名约定体系，值得单独梳理。
+
+| 写法 | 含义 | 示例 |
+|------|------|------|
+| `_` | 临时忽略的占位符 | `for _ in range(3):` 或 `a, _ = (1, 2)` |
+| `_name` | 约定私有（单下划线前缀） | `self._status = "pending"` |
+| `__name` | 名称重整（双下划线前缀，无后缀） | `self.__secret = 0.05` |
+| `__name__` | 魔法方法（前后双下划线） | `def __init__(self):` |
+| `name_` | 避免与关键字冲突（尾下划线） | `class_ = "高级班"` |
+
+**单下划线 `_`：忽略占位符**
 
 ```python
-from typing import Final
-MAX_RETRY: Final[int] = 3   # Final 提示不可重新赋值,静态检查可校验
+# 循环中不使用的变量
+for _ in range(3):
+    print("重复输出")
+
+# 解包时忽略某些值
+a, _ = (100, 200)
+print(f"只取 a = {a}，忽略第二个值")
+
+# 忽略多个值
+a, *_, b = (1, 2, 3, 4, 5)
+print(f"取首尾：a = {a}, b = {b}")
 ```
 
-常量全大写让"这是常量"一眼可辨,修改全大写变量会触发读者警觉,是有效的约定。
+运行结果：
 
-### 2.5 模块与包命名
-
-模块(`.py` 文件)与包(含 `__init__.py` 的目录)名用**全小写、短、可含下划线**(但尽量不用):
-
-```python
-# 好:模块名
-user.py
-database.py
-string_utils.py
-
-# 好:包名
-mypackage/
-utils/
+```text
+重复输出
+重复输出
+重复输出
+只取 a = 100，忽略第二个值
+取首尾：a = 1, b = 5
 ```
 
-**要点**:
+**单下划线前缀 `_name`：约定私有**
 
-- **全小写**:`user.py` 而非 `User.py`。
-- **简短**:模块名一两词,如 `utils`、`models`、`auth`。
-- **可含下划线但避免**:PEP 8 建议模块名尽量不用下划线(`string_utils` 可接受,但 `stringutils` 更简短也不错)。避免用下划线开头(下划线开头模块有特殊含义,见 2.8)。
-- **避免与标准库/常见包冲突**:别命名 `os.py`、`sys.py`、`requests.py`(会遮蔽同名标准库/第三方包,导致 import 异常)。
-- **包名同模块规则**:全小写简短,如 `mypackage`。
-
-**C 扩展模块**:用 `_` 前缀表示底层 C 模块,如 `_socket`,Python 层 `socket` 包装它。这是底层惯例,普通项目不涉及。
-
-模块/包名一旦发布就难改(改名会破坏下游 import),所以起名要慎重、有前瞻性。
-
-### 2.6 类型变量(TypeVar)与泛型命名
-
-类型变量(泛型)用**单大写字母或 CamelCase**,约定首字母大写:
+单下划线前缀是一种**约定**，不是强制。它告诉其他开发者"这是内部使用的，不应该在外部直接访问"。但 Python 不会阻止你从外部访问它。
 
 ```python
-from typing import TypeVar
-
-T = TypeVar("T")           # 单字母,通用类型变量
-K = TypeVar("K")           # 字典键
-V = TypeVar("V")           # 字典值
-NumberT = TypeVar("NumberT", int, float)   # 约束类型变量,CamelCase
-```
-
-**要点**:
-
-- 通用类型变量常用单大写字母 `T`、`K`、`V`(源自数学/泛型惯例)。
-- 有约束的类型变量用 CamelCase 描述,如 `NumberT`、`UserT`。
-- 协变/逆变类型变量加 `_co`/`_contra` 后缀(进阶)。
-
-类型变量命名是类型注解领域的小众约定,知道 `T`/`K`/`V` 等惯例即可,深入见类型系统笔记。
-
-### 2.7 好名字的特征
-
-总结好名字的共同特征,起名时对照:
-
-1. **准确(accurate)**:名字真实反映含义,不误导。`user_list` 就该是 list,不是 dict。
-2. **具体(specific)**:`get_user_by_email` 比 `get` 具体;`unpaid_invoices` 比 `invoices` 具体。
-3. **简洁(concise)**:在准确前提下尽量短,但不牺牲清晰。`user_count` 够,不必 `the_number_of_users`。
-4. **可读(readable)**:符合 snake_case/CamelCase,单词分隔清晰。
-5. **一致(consistent)**:同概念全项目用同名字,如都用 `user_id` 而非时而 `uid` 时而 `user_id`。
-6. **可搜索(searchable)**:避免单字母(Grep 难找),`user_count` 比 `n` 易搜索。
-7. **无歧义(unambiguous)**:`data`、`info`、`temp`、`handler` 这类过于泛的名字尽量具体化。
-
-**起名思考流程**:先想"这个名字代表什么"(语义)→ 选准确词 → 按 snake_case/CamelCase 拼 → 检查是否与内置/已有冲突 → 是否可搜索可读。好名字值得花时间,它在整个代码生命周期被读无数次。
-
-### 2.8 下划线约定详解
-
-1.4 概览了下划线含义,这里详解使用:
-
-**单下划线前缀 `_name`(约定私有)**:
-
-```python
-def _internal_helper():
-    """模块内部辅助函数,约定不外部调用,但 Python 不强制。"""
-    ...
-
-class User:
+class Order:
     def __init__(self):
-        self._cache = {}    # 约定私有属性,外部不应直接访问
+        self._status = "pending"     # 约定私有属性
+
+    def _has_discount(self) -> bool:  # 约定私有方法
+        return True
+
+order = Order()
+print(order._status)     # 技术上可以访问，但不推荐
 ```
 
-`_` 前缀是"君子协定":提示"内部使用,别依赖"。Python 不阻止访问(`user._cache` 仍可访问),但 linter 会警告从外部访问 `_` 前缀成员,`from module import *` 也不导入 `_` 前缀名字。用于:非公开 API、实现细节、临时辅助。
+**双下划线前缀 `__name`：名称重整**
 
-**双下划线前缀 `__name`(名称重整)**:仅在类内有效,触发名称重整(第 4 章详述):
+双下划线前缀（无后缀）会触发 Python 的**名称重整（Name Mangling）**机制，将属性名在编译时自动改为 `_ClassName__name` 的形式。这是一种更强的私有化手段，但不完全等同于其他语言的 `private`。详细机制在 2.6 节展开。
+
+**前后双下划线 `__name__`：魔法方法**
+
+前后双下划线是 Python 预留的"魔法方法"（dunder methods）命名空间，如 `__init__`、`__str__`、`__len__`。不要自己发明 `__xxx__` 格式的名字，以免与未来版本的 Python 内置方法冲突。
 
 ```python
-class Counter:
-    def __init__(self):
-        self.__count = 0    # 实际存为 self._Counter__count
-    def inc(self):
-        self.__count += 1
+class Order:
+    def __init__(self, order_id: int):
+        self.order_id = order_id
+
+    def __str__(self) -> str:
+        return f"Order(#{self.order_id})"
+
+    def __len__(self) -> int:
+        return 0
+
+order = Order(order_id=1001)
+print(order)        # 自动调用 __str__
+print(len(order))   # 自动调用 __len__
 ```
 
-`__count` 被重整为 `_Counter__count`,一定程度避免子类同名属性覆盖。比 `_` 更强的私有,但仍有办法访问(`obj._Counter__count`),非真正私有。少用,多数场景 `_` 足够。
+运行结果：
 
-**前后双下划线 `__name__`(魔法名字)**:Python 定义的特殊方法/属性:
-
-```python
-__init__     # 构造
-__str__      # 字符串表示
-__len__      # 长度
-__name__     # 函数/类/模块名
-__file__     # 模块文件路径
+```text
+Order(#1001)
+0
 ```
 
-这些是 Python 协议预留的,**不要自创 `__xxx__` 名字**(可能冲突)。只在你实现某协议时用对应的魔法名(如定义 `__str__` 让 print 友好)。
+**尾下划线 `name_`：避免与关键字冲突**
 
-**单独 `_`(忽略/临时)**:
+当你需要一个名字恰好是 Python 关键字时，加尾下划线：
 
 ```python
-for _ in range(10):     # 循环变量不用,用 _ 占位
-    print("hi")
+# class 是关键字，不能直接用
+class_ = "高级班"      # 没问题
+type_ = "student"      # type 不是关键字但冲突内置函数，加尾下划线也合理
 
-a, _ = (1, 2)           # 只取 a,忽略第二个
-
-_ = compute()           # 故意忽略返回值
+# 常见于匹配 Python 关键字的场景
+def filter_records(type_="all", class_="default"):
+    print(f"类型：{type_}，班级：{class_}")
 ```
 
-`_` 表"我不关心这个值",是 Pythonic 的忽略占位。REPL 里 `_` 还特指上一个表达式的结果。
+### 2.5 避免遮蔽内置名
 
-这套下划线约定让名字携带设计意图:私有、常量、忽略、魔法,从名字形态即可判断,是 Python 命名文化的精髓。
+Python 有大量内置函数和类型，如 `list`、`dict`、`str`、`int`、`id`、`sum`、`type`、`len`、`map`、`filter` 等。如果你用这些名字作为变量名，就会**遮蔽（shadow）**内置函数，导致后续代码无法正常使用该内置函数。
 
-### 2.9 避免遮蔽内置名
-
-Python 有大量内置名(built-in):`list`、`dict`、`str`、`int`、`id`、`type`、`input`、`sum`、`max`、`min`、`file`、`input` 等,以及关键字。用它们作标识符会**遮蔽**(shadow)内置,导致后续用不了该内置功能:
+**错误示例**：
 
 ```python
-# 坏:遮蔽 list
+# 反例：用 list 作变量名
 list = [1, 2, 3]
-# later
-new_list = list(range(5))   # TypeError: 'list' object is not callable
-                              # 因 list 现在是 [1,2,3],不是内置 list()
+new_list = list(range(5))    # TypeError: 'list' object is not callable
+                              # 因为 list 现在指向 [1, 2, 3]，不是内置函数了
 ```
 
-修复:避免用内置名作变量,改个名:
+运行结果：
 
-```python
-my_list = [1, 2, 3]
-new_list = list(range(5))    # OK,list 仍内置
+```text
+TypeError: 'list' object is not callable
 ```
 
-**常见易遮蔽的内置**:`list`、`dict`、`set`、`str`(作变量名遮蔽类型)、`id`、`type`、`input`、`file`、`sum`、`max`、`min`、`len`、`map`、`filter`。起名时自问"这是不是内置名",是则换。
-
-**IDE/linter 帮助**:PyCharm/VS Code(Pylint/pyflakes)会高亮遮蔽内置的命名,Ruff 也能检查。借助工具避免无意遮蔽。
-
-### 2.10 类型注解与命名
-
-类型注解引入新标识符(`List`、`Dict`、`Optional` 等),命名有约定:
-
-- **类型别名**:全大写或 CamelCase,如 `UserId = int`、`JSON = dict[str, Any]`。
-- **typing 模块的泛型**:`List`/`Dict`/`Optional`/`Union` 是 typing 提供的(Python 3.9+ 可直接用小写 `list`/`dict` 作泛型,更推荐):
-  ```python
-  # Python 3.9+
-  def f(items: list[int]) -> dict[str, int]: ...   # 用小写内置类型作泛型
-  ```
-- **变量类型注解**:变量名本身仍是 snake_case,注解在冒号后:`count: int = 0`。
-
-类型注解的标识符遵循类型世界的约定(类型名 CamelCase/大写),与变量(小写)区分,看注解就知道是类型。
-
-### 2.11 命名反模式集合
-
-汇总常见坏命名,自查避免:
-
-- **单字母滥用**:除循环计数 `i/j/k`、数学公式变量,避免 `a`/`b`/`x`/`y`。
-- **易混字符**:`l`(小写 L)、`O`(大写 o)、`I`(大写 i)易与 `1`/`0`/`l` 混,避免。
-- **泛名**:`data`/`info`/`temp`/`value`/`handler`/`manager` 过于泛,具体化。
-- **匈牙利命名**:带类型前缀 `i_count`/`s_name`,Python 不需要。
-- **缩写泛滥**:`usr_cnt`/`cfg_mgr`,除通用缩写(id/url/db)外,用全词。
-- **误导名**:`user_list` 实际是 dict。
-- **遮蔽内置**:`list = [...]`。
-- **风格混用**:同项目 `getUser`/`get_user`/`getuser` 混。
-- **`__dunder__` 自创**:`__my_method__` 与 Python 协议冲突风险。
-- **过长**:`the_number_of_users_in_the_system`,在准确前提下缩短。
-- **否定布尔**:`not_found` 不如 `is_missing`/`found`(正向更易读)。
-
-识别反模式是起好名的前提。code review 专门审视命名,能显著提升代码质量。
-
-### 2.12 完整示例:规范命名的模块
-
-一个体现规范的完整模块:
+**正确做法**：在有语义的名称上加后缀或前缀。
 
 ```python
-"""订单处理模块。"""
+# 好的做法：不用 list 作变量名
+product_list = ["键盘", "鼠标", "显示器"]
+# 内置 list() 仍可正常使用
+new_list = list(range(3))
+print(f"正确命名：product_list = {product_list}，内置 list() 仍可用：list(range(3)) = {new_list}")
+```
 
+运行结果：
+
+```text
+正确命名：product_list = ['键盘', '鼠标', '显示器']，内置 list() 仍可用：list(range(3)) = [0, 1, 2]
+```
+
+**常见容易遮蔽的内置名一览**：
+
+| 内置名 | 容易误用场景 | 推荐替代 |
+|-------|-------------|---------|
+| `list` | 存储列表数据 | `item_list`、`records`、`items` |
+| `dict` | 存储字典数据 | `info_dict`、`config`、`mapping` |
+| `str` | 存储字符串 | `text`、`name_str`、`content` |
+| `id` | 存储 ID 值 | `user_id`、`order_id`、`record_id` |
+| `sum` | 求和结果变量 | `total`、`subtotal`、`amount` |
+| `type` | 类型标识 | `record_type`、`item_type` |
+| `input` | 用户输入 | `user_input`、`raw_input` |
+| `max` / `min` | 最大/最小值 | `max_value` / `min_value` |
+| `map` / `filter` | 集合操作 | `plan` / `filtered_items` |
+
+**关键点**：
+
+- 遮蔽 builtin 不像遮蔽关键字那样会立即报 `SyntaxError`，Python 允许你这么做，但会在后续使用内置函数时悄然崩溃。这种 bug 非常隐蔽，调试成本高。
+- 在小型脚本中你可能恰好没再用到那个内置函数，不会出问题；但在大型项目中，遮蔽内置名的代码迟早会坑到别人。
+- 很多人误以为 `id` 不是内置函数（它是 `id()`，返回对象的内存地址），实际上它是。用 `user_id` 而不是 `id` 来存储 ID 值。
+
+### 2.6 名称重整机制
+
+名称重整（Name Mangling）是 Python 类中双下划线前缀属性的一种特殊机制。当你在类中定义 `self.__secret_discount = 0.05` 时，Python 会在编译时将属性名改为 `_Order__secret_discount` 的形式——即在原名前加上 `_ClassName` 前缀。
+
+这个机制的核心目的是**避免子类与父类之间的属性名冲突**。当父类和子类都定义了 `__secret_discount` 属性时，它们会被分别重整为 `_Order__secret_discount` 和 `_VipOrder__secret_discount`，互不覆盖。
+
+**示例**：
+
+```python
+class Order:
+    def __init__(self, order_id, items):
+        self.order_id = order_id
+        self.items = items
+        self.__secret_discount = 0.05    # 重整为 _Order__secret_discount
+
+class VipOrder(Order):
+    def __init__(self, order_id, items):
+        super().__init__(order_id, items)
+        self.__secret_discount = 0.2    # 重整为 _VipOrder__secret_discount
+
+order = Order(order_id=1, items=[{"price": 10, "quantity": 2}])
+vip = VipOrder(order_id=2, items=[{"price": 100, "quantity": 1}])
+
+# 外部用 __secret_discount 无法访问（AttributeError）
+# 但用重整全名可以访问
+print(f"通过重整名访问：order._Order__secret_discount = {order._Order__secret_discount}")
+
+# 展示实例属性中实际存储的重整名
+mangled_order = [attr for attr in vars(order) if attr.startswith("_Order__")]
+print(f"实际存储的重整属性：{mangled_order}")
+
+# 子类同名 __ 属性不覆盖父类
+print(f"父类重整属性：{[a for a in vars(vip) if a.startswith('_Order__')]}")
+print(f"子类重整属性：{[a for a in vars(vip) if a.startswith('_VipOrder__')]}")
+print(f"父类折扣 {vip._Order__secret_discount} 与子类折扣 {vip._VipOrder__secret_discount} 互不覆盖")
+```
+
+运行结果：
+
+```text
+通过重整名访问：order._Order__secret_discount = 0.05
+实际存储的重整属性：['_Order__secret_discount']
+父类重整属性：['_Order__secret_discount']
+子类重整属性：['_VipOrder__secret_discount']
+父类折扣 0.05 与子类折扣 0.2 互不覆盖
+```
+
+**关键点**：
+
+- 名称重整只在**类定义体内**对以双下划线开头且不以双下划线结尾的标识符生效。`__init__` 不会重整，`__secret_discount` 会重整。
+- 重整后的名字格式固定为 `_ClassName__attrname`。注意 `ClassName` 是当前类的名字，不是父类的名字。
+- 从外部直接用 `__secret_discount` 访问会报 `AttributeError`，必须用重整后的全名 `_Order__secret_discount` 才能访问。这意味着名称重整并不是真正的私有——它只是"增加了一层间接"。
+
+**名称重整 vs 单下划线约定对比**：
+
+| 维度 | `_name`（单下划线） | `__name`（双下划线） |
+|------|-------------------|---------------------|
+| 外部能否直接访问 | 能（约定不推荐，但不阻止） | 不能（需用重整名） |
+| 触发名称重整 | 否 | 是（改为 `_ClassName__name`） |
+| 子类同名是否覆盖 | 是（普通属性继承） | 否（各自重整为不同名字） |
+| 使用场景 | 内部约定用 | 防止子类属性名冲突 |
+| Python 推荐度 | 更常用 | 有特定场景才用 |
+
+### 2.7 作用域与命名长度原则
+
+命名长度应该与作用域的宽窄相匹配：作用域越宽（如全局变量、模块级常量），名字应该越具体、越完整；作用域越窄（如函数内局部变量、循环变量），名字可以越简短。
+
+**原则**：
+
+```text
+作用域宽度          命名长度        示例
+────────────────────────────────────────────────────────
+全局/模块级     →    长而具体       user_session_timeout = 1800
+类属性          →    长而具体       self.order_id
+参数            →    中等          calculate_total(items)
+函数内局部      →    短            total = sum(...)
+循环变量/临时   →    极短或_        for _ in range(3)
+```
+
+**示例**：
+
+```python
+# 全局/模块级：作用域宽，名字具体完整
+user_session_timeout = 1800
+DATABASE_CONNECTION_POOL_SIZE = 10
+
+def process_order(order):
+    # 局部：上下文是 order，不必 order_xxx 冗余前缀
+    total = sum(item["price"] * item["quantity"] for item in order["items"])
+    return total
+
+# 函数内局部变量可以在上下文中缩短
+# 在 process_order 内部，total 就够了，不需要写 order_total_amount
+```
+
+运行结果（假设调用）：
+
+```text
+全局变量 user_session_timeout = 1800（名字完整具体）
+局部变量 total = 80.0（上下文即 order，无需冗余前缀）
+```
+
+**关键点**：
+
+- 全局变量可能被项目中任何地方引用，名字必须自解释——读者看到 `user_session_timeout` 就知道是什么，不需要去找定义。
+- 局部变量只在一个小范围内使用，上下文已经提供了足够的信息。在 `process_order` 函数内，`total` 比 `order_total_amount` 更好——作用域只有一个函数体，读者不会搞混。
+- `_` 作为忽略占位符是最极端的"短"——表示"这个值我不关心"。
+
+### 2.8 函数命名规范
+
+函数名遵循 PEP 8 的 snake_case 风格，此外还有一些函数特有的命名约定。
+
+**规则**：
+
+- 动词开头：函数是"做事情"的，名字应该描述"做什么"。
+- snake_case：全小写，单词用下划线分隔。
+- 布尔返回函数：用 `is_` 或 `has_` 前缀。
+- 私有函数：单下划线前缀。
+
+**函数命名的动词推荐**：
+
+| 动词 | 适用场景 | 示例 |
+|------|---------|------|
+| `get_` | 获取数据（通常有返回值） | `get_user_name()` |
+| `set_` | 设置数据（通常无返回值或返回 None） | `set_timeout(30)` |
+| `fetch_` | 从远程获取数据（隐含网络/IO 操作） | `fetch_user_profile()` |
+| `load_` | 从文件/存储加载数据 | `load_config()` |
+| `save_` | 保存数据到文件/存储 | `save_report()` |
+| `calculate_` | 计算并返回结果 | `calculate_total()` |
+| `process_` | 处理数据（可能有副作用） | `process_order()` |
+| `validate_` | 验证数据，返回布尔或抛异常 | `validate_email()` |
+| `is_` | 判断状态，返回布尔值 | `is_active()` |
+| `has_` | 判断是否拥有，返回布尔值 | `has_permission()` |
+| `parse_` | 解析输入数据 | `parse_json()` |
+| `format_` | 格式化输出 | `format_date()` |
+
+**示例**：
+
+```python
 from typing import Final
 
-# 常量:全大写
+MAX_ORDER_ITEMS: Final[int] = 100
+
+def get_user_summary(user_id: int, is_active: bool) -> str:
+    """演示布尔参数 is_ 前缀、变量 snake_case、避免缩写。"""
+    status_text = "活跃" if is_active else "停用"
+    return f"用户 {user_id} 当前状态：{status_text}"
+
+print(get_user_summary(user_id=5001, is_active=True))
+print(get_user_summary(user_id=5002, is_active=False))
+```
+
+运行结果：
+
+```text
+用户 5001 当前状态：活跃
+用户 5002 当前状态：停用
+```
+
+**关键点**：
+
+- 参数名也用 snake_case：`user_id` 比 `userId` 更符合 Python 风格（`userId` 是 Java/JS 风格）。
+- 布尔参数用 `is_` 前缀：`is_active=True` 比 `active=True` 语义更明确——读者一看就知道传的是布尔值。
+- 函数名避免缩写：`get_user_summary` 比 `get_usr_sum` 好。
+
+### 2.9 综合命名示例
+
+将命名规范串联起来，看一个完整的订单处理系统示例。这个示例覆盖了常量命名、类名命名、方法命名、私有属性约定、名称重整、异常类命名、魔法方法等知识点。
+
+**常量定义（全大写 + 下划线）**：
+
+```python
+from typing import Final
+
+# 常量命名：全大写、单词下划线分隔，放模块顶部
 MAX_ORDER_ITEMS: Final[int] = 100
 DISCOUNT_RATE: Final[float] = 0.1
 STATUS_PENDING: Final[str] = "pending"
+STATUS_PAID: Final[str] = "paid"
+```
 
+**异常类定义（CamelCase + Error 结尾）**：
 
-def calculate_total(items: list[dict]) -> float:
-    """计算订单总金额。
-
-    Args:
-        items: 订单项列表,每项含 'price' 和 'quantity'
-
-    Returns:
-        总金额
-    """
-    total = 0.0
-    for item in items:
-        total += item["price"] * item["quantity"]
-    return total
-
-
-def _apply_discount(total: float, rate: float) -> float:
-    """应用折扣(内部辅助)。"""
-    return total * (1 - rate)
-
-
-class Order:
-    """订单。"""
-
-    def __init__(self, order_id: int, items: list[dict]):
-        self.order_id = order_id        # 公开属性
-        self.items = items
-        self._total = 0.0               # 私有属性(约定)
-
-    def process(self) -> float:
-        """处理订单,返回折扣后金额。"""
-        self._total = calculate_total(self.items)
-        return _apply_discount(self._total, DISCOUNT_RATE)
-
-
+```python
+# 异常类命名：CamelCase + Error 结尾，继承 Exception
 class InvalidOrderError(Exception):
     """无效订单异常。"""
-    pass
 ```
 
-此示例体现:模块 docstring、常量全大写(+Final)、函数 snake_case 动词、私有函数 `_` 前缀、类 CamelCase、属性 snake_case、私有属性 `_`、异常以 Error 结尾、类型注解。命名规范齐全,是范本。
-
-### 2.13 命名与作用域的相互作用
-
-标识符命名需考虑作用域宽窄:作用域越宽,名字需越具体;作用域越窄,可越简短。
-
-**全局/模块级**:作用域宽,被多处引用,名字要完整具体:
+**业务类定义（展示私有约定与名称重整）**：
 
 ```python
-# 模块级,需具体
-user_session_timeout = 1800
-def calculate_monthly_revenue(records): ...
+class Order:
+    """订单实体。演示 CamelCase 类名、snake_case 方法、_ 与 __ 私有约定。"""
+
+    def __init__(self, order_id: int, items: list[dict]) -> None:
+        self.order_id = order_id
+        self.items = items
+        self._status = STATUS_PENDING               # 约定私有：单下划线
+        self.__secret_discount = 0.05                 # 名称重整：双下划线
+
+    def is_empty(self) -> bool:
+        return len(self.items) == 0
+
+    def item_count(self) -> int:
+        return len(self.items)
+
+    def __str__(self) -> str:
+        return f"Order(#{self.order_id}, items={self.item_count()}, status={self._status})"
+
+    def __len__(self) -> int:
+        return self.item_count()
+
+    def _has_discount(self) -> bool:
+        """约定私有方法：单下划线，模块内部使用。"""
+        return self.item_count() >= 5
+
+    def process(self) -> float:
+        """处理订单，返回折扣后金额。"""
+        if self.is_empty():
+            raise InvalidOrderError(f"订单 #{self.order_id} 没有商品，无法处理")
+
+        total = sum(item["price"] * item["quantity"] for item in self.items)
+        discounted = total * (1 - DISCOUNT_RATE)
+        if self._has_discount() and self.__secret_discount > 0:
+            discounted *= (1 - self.__secret_discount)
+        self._status = STATUS_PAID
+        return round(discounted, 2)
 ```
 
-**函数内局部**:作用域窄,上下文明确,可适当简短:
+**运行订单处理流程**：
 
 ```python
-def process_user(user):
-    # 局部变量,上下文是 user,不必 user_xxx
-    name = user.name
-    age = user.age
-    # 而不是 user_name = user.name (前缀冗余,因已在 user 上下文)
+orders = [
+    Order(order_id=1001, items=[
+        {"price": 35.0, "quantity": 2},
+        {"price": 12.5, "quantity": 4},
+    ]),
+    Order(order_id=1002, items=[
+        {"price": 199.0, "quantity": 1},
+        {"price": 29.9, "quantity": 5},
+        {"price": 9.9, "quantity": 3},
+    ]),
+    Order(order_id=1003, items=[]),  # 空订单，触发异常
+]
+
+for order in orders:
+    try:
+        print(f"处理前：{order}（len()={len(order)}）")
+        if order.item_count() > MAX_ORDER_ITEMS:
+            raise InvalidOrderError(f"订单 #{order.order_id} 商品数超过上限 {MAX_ORDER_ITEMS}")
+        amount = order.process()
+        print(f"处理后：{order} -> 实付金额：{amount}")
+    except InvalidOrderError as exc:
+        print(f"处理失败：{exc}")
+    print()
 ```
 
-**循环/推导局部**:更可短:
+运行结果：
 
-```python
-for item in items:        # item 在循环上下文,简短可接受
-    process(item)
+```text
+处理前：Order(#1001, items=2, status=pending)（len()=2）
+处理后：Order(#1001, items=2, status=paid) -> 实付金额：108.0
 
-total = sum(p * q for p, q in pairs)   # p, q 在推导上下文
+处理前：Order(#1002, items=3, status=pending)（len()=3）
+处理后：Order(#1002, items=3, status=paid) -> 实付金额：340.38
+
+处理前：Order(#1003, items=0, status=pending)（len()=0）
+处理失败：订单 #1003 没有商品，无法处理
 ```
 
-原理:名字的"信息量"要匹配它被理解所需的上下文。全局无明确上下文,名字自带全部信息要具体;局部有函数/循环提供上下文,重复上下文信息(如函数内 `user_name` 当参数已是 user)是冗余。这条原则让名字既不冗长也不含糊,恰如其分。
+**代码解读**：
 
-### 2.14 命名一致性与项目词汇表
-
-一致性是好命名的高阶要求:同概念全项目用同一名字,避免同义混用。
-
-**建立项目词汇表**(glossary):团队约定核心业务概念的统一用词,如:
-
-- 用户统一叫 `user`(不忽 `user` 忽 `account` 忽 `member`)
-- 用户标识统一 `user_id`(不忽 `uid` 忽 `user_id` 忽 `userId`)
-- 订单统一 `order`(不忽 `order` 忽 `purchase`)
-
-```python
-# 一致(好)
-def get_user(user_id): ...
-def delete_user(user_id): ...
-def update_user(user_id, data): ...
-
-# 不一致(坏,同义混用)
-def get_user(uid): ...
-def delete_account(user_id): ...
-def update_member(user_id, data): ...
-```
-
-词汇表的价值:降低认知负担(读者不必猜 account/member/user 是否同义)、便于搜索(一个概念一个词,Grep 一次找全)、减少 bug(同义混用易导致接对接错)。建立项目词汇表(可写在 CONTRIBUTING 或 docstring),新人入项先读,命名就有据可依。
-
-### 2.15 命名在重构中的角色
-
-命名是重构的信号与手段:
-
-**坏命名是重构信号**:`data2`、`temp`、`handle_stuff` 这类名往往暗示函数职责不清、动机不明,是拆分/重命名重构的候选。
-
-**重命名是最值钱的重构**:好名字让代码自解释,常比改结构更有效。重构时优先重命名,把 `proc` → `process_payment`、`d` → `daily_revenue`,代码可读性立刻提升。
-
-**安全重命名**:IDE(PyCharm/VS Code)的重命名重构安全更新所有引用,改动可控。对公开 API 重命名需谨慎(破坏下游),内部重命名可大胆。
-
-```python
-# 重构前
-def calc(d):
-    r = 0
-    for i in d:
-        r += i
-    return r
-
-# 重构后(重命名+具体化,清晰百倍)
-def calculate_total(prices: list[float]) -> float:
-    total = 0.0
-    for price in prices:
-        total += price
-    return total
-```
-
-命名重构成本低、收益高,是提升遗留代码可读性的首选手段。勇于重命名,别让坏名字沉淀。
-
-### 2.16 特定场景的命名约定
-
-一些特定编程场景有约定命名:
-
-**回调/高阶函数参数**:回调函数参数名常叫 `callback`、`fn`、`func`、`key`(排序键):
-
-```python
-def apply(items, func):        # func 是对每项应用的函数
-    return [func(item) for item in items]
-
-sorted(users, key=lambda u: u.age)   # key 是排序键函数
-```
-
-**装饰器**:装饰器函数名通常小写动词,被装饰函数名不变:
-
-```python
-def log_calls(func):          # 装饰器,名表"记录调用"
-    def wrapper(*args, **kwargs):
-        print(f"call {func.__name__}")
-        return func(*args, **kwargs)
-    return wrapper
-
-@log_calls
-def send_email(): ...         # 被装饰函数名仍 send_email
-```
-
-**property**:property 名是名词(属性),getter 方法通常不单独命名(用 `@property`):
-
-```python
-class Circle:
-    def __init__(self, radius):
-        self.radius = radius
-
-    @property
-    def area(self):           # property 名 area,名词,像属性
-        return 3.14 * self.radius ** 2
-```
-
-**上下文管理器**:`with` 用的对象/函数名常叫 `xxx_ctx` 或表资源:
-
-```python
-with open(path) as f: ...     # f 表文件
-with lock: ...                # lock 表锁
-```
-
-**生成器**:生成器函数名常以产出物复数 or 动词:
-
-```python
-def read_lines(path):         # 动词,产出各行
-    with open(path) as f:
-        yield from f
-```
-
-这些场景约定让代码更易读(看到 `key=` 知是排序键,看到 `@property` 知是属性),遵循它们融入 Pythonic 风格。
-
-### 2.17 国际化与 ASCII 命名
-
-Python 3 允许 Unicode 标识符(中文可命名),但工程上坚持 ASCII:
-
-**不推荐 Unicode 命名的原因**:
-
-- **跨工具风险**:某些 linter、文档生成器、旧系统、CI 环境对非 ASCII 标识符支持不一,可能乱码或报错。
-- **国际协作**:开源/跨国团队,ASCII 命名全球可读,中文命名对非中文母语者是障碍。
-- **输入便利**:ASCII 在任何键盘直接输入,中文需切换输入法,降低效率。
-- **PEP 8 建议**:PEP 8 明确建议模块/变量名用 ASCII。
-
-**例外**:教学演示(向初学者直观展示概念)、纯内部非长期脚本,可用中文命名辅助理解。但生产代码、库、协作项目,坚持 ASCII。
-
-**字符串内容可 Unicode**:注意区分——标识符(名字)用 ASCII,但字符串内容(用户可见文本、注释)可中文,这两者不冲突:
-
-```python
-greeting = "你好,世界"     # 标识符 greeting 是 ASCII,内容是中文,OK
-# 总用户数 = 100            # 标识符中文,不推荐
-```
-
-原则:**标识符 ASCII,字符串/注释可中文**。这是国际化的稳妥实践。
-
-### 2.18 命名检查工具实战
-
-用工具自动保证命名规范,比人工盯守可靠:
-
-**Ruff(含 pep8-naming 规则)**:Ruff 集成 pep8-naming,检查:
-
-- 函数是否 snake_case、类是否 CamelCase、常量是否全大写。
-- 函数名与函数内变量名混乱(`__` 自创 dunder 警告)。
-- 继承 Exception 的类是否 Error 结尾。
-
-配置(`ruff.toml` 或 `pyproject.toml`):
-
-```toml
-[tool.ruff.lint]
-select = ["N"]            # 启用 pep8-naming 规则集
-```
-
-**Pylint**:更全面的命名检查(变量/函数/类/常量/方法各规则),可配置严格度。
-
-**pydocstyle**:配合检查 docstring 风格。
-
-**IDE 实时检查**:PyCharm/VS Code(Pylance)实时高亮不合规命名(如类小写、遮蔽内置),写时即纠正。
-
-实战配置:项目用 Ruff 启用 N 规则 + IDE 实时检查,CI 跑 Ruff 不合格拒合并。这样命名规范机器保证,人专注起好名而非记规则。
-
----
+- `MAX_ORDER_ITEMS`、`DISCOUNT_RATE`：常量全大写，放在模块顶部，用 `Final` 标注表示不应被重新赋值。
+- `InvalidOrderError`：异常类用 CamelCase，以 `Error` 结尾，继承 `Exception`。
+- `Order`：类名用 PascalCase，单数形式（不是 `Orders`）。
+- `order_id`、`items`：公有属性用 snake_case，语义清晰。
+- `_status`：单下划线前缀，约定私有——外部不应直接修改状态，应通过 `process()` 方法改变。
+- `__secret_discount`：双下划线前缀触发名称重整，子类不会意外覆盖。
+- `is_empty()`、`item_count()`：方法名用 snake_case，`is_empty` 用 `is_` 前缀返回布尔值。
+- `_has_discount()`：单下划线私有方法，表示仅供类内部使用。
+- `__str__`、`__len__`：前后双下划线的魔法方法，被 `print()` 和 `len()` 自动调用。
+- `process()`：动词开头，表示"处理订单"这个动作。
 
 ## 3. 最佳实践
 
-### 3.1 遵循 PEP 8 命名约定
+### 3.1 推荐 vs 不推荐写法对比
 
-变量/函数 snake_case、类 CamelCase、常量全大写、模块全小写——PEP 8 是 Python 命名的事实标准,全项目统一遵循。用 Ruff/black 自动检查风格,保证一致。
+好的命名和坏的命名之间的差异，往往不是"对错"问题，而是"可读性"问题。但在团队协作中，可读性就是生产力。
 
-### 3.2 名字表意准确具体,避免泛名
+| 场景 | 不推荐写法 | 推荐写法 | 原因 |
+|------|----------|---------|------|
+| 变量命名 | `d = {"name": "Alice"}` | `user_info = {"name": "Alice"}` | 单字母无语义 |
+| 变量命名 | `lst = [1, 2, 3]` | `numbers = [1, 2, 3]` | 遮蔽内置 `list` |
+| 变量命名 | `a = 1800` | `session_timeout = 1800` | 无上下文，不知含义 |
+| 函数命名 | `def calc(x, y): ` | `def calculate_total(price, quantity):` | 缩写 + 无参数语义 |
+| 布尔函数 | `def empty(items):` | `def is_empty(items):` | 缺少 `is_` 前缀 |
+| 布尔变量 | `active = True` | `is_active = True` | 缺少 `is_` 前缀 |
+| 类命名 | `class order:` | `class Order:` | 类名应为 CamelCase |
+| 常量命名 | `maxSize = 100` | `MAX_SIZE = 100` | 常量应全大写 |
+| 缩写滥用 | `def get_usr_sum(usr_id):` | `def get_user_summary(user_id):` | 缩写降低可读性 |
+| 魔法数字 | `if len(items) > 100:` | `if len(items) > MAX_ORDER_ITEMS:` | 魔法数字不可维护 |
+| 私有属性 | `self.secret = 0.1` | `self._secret = 0.1` | 缺少私有约定 |
 
-`user_count` 优于 `count`,`unpaid_invoices` 优于 `invoices`。起名时想清楚"代表什么",选准确具体词。`data`/`info`/`temp`/`handler` 这类泛名尽量具体化。
+### 3.2 常见错误模式及修正
 
-### 3.3 不遮蔽内置名与关键字
-
-避免 `list`/`dict`/`id`/`type`/`input` 等作标识符,起名时自问"是不是内置"。IDE/Ruff 高亮遮蔽,借助工具避免。
-
-### 3.4 用下划线传达意图:私有/常量/忽略/魔法
-
-`_x` 私有、`__x` 重整(慎用)、`__x__` 只用 Python 定义的魔法、`_` 忽略占位、`NAME` 常量。让名字形态携带设计意图,是 Pythonic 命名精髓。不自创 `__dunder__`。
-
-### 3.5 布尔用 is/has/can 前缀,集合用复数
-
-`is_active`/`has_access`/`can_edit` 表布尔;`users`/`items` 复数表集合。命名形态反映类型语义,提升可读。
-
-### 3.6 避免易混单字母与否定布尔
-
-不用 `l`/`O`/`I`(易与数字混);除循环计数/数学公式避免单字母。布尔用正向(`found` 比 `not_found` 易读)。
-
-### 3.7 团队统一命名,避免风格混用
-
-项目内 `getUser`/`get_user` 不混;同概念统一名字(`user_id` 始终用 `user_id`,不忽 `uid`)。统一风格让代码专业、可读。用 Ruff + 命名规范文档保证。
-
-### 3.8 模块/包名慎重,避免与标准库冲突
-
-模块/包全小写简短,不与 `os`/`sys`/`requests` 等重名(遮蔽致 import 异常)。模块名一旦发布难改,起名有前瞻性。
-
-### 3.9 异常类以 Error 结尾,继承 Exception
-
-`InvalidUserError`、`ConnectionError`,名以 Error 结尾、继承 Exception(或其子类),让异常从命名即可辨识。
-
-### 3.10 借助工具检查命名
-
-Ruff(含 pep8-naming 规则)、Pylint 能检查命名是否符合 PEP 8(如函数 snake_case、类 CamelCase、常量大写)。提交前/CI 跑,机器保证规范比人工盯守可靠。
-
-### 3.11 code review 专门审视命名
-
-命名是代码质量基础,review 时专门看名字是否准确、是否遮蔽、是否一致、是否泛。好名字值得在 review 中反复打磨,它在代码生命周期被读无数次。
-
-### 3.12 重构时勇于改名
-
-发现名字不准、误导、过时,勇敢重构改名(IDE 重命名重构安全更新引用)。代码演进中名字会过时,及时改名保持代码清晰,别让坏名字沉淀。
-
----
-
-## 4. 原理
-
-### 4.1 标识符的词法规则与 Unicode(底层,简略)
-
-Python 标识符合法性由词法分析器(lexer)按规则判定:字母/数字/下划线组成、非数字开头、非关键字。Python 3 的标识符定义遵循 UAX-31(Unicode 标准附件),允许 Unicode 字母类别字符(如中文),但开头必须是字母/下划线(不能数字)。这套词法规则是 Python 语法层面规定,日常无需深究其实现,记住"字母数字下划线、非数字开头、非关键字"即可。Unicode 命名虽合法但 PEP 8 不推荐,因跨工具/国际协作风险,坚持 ASCII。
-
-### 4.2 名称重整 name mangling 机制(需理解,详述)
-
-双下划线前缀 `__name` 在类内的名称重整机制,是命名规范里涉及"私有"语义的核心,值得详述。
-
-**机制**:在类定义体内,任何形如 `__name`(至少两个前导下划线、至多一个尾随下划线)的标识符,Python 解释器会**自动把它改写为 `_ClassName__name`**——即加上下划线 + 类名前缀。
+**错误模式一：遮蔽内置名**
 
 ```python
-class Counter:
-    def __init__(self):
-        self.__count = 0        # 被 mangling 成 self._Counter__count
+# 错误
+list = [1, 2, 3]
+print(list(range(5)))  # TypeError: 'list' object is not callable
 
-    def inc(self):
-        self.__count += 1       # 类内 __count 都被改写为 _Counter__count
-
-c = Counter()
-print(c._Counter__count)        # 0 —— 可从外部用重整名访问
-# print(c.__count)             # AttributeError,外部用原名访问不到
+# 修正
+numbers = [1, 2, 3]
+print(list(range(5)))  # [0, 1, 2, 3, 4]
 ```
 
-`self.__count` 在类内被解释器改写为 `self._Counter__count`,外部用原名 `__count` 访问不到(因实际属性名是 `_Counter__count`),需用重整全名才能访问。
-
-**为何要重整**:重整主要用于**避免子类与父类的属性名冲突**。若子类也定义 `__count`,经重整变成 `_Subclass__count`,与父类的 `_Counter__count` 是不同属性,互不覆盖:
+**错误模式二：大小写不一致导致的"幽灵变量"**
 
 ```python
-class Base:
-    def __init__(self):
-        self.__value = "base"      # _Base__value
+# 错误
+user_name = "Alice"
+# ... 几十行代码后
+UserName = "Bob"    # 本意是更新 user_name，实际创建了新变量
+print(user_name)    # 仍然是 "Alice"
 
-class Sub(Base):
-    def __init__(self):
-        super().__init__()
-        self.__value = "sub"       # _Sub__value,不覆盖父类的!
-
-s = Sub()
-print(s._Base__value)             # base
-print(s._Sub__value)              # sub
+# 修正
+user_name = "Alice"
+user_name = "Bob"   # 保持一致
+print(user_name)     # "Bob"
 ```
 
-子类的 `__value` 重整为 `_Sub__value`,不覆盖父类 `_Base__value`,二者共存。无重整的话(用单下划线 `_value`),子类 `_value` 会直接覆盖父类同名属性。重整提供了"各类有自己的私有命名空间"的隔离。
+**错误模式三：数字开头**
 
-**重整的边界**:
+```python
+# 错误
+2nd_value = 10      # SyntaxError
 
-- **非真正私有**:重整后仍可用 `_ClassName__name` 从外部访问,Python 无真正的访问控制,只是增加访问难度与"别这么干"的信号。
-- **仅在类内触发**:模块级的 `__name`(非类内)不重整,只是普通双下划线名字。
-- **`__name__`(前后双下划线)不重整**:重整只针对 `__name`(前导无尾随或单个尾随),dunder 不重整。
-- **少用**:重整增加复杂度(调试时看到 `_Counter__count` 困惑),多数场景单下划线 `_name` 约定私有足够。重整适合需要避免子类覆盖的特定场景。
+# 修正
+second_value = 10
+```
 
-**重整条数规则**:确切说,标识符若有至少两个前导下划线且至多一个尾随下划线(textually),触发重整。`__spam`→`_ClassName__spam`;`__spam__`(双尾随)是 dunder,不重整;`_spam`(单前导)不重整。
+**错误模式四：使用连字符**
 
-理解名称重整,能解释"为何 `__attr` 外部访问不到但 `_Class__attr` 可以""为何子类 `__attr` 不覆盖父类"等现象,并审慎决定何时用 `__`(重整)vs `_`(约定私有)。
+```python
+# 错误
+user-name = "Alice"  # SyntaxError: '-' 被当减号
 
-### 4.3 单下划线 `_` 前缀的"私有"约定(需理解,简述)
+# 修正
+user_name = "Alice"
+```
 
-单下划线前缀 `_name` 是"约定私有",无语言机制强制,但有几处实际效果:
+**错误模式五：名称重整理解错误**
 
-- **`from module import *` 不导入 `_` 前缀名**:星号导入跳过 `_` 开头的名字,除非模块 `__all__` 显式列出。即 `_helper` 不会被 `from m import *` 带入,起到"不暴露内部 API"的作用。
-- **linter 警告外部访问**:Pylint/Ruff 对从外部访问 `obj._attr` 报 warning(protected-access),提示"这是内部"。
-- **不成文约定**:社区共识"`_` 开头 = 内部,别依赖",虽可访问但视为实现细节。
+```python
+class Order:
+    def __init__(self):
+        self.__discount = 0.05    # 重整为 _Order__discount
 
-这套"约定 + 工具提示 + import 控制"的组合,使单下划线前缀成为 Python 表达"内部使用"的主流方式。它不强制(仍可访问),但提供足够信号。理解"私有靠约定不靠强制"是 Python 设计哲学的体现(we are all consenting adults)。
+order = Order()
+# 错误：以为 __discount 是真正私有的，无法访问
+# 实际上可以用重整名访问
+print(order._Order__discount)  # 0.05，能正常访问
 
-### 4.4 魔法方法 `__dunder__` 与协议(需理解,简述)
+# 不要依赖名称重整做安全控制
+```
 
-前后双下划线 `__name__`(dunder)是 Python 为**协议/特殊方法**预留的命名空间。Python 的很多行为通过协议实现:对象 `print` 调 `__str__`、`len()` 调 `__len__`、`[]` 调 `__getitem__`、`for` 调 `__iter__`、`+` 调 `__add__`、`with` 调 `__enter__`/`__exit__`……这些 `__x__` 名字由 Python 定义、由解释器在特定时机调用。
+**错误模式六：在遍历时随意起名**
 
-**为何不要自创 `__x__`**:Python 未来可能引入新的 dunder 协议,若你自创了同名,可能与 Python 行为冲突或被误触发。dunder 命名空间是 Python 的"保留字",只用来实现已有协议,不自创。
+```python
+# 不推荐
+for i in users:
+    print(i.name)    # i 通常用于索引，用于对象遍历容易混淆
 
-**约定与机制**:dunder 既是命名约定(看 `__x__` 就知是特殊方法),也是机制(这些名字被解释器查找调用)。理解这套协议命名,是掌握 Python 数据模型(对象如何参与运算/迭代/上下文等)的入口,详见面向对象笔记。
+# 推荐
+for user in users:
+    print(user.name)
+```
 
----
+### 3.3 命名可读性技巧
+
+**技巧一：用描述性质的名称替代泛名称**
+
+```python
+# 不推荐
+def process(data):
+    return data
+
+# 推荐
+def validate_email(email_address):
+    return email_address
+```
+
+`data` 是万能词，什么都能装，也就什么都不表达。`email_address` 一眼就知道是什么。
+
+**技巧二：布尔变量用 `is_`/`has_`/`can_`/`should_` 前缀**
+
+```python
+# 不推荐
+user = True          # 是什么意思？
+admin = False        # 是管理员？还是不是？
+
+# 推荐
+is_user = True
+is_admin = False
+has_permission = True
+can_delete = True
+should_retry = False
+```
+
+**技巧三：集合用复数名**
+
+```python
+# 不推荐
+user = ["Alice", "Bob", "Charlie"]    # 看名字以为是单个 user
+item = [1, 2, 3]
+
+# 推荐
+users = ["Alice", "Bob", "Charlie"]
+items = [1, 2, 3]
+
+# 遍历时就自然了
+for user in users:
+    print(user)
+```
+
+**技巧四：避免否定式命名**
+
+```python
+# 不推荐
+is_not_empty = True
+if not is_not_empty:    # 双重否定，需要转一个弯才能理解
+    print("空")
+
+# 推荐
+is_empty = False
+if not is_empty:
+    print("非空")
+```
+
+**技巧五：常量集中管理，放在模块顶部**
+
+```python
+# 不推荐：常量散落在代码各处
+def process_order(order):
+    if len(order["items"]) > 100:    # 魔法数字
+        ...
+    total = order["total"] * 0.9    # 魔法数字（折扣率 0.1）
+
+# 推荐：常量集中定义
+MAX_ORDER_ITEMS = 100
+DISCOUNT_RATE = 0.1
+
+def process_order(order):
+    if len(order["items"]) > MAX_ORDER_ITEMS:
+        ...
+    total = order["total"] * (1 - DISCOUNT_RATE)
+```
+
+**技巧六：上下文相关的简短命名**
+
+```python
+# 在类方法内部，self 已提供了上下文
+class User:
+    def __init__(self, name, email):
+        self.name = name        # 不需要 self.user_name
+        self.email = email
+
+# 在函数内部，参数名提供了上下文
+def calculate_total(price, quantity):
+    return price * quantity     # 不需要 item_price * item_quantity
+```
+
+## 4. 原理：名称重整的内部机制
+
+### 4.1 名称重整的触发条件
+
+名称重整（Name Mangling）是 Python 编译器在编译类定义体时，对符合条件的标识符进行自动改名的行为。改名的规则是：将 `__name` 改为 `_ClassName__name`。
+
+**触发条件**（同时满足以下三点才触发）：
+
+1. 标识符以**两个或更多**下划线开头。
+2. 标识符以**至多一个**下划线结尾（即不以 `__` 结尾，`__name__` 不触发，`__name` 触发，`__name_` 触发）。
+3. 标识符出现在**类定义体内部**（模块级别不触发）。
+
+**触发条件一览**：
+
+```text
+写法            是否触发名称重整     重整后的名字
+──────────────────────────────────────────────────
+__secret        是                _ClassName__secret
+__secret_       是                _ClassName__secret_
+__init__        否                保持不变（前后双下划线）
+___secret__     否                保持不变（以双下划线结尾）
+__              否                保持不变（只有下划线）
+_secret         否                保持不变（单下划线前缀）
+```
+
+**验证性代码**：
+
+```python
+class Test:
+    def __init__(self):
+        self.__data = 1        # 触发 → _Test__data
+        self.__data2_ = 2      # 触发 → _Test__data2_
+        self.__init__ = 3      # 不触发 → __init__
+        self._data = 4         # 不触发 → _data
+        self.data = 5          # 不触发 → data
+
+t = Test()
+for attr in sorted(vars(t)):
+    print(f"  {attr} = {getattr(t, attr)}")
+```
+
+运行结果：
+
+```text
+  __init__ = 3
+  _Test__data = 1
+  _Test__data2_ = 2
+  _data = 4
+  data = 5
+```
+
+可以看到，`__data` 变成了 `_Test__data`，`__data2_` 变成了 `_Test__data2_`，而 `__init__`（前后双下划线）和 `_data`（单下划线前缀）都保持不变。
+
+### 4.2 重整的存储与访问
+
+名称重整后，属性在实例的 `__dict__` 中以重整后的名字存储。这意味着：
+
+1. 在类内部，你仍然用 `self.__secret_discount` 访问——Python 帮你做了映射。
+2. 在类外部（不在类定义体内），`self.__secret_discount` 会被理解为字面量 `__secret_discount`，而实例里没有这个名字，所以报 `AttributeError`。
+3. 但如果你知道重整规则，可以用 `_ClassName__secret_discount` 访问——这并不是漏洞，而是 Python 设计的取舍。
+
+**数据流**：
+
+```text
+类定义体:
+  self.__secret = 0.05
+        │
+        ▼
+编译器检测到 __secret 满足重整条件
+        │
+        ▼
+改写为: self._Order__secret = 0.05
+        │
+        ▼
+存储在 instance.__dict__["_Order__secret"] = 0.05
+
+类内部访问:
+  self.__secret
+        │
+        ▼
+编译器同样改写为: self._Order__secret
+        │
+        ▼
+在 __dict__ 中找到 → 正常返回
+
+类外部访问:
+  order.__secret
+        │
+        ▼
+编译器不做改写（不在类定义体内）
+        │
+        ▼
+在 __dict__ 中寻找 "__secret" → 找不到 → AttributeError
+
+  order._Order__secret
+        │
+        ▼
+在 __dict__ 中寻找 "_Order__secret" → 找到 → 正常返回
+```
+
+### 4.3 名称重整的设计目的
+
+名称重整的主要设计目的是**防止子类无意中覆盖父类的"私有"属性**。Python 没有 Java 那样的 `private` 关键字，它只用约定（`_name`）提供了"弱私有"，但弱私有无法防止属性名碰撞。
+
+**没有名称重整的假设场景**：
+
+```text
+如果 Python 不做名称重整：
+  class Order:
+      self.__discount = 0.05     # 父类属性
+
+  class VipOrder(Order):
+      self.__discount = 0.2      # 子类属性 → 覆盖父类！
+
+  VipOrder 的 __discount 变成 0.2
+  父类方法中引用 self.__discount 的逻辑全部受影响 → 意料之外的 bug
+```
+
+**有了名称重整后**：
+
+```text
+  class Order:
+      self.__discount = 0.05     → _Order__discount = 0.05
+
+  class VipOrder(Order):
+      self.__discount = 0.2      → _VipOrder__discount = 0.2
+
+  两个属性互不干扰：
+      _Order__discount = 0.05    ← 父类的
+      _VipOrder__discount = 0.2  ← 子类的
+```
+
+**名称重整 vs Java private 对比**：
+
+| 维度 | Python 名称重整 | Java private |
+|------|----------------|-------------|
+| 访问控制强度 | 弱（可通过重整名访问） | 强（编译期强制，反射才能绕过） |
+| 设计目的 | 防止属性名碰撞 | 完全禁止外部访问 |
+| 子类能否覆盖 | 不能（名字不同） | 不能（编译报错） |
+| 反射绕过 | 直接用重整名 | 用反射 API 可绕过 |
+
+Python 的哲学是"we are all consenting adults here"——不做强制限制，靠开发者自觉。名称重整减少碰撞坑，但把是否遵守私有的决定权留给开发者。
 
 ## 5. 总结
 
-### 5.1 本文内容回顾
+本文围绕 Python 标识符命名规范展开，主要介绍了以下内容：
 
-- **标识符定位**:程序员自起的名字(变量/函数/类/模块/参数),区别于关键字;命名是代码质量基础。
-- **语法规则**:字母数字下划线、非数字开头、大小写敏感、非关键字;Python 3 允许 Unicode 但不推荐;长度无限制。
-- **为何需规范**:避免含义不明/误导/风格混乱/缩写泛滥/单字母滥用/遮蔽内置;统一风格、表意清晰、避免陷阱、传达意图。
-- **下划线约定速览**:`name` 公开、`_name` 私有、`__name` 重整、`__name__` 魔法、`_` 忽略、`NAME` 常量。
-- **变量命名**:snake_case、表意准确、is/has 前缀布尔、复数表集合、避免缩写与匈牙利。
-- **函数/方法命名**:snake_case、动词开头、布尔返回用 is/has、不遮蔽内置。
-- **类命名**:CamelCase、名词、异常以 Error 结尾;类大写与变量小写区分。
-- **常量命名**:全大写下划线、模块顶部、Final/tuple 表真不可变。
-- **模块/包命名**:全小写简短、避免下划线、不与标准库冲突。
-- **TypeVar 命名**:T/K/V 或 CamelCase 约束类型变量。
-- **好名字特征**:准确、具体、简洁、可读、一致、可搜索、无歧义。
-- **下划线详解**:`_` 私有约定+import 控制、`__` 重整、`__x__` 协议不自创、`_` 忽略占位。
-- **避免遮蔽内置**:不用 list/dict/id/type/input 等作标识符,IDE/Ruff 检查。
-- **类型注解命名**:类型别名 CamelCase/大写,泛型用小写内置类型(3.9+)。
-- **反模式集合**:单字母滥用、易混字符、泛名、匈牙利、缩写、误导、遮蔽、风格混用、自创 dunder、过长、否定布尔。
-- **命名与作用域**:作用域宽名字具体、作用域窄可简短,名字信息量匹配上下文。
-- **命名一致性**:建立项目词汇表,同概念统一用词,避免同义混用。
-- **命名与重构**:坏命名是重构信号,重命名是最值钱重构,IDE 安全重命名。
-- **特定场景约定**:回调 func/key、装饰器、property 名词、上下文管理器、生成器命名。
-- **国际化**:标识符坚持 ASCII(跨工具/协作/PEP8),字符串内容可中文。
-- **检查工具实战**:Ruff(pep8-naming)、Pylint、IDE 实时检查,CI 保证。
-- **完整示例**:规范命名模块范本。
-- **原理**:标识符词法规则与 Unicode(底层简略);名称重整 mangling 机制——`__name`→`_ClassName__name`、避免子类覆盖、非真私有、规则边界(详述);单下划线私有约定(import 控制+linter,简述);dunder 协议命名与不自创(简述)。
-- **最佳实践**:遵循 PEP 8、表意准确具体、不遮蔽内置、下划线传意图、布尔/集合命名约定、避免易混单字母、团队统一、模块名慎重、异常 Error 结尾、Ruff 检查、review 审命名、勇于改名。
-
-### 5.2 读完本文你应能掌握
-
-- 说明标识符的语法规则(字符/开头/关键字/大小写/Unicode),区分标识符与关键字。
-- 按 PEP 8 给变量/函数/类/常量/模块/包/异常/TypeVar 起规范名字。
-- 用下划线约定传达意图:`_` 私有、`__` 重整、`__x__` 魔法(不自创)、`_` 忽略、`NAME` 常量。
-- 说明名称重整机制(`__name`→`_ClassName__name`)、为何能避免子类覆盖、其非真私有的边界。
-- 说明单下划线"私有"的约定与实际效果(`import *` 不导入、linter 警告)。
-- 避免遮蔽内置名,识别常见易遮蔽的内置并改名。
-- 识别并避免常见命名反模式(单字母、泛名、匈牙利、误导、否定布尔等)。
-- 用 Ruff/pylint 检查命名规范,在 review 中审视命名质量。
-- 阐述 dunder 协议命名空间为何不自创、Python 私有"靠约定不靠强制"的设计哲学。
-- 按最佳实践写出规范、表意、一致的标识符命名。
+- **标识符语法规则**：合法字符集（字母、数字、下划线、Unicode），不能数字开头，不能包含空格和连字符，不能使用 Python 关键字。用 `str.isidentifier()` 和 `keyword.kwlist` 验证合法性。
+- **大小写敏感**：`count`、`Count`、`COUNT` 是三个不同标识符，PEP 8 利用大小写区分变量、类和常量的命名风格。
+- **命名风格约定**：变量和函数用 snake_case，类用 PascalCase，常量用 UPPER_SNAKE_CASE，私有成员用单下划线前缀，异常类以 Error 结尾。
+- **下划线的特殊含义**：`_` 忽略占位符、`_name` 约定私有、`__name` 名称重整、`__name__` 魔法方法、`name_` 避免与关键字冲突。
+- **避免遮蔽内置名**：不用 `list`、`dict`、`id`、`sum` 等内置名作变量名，遮蔽后会导致内置函数无法使用。
+- **名称重整机制**：双下划线前缀触发编译器自动改名为 `_ClassName__name`，防止子类属性名碰撞，但不是真正的访问控制。
+- **作用域与命名长度**：作用域越宽名字越具体，作用域越窄名字越简短。全局变量要自解释，局部变量可以依赖上下文。
+- **函数命名规范**：动词开头，snake_case 风格，布尔返回用 `is_`/`has_` 前缀，私有函数用单下划线前缀。
+- **最佳实践**：推荐描述性名称而非缩写，布尔变量用 `is_` 前缀，集合用复数名，常量集中管理，避免否定式命名和魔法数字。
+- **名称重整原理**：触发条件（双下划线前缀、不以双下划线结尾、在类定义体内），重整后的存储格式 `_ClassName__name`，设计目的是防止子类属性碰撞而非强制访问控制。
