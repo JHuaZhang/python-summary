@@ -9,816 +9,1100 @@ nav:
   order: 1
 ---
 
+# input输入与类型转换
+
 ## 1. 介绍
 
 ### 1.1 什么是 input
 
-`input` 是 Python 的内置函数,作用是从**标准输入流**(`sys.stdin`,默认是键盘)读取一行文本。它与 `print` 相对——`print` 负责把数据"送出"到屏幕,`input` 负责把用户敲下的内容"读入"到程序。一个最简单的交互由两者构成:
+`input()` 是 Python 的内置函数，用于从**标准输入**（通常是键盘）读取一行文本。它是命令行程序与用户交互的最基础手段——程序通过 `input()` 暂停执行，等待用户在终端键入内容并按下回车，然后将用户输入的内容作为**字符串**返回给程序。
 
-```python
-name = input("请输入你的名字: ")
-print("你好,", name)
+`input()` 与 `print()` 构成了 Python 命令行交互的最小闭环：`print` 负责向用户输出信息，`input` 负责从用户获取信息。一个典型的交互流程如下：
+
+```text
+程序 print 提示信息 → 用户看到提示 → 用户键入内容 → input 返回内容 → 程序处理 → print 结果
 ```
 
-运行时,程序会在屏幕上显示提示语 `请输入你的名字: ` 然后停住,等用户敲字并按回车。用户按回车后,`input` 把刚才那一行(不含换行符)作为字符串返回,赋给 `name`,程序继续往下执行 `print`。
+`input()` 最重要的特性是：**无论用户输入什么，返回值永远是 `str` 类型**。哪怕用户输入的是 `42`，`input()` 返回的也是字符串 `"42"`，而不是整数 `42`。这是初学者最容易踩的坑，也是"类型转换"在 `input` 语境下如此重要的原因——你拿到的是字符串，但大多数场景需要的是数字、布尔值或更复杂的数据结构，必须做一步转换。
 
-在实际开发中,`input` 的典型用途:
+### 1.2 基本语法与最简示例
 
-- **命令行交互工具**:让用户输入参数、选择菜单项,无需复杂的命令行解析。
-- **教学/练习程序**:猜数字、计算器、问答类小程序,靠 `input` 接收用户作答。
-- **脚本中途确认**:批量删除、危险操作前用 `input("确认继续? (y/n) ")` 等待用户确认。
-- **快速取值**:调试或临时脚本里临时读一个值进来测试。
-
-需要先厘清两个关键认知:
-
-**第一,`input` 永远返回字符串。** 这是新手最容易踩的坑。无论用户输入的是 `28`、`3.14` 还是 `True`,`input` 拿到的都是 `"28"`、`"3.14"`、`"True"` 这样的**字符串**,而不是数字或布尔值。如果要拿用户输入做数学运算,必须先做类型转换,否则 `"28" + 2` 会报 `TypeError`。这就是为什么"输入"和"类型转换"总绑在一起讲——有了 `input`,几乎必然要接类型转换。
-
-**第二,`input` 是阻塞的。** 调用 `input` 后程序会**停下来等**用户输入,在用户按回车前不会继续执行后续代码。在需要非阻塞输入或后台读取的场景(如服务端、并发程序),`input` 不合适,要用 `select`、线程或专门的终端库。
-
-从分类上看,`input` 和 `print` 一样是**内置函数**(不是关键字),使用时必须加括号。Python 2 里还有一个 `raw_input` 返回字符串、`input` 会当表达式求值;Python 3 把 `raw_input` 改名为 `input`,统一返回字符串——这也是为什么 Python 3 的 `input` 比 Python 2 安全得多(不会执行用户输入的代码)。
-
-### 1.2 基本语法与最小用法
-
-`input` 的函数签名非常简单:
+`input()` 的函数签名非常简单：
 
 ```python
 input(prompt='')
 ```
 
-- `prompt`:可选的提示字符串,会在等待输入前输出到标准输出,**末尾不自动加换行**。若不传,则无提示直接等待。
-- 返回值:用户输入的那一行文本(字符串),**不包含结尾的换行符**。
+- `prompt`：可选参数，输入提示信息（一个字符串），会显示在用户输入之前。如果省略，则不显示任何提示。
+- **返回值**：永远是 `str` 类型，即用户输入的那一行文本（不含末尾的换行符 `\n`）。
 
-最小用法是不传提示:
-
-```python
-s = input()
-print("你输入了:", s)
-```
-
-更常用的是带提示:
+最简用法：
 
 ```python
-name = input("请输入名字: ")
-print("你好, " + name)
+name = input("请输入你的名字: ")
+print(f"你好, {name}!")
 ```
 
-运行示例(假设用户依次输入 `张三`、`28`):
+运行时，终端会显示：
+
+```text
+请输入你的名字: 张三
+你好, 张三!
+```
+
+用户键入 `张三` 并回车后，`input()` 返回字符串 `"张三"`，赋值给 `name`。
+
+再看一个容易出错的例子：
 
 ```python
-name = input("请输入名字: ")        # 屏幕显示: 请输入名字: 张三
-age = input("请输入年龄: ")         # 屏幕显示: 请输入年龄: 28
-print(f"{name} 今年 {age} 岁")      # 输出: 张三 今年 28 岁
+age = input("请输入你的年龄: ")
+print(f"明年你 {age + 1} 岁")
 ```
 
-注意这里 `age` 是字符串 `"28"`,但因为用了 f-string 直接插值(字符串拼接),所以没报错。一旦要拿 `age` 做运算,问题就来了:
+运行结果：
+
+```text
+TypeError: can only concatenate str (not "int") to str
+```
+
+报错原因：`age` 是字符串 `"25"`，不能直接和整数 `1` 相加。必须先转换类型：
 
 ```python
-age = input("请输入年龄: ")   # 用户输入 28,age 是 "28"
-# print(age + 1)             # TypeError: can only concatenate str (not "int") to str
-print(int(age) + 1)          # 正确:先把 "28" 转成数字 28,再 + 1,输出 29
+age = input("请输入你的年龄: ")
+print(f"明年你 {int(age) + 1} 岁")  # 先转 int 再运算
 ```
 
-这个 `TypeError` 几乎是每个 Python 初学者都遇过的报错,根因就是"`input` 返回字符串"。于是类型转换成了不可或缺的下一步。
+这就是为什么"类型转换"和 `input` 总是一起讲——`input` 拿到的是字符串，几乎每次使用都需要转换。
 
-### 1.3 为什么需要类型转换
+### 1.3 input 与 print 的交互闭环
 
-计算机里"28"这个文本和数字 28 是两个完全不同的东西:前者是两个字符 `'2'` 和 `'8'` 组成的字符串,后者是内存里一个可以参与算术运算的整数值。`input` 只能给你前者,因为它不知道你输入的 `28` 是年龄、编号、电话号码还是别的什么。把字符串"翻译"成数字、布尔或其他类型的过程,就是**类型转换**(type conversion / type casting)。
-
-Python 提供了一组内置构造函数做显式类型转换:
-
-| 目标类型 | 转换函数 | 示例 |
-|----------|----------|------|
-| 整数 | `int()` | `int("28")` → `28` |
-| 浮点数 | `float()` | `float("3.14")` → `3.14` |
-| 字符串 | `str()` | `str(28)` → `"28"` |
-| 布尔 | `bool()` | `bool("")` → `False` |
-| 列表 | `list()` | `list("abc")` → `['a','b','c']` |
-| 元组 | `tuple()` | `tuple([1,2])` → `(1,2)` |
-| 集合 | `set()` | `set([1,1,2])` → `{1,2}` |
-
-其中与 `input` 搭配最频繁的是 `int`、`float`、`str`,因为用户输入的数字需要转成数值才能计算。
-
-类型转换分**显式**(程序员主动调用 `int()` 等)和**隐式**(Python 自动完成的,如 `1 + 2.0` 自动得 `3.0`)两种。`input` 场景下用的都是显式转换,因为 `str` 到 `int/float` 不会自动发生——Python 不会自作主张把你输入的 `"28"` 当数字。
-
-### 1.4 input 与 print 的协作
-
-`input` 的 `prompt` 参数其实内部就是先调用 `print`(写 `prompt` 到 `stdout`),再读 `stdin`。所以下面两种写法几乎等价:
+一个完整的命令行交互程序通常遵循"提示 → 输入 → 处理 → 输出"的循环：
 
 ```python
-# 写法一:用 prompt 参数
-name = input("请输入: ")
-
-# 写法二:先 print 再 input
-print("请输入: ", end="")    # 注意 end="" 不换行,让光标停在提示后
-name = input()
+# BMI 计算器：print 提示 → input 获取 → 转换计算 → print 结果
+print("=== BMI 计算器 ===")
+height = float(input("请输入身高(米, 如 1.75): "))
+weight = float(input("请输入体重(kg, 如 68): "))
+bmi = weight / (height ** 2)
+print(f"你的 BMI 是 {bmi:.1f}")
 ```
 
-差异在于:写法一的提示**紧跟**输入光标,无换行;写法二若忘了 `end=""`,`print` 默认会换行,提示和输入光标就分两行了。所以用 `print` + `input` 拆开写时要记得 `end=""`。一般直接用 `prompt` 参数更简洁。
+运行示例：
+
+```text
+=== BMI 计算器 ===
+请输入身高(米, 如 1.75): 1.75
+请输入体重(kg, 如 68): 68
+你的 BMI 是 22.2
+```
+
+这里 `float()` 把字符串转为浮点数后才能做数学运算。整个流程可以概括为：
+
+```text
+print(提示)
+  ↓
+input() → str（字符串）
+  ↓
+int() / float() / 其他转换
+  ↓
+程序逻辑处理
+  ↓
+print(结果)
+```
 
 ---
 
 ## 2. 核心内容
 
-本章讲解 `input` 的具体行为、`prompt` 参数、返回值特征,以及与各类类型转换函数的搭配,重点是"读入 → 转换 → 校验 → 使用"这条完整链路。
+### 2.1 input() 的返回值永远是无类型字符串
 
-### 2.1 prompt 提示参数
+这是 `input()` 最核心的规则：**返回值永远是 `str`，没有任何例外**。
 
-`prompt` 控制在等待输入前显示什么文字,用来引导用户。
-
-**`prompt` 的关键点**:
-
-- 类型是字符串(可传任何能被 `str()` 的对象,但实践中都传字符串字面量)。
-- 输出后**不加换行**,光标紧跟在提示文字之后,让用户在同一行输入。
-- 不传时(`input()`)无任何提示,光标停在行首等输入——这在交互体验上不友好,通常只在测试或明确上下文时用。
-- `prompt` **不影响**返回值;返回值始终是用户输入的那行文本。
-
-不同 prompt 的效果:
+验证这一点的最直接方式：
 
 ```python
-# 带明确提示,体验好
-name = input("姓名: ")
-
-# 带括号说明格式,引导用户输入规范内容
-phone = input("手机号(11位): ")
-
-# 多行提示:prompt 里含 \n,会先输出提示文字并换行,再在同一行等输入
-intro = input("请做自我介绍\n> ")
+# 输入数字
+s = input("输入一些内容: ")
+print(f"  类型: {type(s)}")
+print(f"  值: {repr(s)}")
 ```
 
-最后一个例子里,`prompt` 含 `\n`,屏幕上会先显示"请做自我介绍"并换行,然后显示 `> ` 等待输入——这是命令行程序常见的提示风格(模拟 shell 的 `>`)。
+不管你输入什么，`type(s)` 始终是 `<class 'str'>`：
 
-**prompt 与返回值无关的验证**:
+```text
+输入一些内容: 42
+  类型: <class 'str'>
+  值: '42'
+
+输入一些内容: True
+  类型: <class 'str'>
+  值: 'True'
+
+输入一些内容: [1, 2, 3]
+  类型: <class 'str'>
+  值: '[1, 2, 3]'
+```
+
+**为什么这样设计**：`input()` 不知道用户的意图——同样输入 `42`，用户可能想要整数，也可能想要电话号码（不能做数学运算的"42"）。因此 `input()` 选择返回最通用的字符串类型，把"如何解释这串文本"的决定权交给开发者。这是一种"安全默认"策略：字符串不会因为意外运算而出错，但如果你需要数字，就必须显式转换。
+
+**常见错误清单**：
+
+| 用户输入 | `input()` 返回 | 直接运算的结果 | 原因 |
+|---------|----------------|---------------|------|
+| `25` | `"25"`（str） | `age + 1` 报 TypeError | str 不能和 int 相加 |
+| `3.14` | `"3.14"`（str） | `int(s)` 报 ValueError | str 含小数点，不能转 int |
+| `True` | `"True"`（str） | `if s:` 永远为真 | 非空字符串都是 True |
+| ` ` (空格) | `" "`（str） | 不等于 `""` | 空格也是有效字符 |
+
+### 2.2 基础类型转换：int()、float()、str()
+
+要将 `input()` 返回的字符串转为数字，最常用的是 `int()` 和 `float()`。
+
+#### 2.2.1 int()：字符串转整数
+
+`int()` 把字符串解析为整数。它要求字符串内容必须是**合法的整数字面量**，不能含小数点、不能含任何其他字符。
 
 ```python
-# 提示语再花哨,返回的也只是用户敲的那行字
-x = input("请输入任意内容(随便写): ")
-print(f"你实际输入的是: {x!r}")   # !r 显示 repr,能看清有无前后空格等
+# 基本用法
+s = input("请输入年龄(整数): ")
+age = int(s)
+print(f"  int 转换后: {age}, 明年 {age + 1} 岁")
 ```
 
-用 `!r` 是为了把用户输入两侧的空格、特殊字符暴露出来,调试用户输入时很有用。
+运行示例：
 
-### 2.2 返回值特征:永远是字符串,且去掉换行
+```text
+请输入年龄(整数): 25
+  int 转换后: 25, 明年 26 岁
+```
 
-`input` 返回值有两个不变的保证,务必牢记:
+**int() 能解析什么、不能解析什么**：
 
-1. **类型恒为 `str`**,即使用户输入的是数字、看起来像列表、输 `True`/`False`,统统是字符串。
-2. **不含结尾换行符**。用户按回车,`\n` 被 `input` 消费掉了,返回的字符串不含它。这一点区别于直接用 `sys.stdin.readline()`,后者会保留 `\n`。
+| 输入字符串 | `int(s)` 结果 | 说明 |
+|-----------|--------------|------|
+| `"25"` | `25` | 正常数数 |
+| `"-10"` | `-10` | 支持负号 |
+| `"  30  "` | `30` | 自动 strip 前后空白 |
+| `"3.14"` | ValueError | 含小数点，int 不接受 |
+| `"12.0"` | ValueError | 即使小数部分是 0 也不行 |
+| `"abc"` | ValueError | 非数字字符 |
+| `" twelve"` | ValueError | 英文数字单词不行 |
+| `""` | ValueError | 空字符串不行 |
+
+**关键点**：`int("3.14")` 会报错，即使你觉得"3.14 取整就是 3"。`int()` 不会做"先转 float 再截断"的隐式转换——它只接受整数格式的字符串。如果你需要从小数字符串中取整数部分，必须先 `float()` 再 `int()`：
 
 ```python
-import sys
-
-# input:自动去掉换行
-line = input("输入一行: ")          # 用户输入 hi 并回车
-print(repr(line))                   # 'hi'(无 \n)
-
-# sys.stdin.readline:保留换行
-# line2 = sys.stdin.readline()
-# print(repr(line2))               # 'hi\n'
+s = "3.14"
+# int(s)  # ValueError!
+n = int(float(s))  # 先 float 再 int → 3
 ```
 
-去换行这个细节的好处是:你拿到的字符串直接可用,不必每次 `strip()`。但要注意它**只去结尾的换行**,不会动用户输入前后的空格:
+#### 2.2.2 float()：字符串转浮点数
+
+`float()` 把字符串解析为浮点数，比 `int()` 宽容——同时接受整数格式和小数格式。
 
 ```python
-s = input("输入: ")   # 用户输入 "  abc  "(前后有空格)并回车
-print(repr(s))        # '  abc  ' —— 前后空格保留,只去掉了末尾换行
+# 身高体重 → BMI
+height = float(input("请输入身高(米, 如 1.75): "))
+weight = float(input("请输入体重(kg, 如 68): "))
+bmi = weight / (height ** 2)
+print(f"  你的 BMI 是 {bmi:.1f}")
 ```
 
-若要清理前后空格,需自行 `s.strip()`。
+运行示例：
 
-### 2.3 转整数:int()
-
-`int()` 把字符串(或其他对象)转成整数,是与 `input` 搭配最高频的转换。
-
-**`int()` 用法**:
-
-- `int("28")` → `28`:把纯数字字符串转成整数。
-- `int("  28  ")` → `28`:会自动忽略首尾空白,这点比想象中宽容。
-- `int(3.9)` → `3`:浮点转整数是**直接截断**(向零取整),不是四舍五入。
-- `int("0x1a", 16)` → `26`:第二参数指定进制,可解析二进制/八进制/十六进制字符串。
-
-**与 input 搭配**:
-
-```python
-age_str = input("请输入年龄: ")   # 假设输入 28
-age = int(age_str)                 # 转成整数 28
-print(f"明年你 {age + 1} 岁")      # 明年你 29 岁
+```text
+请输入身高(米, 如 1.75): 1.75
+请输入体重(kg, 如 68): 68
+  你的 BMI 是 22.2
 ```
 
-通常会合并成一行:
+**float() 能解析什么**：
+
+| 输入字符串 | `float(s)` 结果 | 说明 |
+|-----------|----------------|------|
+| `"3.14"` | `3.14` | 小数 |
+| `"25"` | `25.0` | 整数格式也行 |
+| `"-1.5"` | `-1.5` | 支持负号 |
+| `"1e3"` | `1000.0` | 支持科学计数法 |
+| `"inf"` | `inf` | 无穷大 |
+| `"nan"` | `nan` | 非数字 |
+| `"3.14abc"` | ValueError | 含非数字字符 |
+
+一个实用建议：当你不确定用户会输入整数还是小数时，统一用 `float()` 转换更安全，因为 `float("25")` 和 `float("3.14")` 都能成功，而 `int("3.14")` 会崩。
+
+#### 2.2.3 str()：把数字转回字符串
+
+`str()` 是 `int()`/`float()` 的逆操作，把数字转成字符串。在需要拼接字符串的场景下很常用：
 
 ```python
 age = int(input("请输入年龄: "))
+# 数字转回字符串用于拼接
+print("  年龄存档: " + str(age) + "岁")
+# 或者直接用 f-string（更推荐）
+print(f"  年龄存档: {age}岁")
 ```
 
-**注意:合并写法下,类型转换失败会让整行报错。** 如果用户输入 `abc`,`int("abc")` 直接抛 `ValueError`,程序中断。所以生产代码里通常要把转换包在 `try` 里(见 3.1)。教学示例图省事常合并写,但要清楚其风险。
-
-**int() 转换失败的边界**:
+在现代 Python 中，`str()` 用于拼接的场景大多被 f-string 替代了——f-string 会自动调用 `str()` 转换，写法更简洁。但在某些需要显式转换的场景（如 `join` 要求数字列表先转字符串）仍有用：
 
 ```python
-int("3.14")    # ValueError! "3.14" 不是合法整数文本
-int("abc")     # ValueError
-int("")        # ValueError,空串不能转
-int("12.0")    # ValueError,"12.0" 含小数点,不是纯整数
+nums = [1, 2, 3]
+# ", ".join(nums)  # TypeError: join 要求 str
+print(", ".join(str(n) for n in nums))  # 输出：1, 2, 3
 ```
 
-特别留意 `int("3.14")` 会失败:虽然 `3.14` 是个数字,但它不是"整数字符串"。要先把 `"3.14"` 经 `float()` 再 `int()`,即 `int(float("3.14"))` → `3`。这是初学者常困惑的点。
+#### 2.2.4 三种转换函数对比
 
-### 2.4 转浮点数:float()
+| 函数 | 输入类型 | 输出类型 | 能接受的字符串 | 典型场景 |
+|------|---------|---------|---------------|---------|
+| `int(s)` | str（整数格式） | int | `"25"`、`"-10"` | 年龄、数量、序号 |
+| `float(s)` | str（数字格式） | float | `"3.14"`、`"25"` | 身高、体重、价格 |
+| `str(x)` | 任意对象 | str | 任意对象 | 拼接、序列化 |
 
-`float()` 把字符串转成浮点数,用于需要小数计算的输入。
+### 2.3 bool(input()) 的经典陷阱
 
-**`float()` 用法**:
+`input()` 返回字符串，而 Python 中**任何非空字符串的布尔值都是 `True`**——包括 `"False"`、`"no"`、`"0"` 这些"看起来像假"的字符串。这是一个极易踩的坑。
 
-- `float("3.14")` → `3.14`。
-- `float("3")` → `3.0`:整数串也能转成浮点。
-- `float("  1.5  ")` → `1.5`:同样忽略首尾空白。
-- `float("1e3")` → `1000.0`:支持科学计数法。
-- `float("inf")`/`float("nan")` → 无穷/NaN:特殊浮点值。
-
-**与 input 搭配**:
+**错误写法**：
 
 ```python
-height = float(input("请输入身高(米): "))   # 假设输入 1.75
-weight = float(input("请输入体重(kg): "))   # 假设输入 68
-bmi = weight / (height ** 2)
-print(f"你的 BMI 是 {bmi:.1f}")               # 你的 BMI 是 22.2
+answer = input("继续吗? (yes/no): ")
+if answer:
+    print("  -> 继续")   # 即使输入 no 也会走到这里！
+else:
+    print("  -> 停止")
 ```
 
-**float() 比 int() 更宽容一点**:它能接受 `"3"` 和 `"3.14"`,但不能接受 `"abc"`、空串或带其他字符的串:
+运行示例：
+
+```text
+继续吗? (yes/no): no
+  -> 继续
+```
+
+用户输入了 `no`，但程序仍然"继续"了。原因是 `bool("no")` 是 `True`——`"no"` 是非空字符串，在布尔上下文中为真。
+
+验证这个行为：
 
 ```python
-float("3")      # 3.0,合法
-float("3.14")   # 3.14,合法
-float("abc")    # ValueError
-float("")       # ValueError
-float("3,14")   # ValueError! 逗号不是小数点(中文/欧式写法会踩坑)
+print(bool("no"))     # True
+print(bool("false"))  # True
+print(bool("0"))      # True
+print(bool("False"))  # True
+print(bool(""))       # False —— 只有空字符串才是 False
 ```
 
-那个 `float("3,14")` 的坑值得注意:某些地区习惯用逗号作小数点,但 Python 只认点号 `.`,输入 `3,14` 会失败。处理多语言输入时需先把逗号替换成点。
-
-### 2.5 转字符串:str()
-
-`str()` 把任意对象转成其字符串表示。和 `input` 搭配时,`str()` 用得不多——因为 `input` 本来就返回字符串。但 `str()` 在"把计算结果转成文本后输出/拼接"时很常用,与 `print` 的字符串化机制呼应。
-
-```python
-n = 28
-s = "年龄是 " + str(n)      # 手动拼接需先 str()
-print(s)                     # 年龄是 28
-
-# 更推荐用 f-string,内部自动调 str(),省去手动转换
-print(f"年龄是 {n}")
-```
-
-从 `input` 角度看,`str()` 的用途是"把已经转成数字的结果再变回字符串",例如格式化输出或存盘:
-
-```python
-age = int(input("年龄: "))    # 输入 28 → 转成 int 28
-age_str = str(age)             # 再变回 "28"
-print("存档:", age_str + "岁")  # 存档: 28岁
-```
-
-### 2.6 转布尔:bool() 与 input 的陷阱
-
-`bool()` 把对象转成布尔值。但它与 `input` 的搭配有一个**经典陷阱**:
-
-```python
-answer = input("继续吗? (yes/no): ")    # 用户输入 no
-if bool(answer):
-    print("继续")                          # 居然打印了"继续"!
-```
-
-为什么输入 `no` 还"继续"?因为 `bool("no")` 是 `True`——**任何非空字符串都是 `True`**,哪怕字符串内容是 `"no"`、`"false"`、`"0"`,只要长度大于 0 就是 `True`。`bool()` 只看字符串是否为空,不看内容语义:
-
-```python
-bool("")       # False(空串)
-bool("no")     # True
-bool("false")  # True
-bool("0")      # True
-bool("False")  # True
-bool(" ")      # True(空格也是非空)
-```
-
-所以**不能用 `bool(input(...))` 来判断用户是否同意**。正确做法是把输入转小写后与具体值比较:
+**正确写法**：先 `strip()` 去掉空白，再 `lower()` 统一大小写，最后用集合判断：
 
 ```python
 answer = input("继续吗? (yes/no): ").strip().lower()
 if answer in ("yes", "y", "是"):
-    print("继续")
+    print("  -> 继续")
 else:
-    print("停止")
+    print("  -> 停止")
 ```
 
-这里 `.strip()` 去前后空格、`.lower()` 统一小写,再判断是否在同意集合里,才能可靠识别用户意图。这是"读入 → 清洗 → 转换语义 → 校验"链路的典型例子。
+运行示例：
 
-### 2.7 多值输入与 split
-
-用户常需要一次输入多个值,如"输入三个用空格隔开的数字"。`input` 一次只返回一行字符串,要拆成多个值,配合 `str.split`:
-
-```python
-raw = input("输入三个数字(空格分隔): ")   # 假设输入: 10 20 30
-parts = raw.split()                          # ['10', '20', '30']
-nums = [int(p) for p in parts]               # [10, 20, 30]
-print("总和:", sum(nums))                    # 总和: 60
+```text
+继续吗? (yes/no): no
+  -> 停止
 ```
 
-`split()` 不传参时按任意空白(空格/制表/连续空白都算)分割,且自动忽略首尾空白——这正好适合处理用户随手的输入。常见组合写法:
+**bool 与 input 的行为总结**：
+
+| 用户输入 | `bool(input())` | `input() == ""` | `input().strip() == ""` |
+|---------|-----------------|------------------|------------------------|
+| `"yes"` | True | False | False |
+| `"no"` | True | False | False |
+| `"0"` | True | False | False |
+| `""` (直接回车) | False | True | True |
+| `"   "` (空格) | True | False | True |
+
+结论：千万不要用 `bool(input())` 来判断"用户是否同意"。正确的做法是匹配具体的肯定词或否定词。
+
+### 2.4 多值输入与 split 拆分
+
+有时候需要一次输入多个值（比如多个数字），`input()` 只返回一行字符串，需要用 `split()` 拆分后逐个转换。
+
+#### 2.4.1 空格分隔的多值输入
 
 ```python
-# 一行读入并转成整数列表
-nums = list(map(int, input("数字: ").split()))
-print(nums, "和 =", sum(nums))
-```
-
-**逗号分隔的情况**:如果用户习惯用逗号分隔,`split()` 默认按空白分,会失败,需指定分隔符并清理:
-
-```python
-raw = input("输入(逗号分隔): ")          # 输入: 10, 20, 30
-parts = raw.replace(" ", "").split(",")    # 去空格再按逗号分 → ['10','20','30']
+raw = input("请输入三个数字(空格分隔): ")
+parts = raw.split()  # 按任意空白字符分割
 nums = [int(p) for p in parts]
+print(f"  解析结果: {nums}")
+print(f"  总和: {sum(nums)}, 平均值: {sum(nums) / len(nums)}")
 ```
 
-或更稳的方式:`[int(p.strip()) for p in raw.split(",")]`,对每段单独 `strip()`,既兼容 `10,20,30` 也兼容 `10, 20, 30`。
+运行示例：
 
-### 2.8 多次输入与循环校验
+```text
+请输入三个数字(空格分隔): 10 20 30
+  解析结果: [10, 20, 30]
+  总和: 60, 平均值: 20.0
+```
 
-真实交互中,用户可能输错(输了字母却要数字)。健壮的做法是用循环反复提示,直到拿到合法输入:
+`str.split()` 不传参数时，按**任意空白字符**（空格、Tab、多个连续空格）分割，且自动忽略首尾空白。这比 `split(" ")`（按单个空格分割）更健壮——后者遇到连续空格会产生空字符串元素。
+
+#### 2.4.2 逗号分隔的多值输入（兼容中英文逗号）
+
+```python
+raw = input("请输入数字(逗号分隔, 如 10,20,30): ")
+# 替换中文逗号→英文逗号，再分割
+nums = [int(x.strip()) for x in raw.replace("，", ",").split(",")]
+print(f"  解析结果: {nums}, 总和: {sum(nums)}")
+```
+
+运行示例：
+
+```text
+请输入数字(逗号分隔, 如 10,20,30): 10, 20, 30
+  解析结果: [10, 20, 30], 总和: 60
+
+请输入数字(逗号分隔, 如 10,20,30): 10，20，30
+  解析结果: [10, 20, 30], 总和: 60
+```
+
+这里做了两步处理：
+1. `replace("，", ",")` 把中文逗号统一为英文逗号——用户可能用中文输入法，逗号是全角 `，`。
+2. `x.strip()` 去掉每个值两边的空格——用户可能输入 `10, 20, 30`（逗号后有空格）。
+
+#### 2.4.3 split 的两种模式对比
+
+| 写法 | 分隔依据 | 对连续空格的处理 | 典型场景 |
+|------|---------|----------------|---------|
+| `split()` | 任意空白字符 | 合并为一个分隔 | 空格分隔的值 |
+| `split(",")` | 指定字符 | 保留空元素 | CSV、固定分隔符 |
+| `split(" ")` | 单个空格 | 产生空元素 | 不推荐，不健壮 |
+
+### 2.5 循环校验：while True + try/except
+
+实际开发中，用户输入不可靠——可能输入字母而非数字、可能留空、可能输入范围外的值。直接 `int(input(...))` 一旦遇到非法输入就会崩溃。健壮的输入需要"循环校验"模式：不断提示，直到用户输入合法为止。
+
+#### 2.5.1 基本循环校验
 
 ```python
 while True:
     s = input("请输入年龄(整数): ")
     try:
         age = int(s)
-        break                       # 转换成功,跳出循环
+        break                    # 转换成功，跳出循环
     except ValueError:
-        print("  输入无效,请输入数字。")
-print(f"你的年龄是 {age}")
+        print("  输入无效, 请输入数字。")
+print(f"  你的年龄是 {age}")
 ```
 
-这个模式(`while True` + `try/except` + `break`)是命令行程序读取校验输入的标准范式。可以封装成函数复用:
+运行示例：
+
+```text
+请输入年龄(整数): abc
+  输入无效, 请输入数字。
+请输入年龄(整数): 25
+  你的年龄是 25
+```
+
+核心模式：`while True` 无限循环 → `try` 尝试转换 → 成功就 `break` → 失败就 `except` 捕获并提示 → 继续循环。这是一个极其通用的范式，不仅适用于 `int`，任何可能失败的转换都可以用这个模式。
+
+#### 2.5.2 封装成可复用函数（支持默认值）
+
+当多处需要读取整数时，封装成函数更优雅。还可以支持"直接回车使用默认值"：
 
 ```python
 def read_int(prompt, default=None):
+    """读取整数，支持默认值和错误重试。
+
+    Args:
+        prompt: 输入提示文本
+        default: 用户直接回车时返回的默认值
+
+    Returns:
+        用户输入的整数，或默认值
+    """
     while True:
         s = input(prompt)
         if s == "" and default is not None:
-            return default           # 允许回车用默认值
+            return default
         try:
             return int(s)
         except ValueError:
             print("  请输入合法整数。")
 
+# 使用：带默认值
 age = read_int("年龄(回车默认 18): ", default=18)
-print("年龄:", age)
+print(f"  最终年龄: {age}")
 ```
 
-同理可写 `read_float`、`read_choice`(限定选项)等。把"输入+校验"封装起来,主逻辑就干净了。
+运行示例：
 
-### 2.9 input 的阻塞特性与限制
+```text
+年龄(回车默认 18): 
+  最终年龄: 18
 
-`input` 会阻塞当前线程直到用户回车。这带来几个限制:
-
-- **不能超时**:标准 `input` 没有超时参数,用户不回车程序就一直等。需要超时要用 `signal.alarm`(Unix)或线程+队列等技巧,较繁琐。
-- **不能后台读**:阻塞期间整个线程干不了别的。需要边读输入边做事的程序,通常把 `input` 放进单独线程,或改用非阻塞读取。
-- **EOF 会报错**:输入流结束时(如管道已关闭、Ctrl+D/Ctrl+Z),`input` 抛 `EOFError`。读管道输入时应捕获它。
-
-```python
-# 读取直到 EOF(Ctrl+D 结束)的常见写法
-lines = []
-while True:
-    try:
-        line = input()
-    except EOFError:
-        break
-    lines.append(line)
-print(f"共读入 {len(lines)} 行")
+年龄(回车默认 18): 25
+  最终年龄: 25
 ```
 
-对要处理管道输入的脚本(如 `cat data.txt | python script.py`),这种 `try/except EOFError` 循环是标配。
+#### 2.5.3 支持范围校验的增强版
 
-### 2.10 用 sys.stdin 替代 input
-
-`sys.stdin` 是更底层的输入流对象,`input` 内部就是基于它实现的。直接用 `sys.stdin` 能做 `input` 不便做的事:
-
-- `sys.stdin.read()`:一次性读完所有输入(整个文件/管道),返回一个大字符串。
-- `sys.stdin.readlines()`:一次读完所有行,返回列表。
-- `for line in sys.stdin:`:逐行迭代,内存友好,适合处理大文件。
+在基本校验基础上加入范围限制，例如年龄必须在 0~150 之间：
 
 ```python
-import sys
+def read_int_range(prompt, min_val=None, max_val=None, default=None):
+    """读取整数，支持范围校验和默认值。"""
+    while True:
+        s = input(prompt)
+        if s == "" and default is not None:
+            return default
+        try:
+            val = int(s)
+        except ValueError:
+            print("  请输入合法整数。")
+            continue
+        if min_val is not None and val < min_val:
+            print(f"  不能小于 {min_val}。")
+            continue
+        if max_val is not None and val > max_val:
+            print(f"  不能大于 {max_val}。")
+            continue
+        return val
 
-# 逐行处理标准输入(管道场景常用)
-total = 0
-count = 0
-for line in sys.stdin:
-    line = line.strip()           # 注意 readline 保留换行,需 strip
-    if line:
-        total += int(line)
-        count += 1
-print(f"平均值: {total / count:.2f}")
+age = read_int_range("年龄(0-150): ", min_val=0, max_val=150)
+print(f"  年龄: {age}")
 ```
 
-对比 `input`:逐行用 `for line in sys.stdin` 比 `while True: input()` 更 Pythonic,且能处理任意大输入。`input` 适合交互式弹提示,`sys.stdin` 适合批量管道数据处理,各有所长。
+运行示例：
 
-### 2.11 进制转换:int 的 base 参数
-
-`int` 第二参数 `base` 可解析非十进制字符串,在处理颜色码、权限位、网络地址等场景很常用:
-
-```python
-int("1010", 2)     # 二进制 → 10
-int("17", 8)       # 八进制 → 15
-int("1a", 16)      # 十六进制 → 26
-int("0x1a", 16)    # 带 0x 前缀,base=16 也认 → 26
-int("0o17", 8)     # 带 0o 前缀,base=8 → 15
-int("0b1010", 2)   # 带 0b 前缀,base=2 → 10
+```text
+年龄(0-150): -5
+  不能小于 0。
+年龄(0-150): 200
+  不能大于 150。
+年龄(0-150): 25
+  年龄: 25
 ```
 
-注意:指定 `base` 时,字符串可带对应前缀(`0x`/`0o`/`0b`),Python 会识别。但 `base=0` 是个特殊值——它会根据前缀自动判断进制:
+### 2.6 进制转换：int() 的 base 参数
+
+`int()` 有一个不太常用的第二参数 `base`，可以把字符串按指定进制解析为十进制整数。
 
 ```python
-int("0x1a", 0)    # 26,按 0x 前缀识别为十六进制
-int("0b1010", 0)  # 10
-int("10", 0)      # 10,无前缀按十进制
+# 把字符串按不同进制解析
+print(f"  int('1010', 2)  = {int('1010', 2)}")   # 二进制 → 10
+print(f"  int('17', 8)    = {int('17', 8)}")     # 八进制 → 15
+print(f"  int('1a', 16)   = {int('1a', 16)}")    # 十六进制 → 26
+print(f"  int('ff', 16)   = {int('ff', 16)}")    # 十六进制 → 255
 ```
 
-与 `input` 搭配读取十六进制:
+运行结果：
+
+```text
+  int('1010', 2)  = 10
+  int('17', 8)    = 15
+  int('1a', 16)   = 26
+  int('ff', 16)   = 255
+```
+
+**实际场景**：解析十六进制颜色码（如 `#ff00aa`）。
 
 ```python
-hex_str = input("输入颜色码(如 ffff00): ").strip()
+hex_str = input("输入十六进制颜色码(如 ff00aa): ").strip()
 try:
     code = int(hex_str, 16)
-    print(f"颜色码 {hex_str} = {code}")
+    print(f"  颜色码 {hex_str} = {code} (十进制)")
 except ValueError:
-    print("不是合法的十六进制")
+    print("  不是合法的十六进制")
 ```
 
-反向把数字转成各进制字符串,用 `bin`/`oct`/`hex` 或格式化:
+运行示例：
+
+```text
+输入十六进制颜色码(如 ff00aa): ff00aa
+  颜色码 ff00aa = 16711850 (十进制)
+```
+
+**反向转换**：把十进制数字转为各进制字符串表示，用 `bin()`、`oct()`、`hex()` 或格式化：
 
 ```python
 n = 26
-print(bin(n))        # 0b11010
-print(oct(n))        # 0o32
-print(hex(n))        # 0x1a
-print(f"{n:#b}")      # 0b11010(#b 带 0b 前缀)
-print(f"{n:08b}")     # 00011010(8 位宽二进制,前补零)
+print(f"  {n} 的二进制: {bin(n)}")       # 0b11010
+print(f"  {n} 的八进制: {oct(n)}")       # 0o32
+print(f"  {n} 的十六进制: {hex(n)}")     # 0x1a
+print(f"  {n} 的8位二进制: {n:08b}")     # 00011010
 ```
 
-### 2.12 int 截断 vs round 四舍五入
+**进制转换速查表**：
 
-`int()` 把浮点转整数是**向零截断**,与四舍五入不同,处理用户输入的浮点时要注意:
+| 操作 | 函数/方法 | 示例 | 结果 |
+|------|----------|------|------|
+| 字符串→十进制 | `int(s, base)` | `int('1a', 16)` | `26` |
+| 数字→二进制串 | `bin(n)` | `bin(26)` | `'0b11010'` |
+| 数字→八进制串 | `oct(n)` | `oct(26)` | `'0o32'` |
+| 数字→十六进制串 | `hex(n)` | `hex(26)` | `'0x1a'` |
+| 格式化二进制 | `f"{n:0Nb}"` | `f"{26:08b}"` | `'00011010'` |
+| 格式化十六进制 | `f"{n:0Nx}"` | `f"{255:02x}"` | `'ff'` |
+
+### 2.7 int() 截断 vs round() 四舍五入
+
+从浮点数取整数时，`int()` 和 `round()` 的行为不同，混用会导致难以察觉的 bug。
+
+**int() 的行为——向零截断**：直接丢弃小数部分，不四舍五入。
 
 ```python
-int(3.9)      # 3(截断,不是 4)
-int(-3.9)     # -3(向零截断,不是 -4)
-int(3.1)      # 3
-
-# 要四舍五入用 round
-round(3.5)    # 4( Banking rounding 下 3.5→4,2.5→2,注意)
-round(3.9)    # 4
-round(-3.9)   # -4
+print(f"  int(3.9)   = {int(3.9)}")    # 3
+print(f"  int(-3.9)  = {int(-3.9)}")   # -3
 ```
 
-注意 Python 3 的 `round` 用"银行家舍入"(四舍六入五成双),`round(2.5)` 是 `2` 而非 `3`。需要明确"四舍五入"可在转换前加 0.5(对正数):
+注意 `int(-3.9)` 得到 `-3` 而不是 `-4`——`int()` 是向零截断，不是向下取整。`math.floor(-3.9)` 才是 `-4`。
+
+**round() 的行为——四舍六入五成双**（银行家舍入）：
 
 ```python
-# 从 input 拿到金额,要四舍五入到整元
-money = float(input("金额: "))          # 输入 3.5
-print(int(money))                        # 3(int 直接截断)
-print(int(money + 0.5) if money >= 0 else int(money - 0.5))  # 4(对正数近似四舍五入)
+print(f"  round(3.9) = {round(3.9)}")  # 4
+print(f"  round(3.5) = {round(3.5)}")  # 4
+print(f"  round(2.5) = {round(2.5)}")  # 2 ← 不是 3！
 ```
 
-选 `int` 截断还是 `round`,取决于业务语义:分账取整通常截断(不四舍五入多发钱),显示用值通常四舍五入。混用会出差错。
+`round(2.5)` 得到 `2` 而不是 `3`——这就是"银行家舍入"（四舍六入五成双）：当小数部分正好是 0.5 时，向最近的**偶数**取整。`2.5` 向 `2` 取整（2 是偶数），`3.5` 向 `4` 取整（4 是偶数）。
 
-### 2.13 安全转换列表/字典:ast.literal_eval
+**对比表**：
 
-有时用户要输入结构化数据,如 `[1, 2, 3]` 或 `{"a": 1}`。直接当字符串没用,需要"还原"成 Python 对象。这里有个**危险坑**:很多人用 `eval()`:
+| 输入值 | `int()` | `round()` | `math.floor()` | `math.ceil()` |
+|--------|---------|-----------|----------------|---------------|
+| `3.9` | 3 | 4 | 3 | 4 |
+| `3.5` | 3 | 4 | 3 | 4 |
+| `3.1` | 3 | 3 | 3 | 4 |
+| `2.5` | 2 | 2 | 2 | 3 |
+| `-3.9` | -3 | -4 | -4 | -3 |
+| `-3.5` | -3 | -4 | -4 | -3 |
+
+**实际场景**：处理金额时要特别小心。
 
 ```python
-# 危险:eval 会执行任意代码!
-data = eval(input("输入: "))
-# 若用户输入 __import__('os').system('rm -rf /') —— 后果严重
+money = float(input("请输入金额(如 3.5): "))
+print(f"  int 截断: {int(money)}")
+print(f"  round 四舍五入: {round(money)}")
 ```
 
-`eval` 会执行任意 Python 表达式,处理用户输入等于把电脑交给用户操控,**绝不能用于转换不可信输入**。正确做法是 `ast.literal_eval`,它只解析字面量(数字、字符串、列表、字典、元组、布尔、None),不执行函数调用或表达式,安全:
+运行示例：
+
+```text
+请输入金额(如 3.5): 3.5
+  int 截断: 3
+  round 四舍五入: 4
+```
+
+如果用 `int()` 来"四舍五入"金额，`3.9` 元会变成 `3` 元——损失了 0.9 元。正确做法是用 `round()`。
+
+### 2.8 ast.literal_eval：安全解析复杂数据
+
+当用户需要输入列表、字典等复杂结构时，字符串拆分和逐个转换太繁琐。`ast.literal_eval` 可以安全地把字符串解析为 Python 字面量对象。
 
 ```python
 import ast
 
-raw = input("输入列表(如 [1,2,3]): ")   # 输入 [1,2,3]
+raw = input("输入列表(如 [1, 2, 3]): ")
 try:
     data = ast.literal_eval(raw)
-    print(data, type(data))               # [1, 2, 3] <class 'list'>
+    print(f"  解析结果: {data}, 类型: {type(data).__name__}")
 except (ValueError, SyntaxError):
-    print("输入不是合法的列表字面量")
+    print("  输入不是合法的列表字面量")
 ```
 
-`ast.literal_eval` 对 `"[1, 2, 3]"` 返回真列表,对 `"__import__('os')"` 直接报错(因为它不是纯字面量)。处理用户输入的结构化数据,永远用 `literal_eval` 而非 `eval`。
+运行示例：
 
-### 2.14 菜单式交互
+```text
+输入列表(如 [1, 2, 3]): [1, 2, 3]
+  解析结果: [1, 2, 3], 类型: list
 
-命令行工具常有"列出选项让用户选"的需求,可用编号菜单 + `input` 实现:
+输入列表(如 [1, 2, 3]): {"name": "张三", "age": 25}
+  解析结果: {'name': '张三', 'age': 25}, 类型: dict
+
+输入列表(如 [1, 2, 3]): aaa
+  输入不是合法的列表字面量
+```
+
+**为什么不用 eval()**：`eval()` 可以执行任意 Python 代码，包括 `__import__('os').system('rm -rf /')` 这样的危险操作。如果用户输入恶意代码，`eval()` 会真的执行它。`ast.literal_eval` 只解析字面量（数字、字符串、列表、字典、元组、布尔值、None），不执行任何表达式，是安全的替代方案。
+
+| 函数 | 能解析什么 | 安全性 | 是否执行代码 |
+|------|-----------|--------|-------------|
+| `eval(s)` | 任意 Python 表达式 | **不安全** | 是，会执行代码 |
+| `ast.literal_eval(s)` | 仅字面量（数字、字符串、容器） | 安全 | 否，只解析不执行 |
+
+**能解析的类型**：
 
 ```python
-def show_menu():
-    print("=== 请选择操作 ===")
-    print("1. 添加记录")
-    print("2. 删除记录")
-    print("3. 查询记录")
-    print("0. 退出")
+ast.literal_eval("42")           # → 42 (int)
+ast.literal_eval("3.14")         # → 3.14 (float)
+ast.literal_eval("True")         # → True (bool)
+ast.literal_eval("None")         # → None
+ast.literal_eval("'hello'")      # → 'hello' (str)
+ast.literal_eval("[1, 2, 3]")     # → [1, 2, 3] (list)
+ast.literal_eval("(1, 2)")       # → (1, 2) (tuple)
+ast.literal_eval("{'a': 1}")    # → {'a': 1} (dict)
+ast.literal_eval("{1, 2, 3}")    # → {1, 2, 3} (set)
+```
+
+### 2.9 菜单式交互程序
+
+将 `input()` 与 `while` 循环结合，可以实现命令行菜单交互——这是命令行工具最常见的交互模式。
+
+```python
+def read_int(prompt, default=None):
+    """读取整数，支持默认值和错误重试。"""
+    while True:
+        s = input(prompt)
+        if s == "" and default is not None:
+            return default
+        try:
+            return int(s)
+        except ValueError:
+            print("  请输入合法整数。")
+
+records = []  # 模拟数据存储
 
 while True:
-    show_menu()
+    print("\n=== 记录管理 ===")
+    print("1. 添加记录")
+    print("2. 删除记录")
+    print("3. 查看所有记录")
+    print("0. 退出")
+
     choice = input("请输入选项: ").strip()
     if choice == "1":
-        print("-- 添加 --")
+        record = input("  输入记录内容: ").strip()
+        records.append(record)
+        print(f"  已添加: {record}")
     elif choice == "2":
-        print("-- 删除 --")
+        if not records:
+            print("  没有记录可删")
+            continue
+        for i, r in enumerate(records):
+            print(f"  [{i}] {r}")
+        idx = read_int("  输入要删除的序号: ")
+        if 0 <= idx < len(records):
+            removed = records.pop(idx)
+            print(f"  已删除: {removed}")
+        else:
+            print("  序号超出范围")
     elif choice == "3":
-        print("-- 查询 --")
+        if not records:
+            print("  (空)")
+        for i, r in enumerate(records):
+            print(f"  [{i}] {r}")
     elif choice == "0":
         print("再见")
         break
     else:
-        print("无效选项,请重新输入")
+        print("  无效选项, 请重新输入")
 ```
 
-把选项校验也封装一下,可复用:
+运行示例：
 
-```python
-def read_choice(prompt, options):
-    """options: dict,如 {'1':'添加','0':'退出'}"""
-    while True:
-        s = input(prompt).strip()
-        if s in options:
-            return s
-        print(f"  无效,可选: {list(options.keys())}")
+```text
+=== 记录管理 ===
+1. 添加记录
+2. 删除记录
+3. 查看所有记录
+0. 退出
+请输入选项: 1
+  输入记录内容: 学习 Python
+  已添加: 学习 Python
 
-opt = {"1": "添加", "2": "删除", "0": "退出"}
-c = read_choice("选择: ", opt)
-print(f"你选择了 {opt[c]}")
+=== 记录管理 ===
+1. 添加记录
+2. 删除记录
+3. 查看所有记录
+0. 退出
+请输入选项: 1
+  输入记录内容: 写笔记
+  已添加: 写笔记
+
+=== 记录管理 ===
+1. 添加记录
+2. 删除记录
+3. 查看所有记录
+0. 退出
+请输入选项: 3
+  [0] 学习 Python
+  [1] 写笔记
+
+=== 记录管理 ===
+1. 添加记录
+2. 删除记录
+3. 查看所有记录
+0. 退出
+请输入选项: 0
+再见
 ```
 
-这种"菜单+校验+分发"是命令行程序的标准骨架。
+菜单式交互的结构清晰：外层 `while True` 维持菜单循环 → `input` 读取选项 → `if/elif` 分发到不同操作 → `0` 选项 `break` 退出。这是一个可扩展的模式——添加功能只需增加一个 `elif` 分支。
 
-### 2.15 多行输入
+### 2.10 密码输入：getpass 模块
 
-`input` 一次只读一行。需要多行输入时,有几种做法:
-
-**做法一:读到结束符**。约定一个结束标记(如空行或 `EOF`),循环读到为止:
+`input()` 会在用户输入时回显内容到终端——这在输入用户名时没问题，但输入密码时不应回显，否则旁边的人能看到密码。Python 标准库提供了 `getpass` 模块来解决这个问题。
 
 ```python
-print("输入多行内容,单独一行输入 END 结束:")
+import getpass
+
+username = input("用户名: ")
+password = getpass.getpass("密码: ")
+print(f"  登录用户: {username}, 密码长度: {len(password)}")
+```
+
+运行时，用户名正常显示，密码输入时不回显（终端看不到输入内容）：
+
+```text
+用户名: admin
+密码: 
+  登录用户: admin, 密码长度: 6
+```
+
+**getpass 与 input 的区别**：
+
+| 特性 | `input()` | `getpass.getpass()` |
+|------|-----------|-------------------|
+| 回显输入 | 是 | 否 |
+| 返回类型 | str | str |
+| 提示信息 | 支持 | 支持 |
+| 标准库 | 内置函数 | 需要 `import getpass` |
+| 典型场景 | 普通输入 | 密码、令牌等敏感信息 |
+
+### 2.11 多行输入
+
+`input()` 每次只读一行。如果需要输入多行文本（比如录入一段文章），可以用循环读取，直到用户输入一个"结束标记"。
+
+```python
+print("输入多行内容, 单独一行输入 END 结束:")
 lines = []
 while True:
     line = input()
     if line.strip().upper() == "END":
         break
     lines.append(line)
+
 text = "\n".join(lines)
-print(f"--- 你输入了 {len(lines)} 行 ---\n{text}")
+print(f"--- 共 {len(lines)} 行 ---")
+print(text)
 ```
 
-**做法二:读固定行数**:
+运行示例：
+
+```text
+输入多行内容, 单独一行输入 END 结束:
+第一行内容
+第二行内容
+第三行内容
+END
+--- 共 3 行 ---
+第一行内容
+第二行内容
+第三行内容
+```
+
+**关键设计点**：
+1. `input()` 不传 `prompt` 参数——多行输入时只在最开始提示一次，每行不重复显示提示符。
+2. 结束标记用 `line.strip().upper() == "END"` 判断，兼容大小写和前后空格——用户输入 `end`、`END`、`  end  ` 都能触发结束。
+3. 用 `"\n".join(lines)` 拼接，保留每行的换行。
+
+### 2.12 sys.stdin 与管道输入
+
+除了 `input()`，还可以通过 `sys.stdin` 读取输入。`sys.stdin` 是标准输入流对象，支持逐行读取，并且能通过管道接收其他程序的输出。
 
 ```python
-n = int(input("要输入几行? "))
-lines = [input(f"第{i+1}行: ") for i in range(n)]
-print("\n".join(lines))
+print("逐行输入数字, Ctrl+D (Mac/Linux) 或 Ctrl+Z (Windows) 结束:")
+total = 0
+count = 0
+while True:
+    try:
+        line = input()
+        num = int(line.strip())
+        total += num
+        count += 1
+    except EOFError:
+        break
+    except ValueError:
+        print(f"  跳过非数字: {line}")
+
+if count > 0:
+    print(f"  共输入 {count} 个数字, 总和 {total}, 平均值 {total / count:.2f}")
+else:
+    print("  未输入任何数字")
 ```
 
-**做法三:用 `sys.stdin.read()` 读到底**(管道友好,见 2.10)。
+交互式运行示例：
 
-多行输入在交互场景建议用结束符约定,且在提示里说明清楚,否则用户不知道何时停止。
-
-### 2.16 密码输入:getpass
-
-输入密码时,敲的字符不应回显到屏幕(防止旁边人看到)。标准 `input` 会回显,不适合输密码。`getpass` 模块提供不回显的输入:
-
-```python
-import getpass
-
-username = input("用户名: ")
-password = getpass.getpass("密码: ")   # 输入时不显示字符
-print(f"登录用户 {username},密码长度 {len(password)}")
+```text
+逐行输入数字, Ctrl+D (Mac/Linux) 或 Ctrl+Z (Windows) 结束:
+10
+20
+30
+^D
+  共输入 3 个数字, 总和 60, 平均值: 20.00
 ```
 
-`getpass.getpass` 默认提示是 `"Password: "`,可传 `prompt` 自定义。它在多数终端能正确关闭回显;某些 IDE 的运行窗口不是真终端,可能无法关闭回显(会回退到可见输入,并给出 warning),生产环境在真终端运行即可。
+管道模式运行（通过 `echo` 和管道传入数据）：
 
-注意 `getpass` 仍返回字符串,后续校验逻辑与 `input` 一致,只是读入阶段不显示。
-
-### 2.17 字符串输入的清洗工具
-
-用户输入常常需要清洗后再转换或使用,常用字符串方法:
-
-```python
-s = input("输入: ")
-
-s.strip()           # 去首尾空白
-s.lstrip()          # 只去左空白
-s.rstrip()          # 只去右空白(也常用于去换行)
-s.lower()           # 全小写,大小写不敏感判断时用
-s.upper()           # 全大写
-s.replace(" ", "")  # 去掉所有空格
-s.replace("，", ",") # 中文逗号转英文逗号,统一分隔符
+```bash
+echo -e "10\n20\n30" | python demo.py
 ```
 
-这些方法返回新字符串(原串不变),常链式调用:
+管道模式输出：
 
-```python
-# 典型清洗链:去空白 → 中文逗号转英文 → 按逗号拆 → 逐段去空白转数字
-raw = input("数字(逗号分隔): ")
-nums = [int(x.strip()) for x in raw.replace("，", ",").split(",")]
-print(nums)
+```text
+  共输入 3 个数字, 总和 60, 平均值: 20.00
 ```
 
-清洗是"读入 → 转换"之间的重要一环,健壮的输入处理往往 70% 代码在清洗。
+**EOFError 的来源**：当 `input()` 读到输入流的末尾（EOF，End Of File）时，会抛出 `EOFError`。在交互式终端中，用户按 `Ctrl+D`（Mac/Linux）或 `Ctrl+Z`（Windows）会产生 EOF；在管道模式中，管道数据读完也会产生 EOF。用 `except EOFError: break` 来捕获并退出循环。
+
+**input() vs sys.stdin 逐行读取对比**：
+
+| 特性 | `input()` | `sys.stdin` 循环 |
+|------|-----------|-----------------|
+| 读一行 | `line = input()` | `line = sys.stdin.readline()` |
+| EOF 行为 | 抛 `EOFError` | 返回空字符串 `""` |
+| 去换行 | 自动去掉 `\n` | 保留 `\n`，需手动 `strip()` |
+| 提示信息 | 支持 `prompt` 参数 | 不支持 |
+| 管道兼容 | 兼容 | 兼容 |
 
 ---
 
 ## 3. 最佳实践
 
-### 3.1 转换务必包 try,给用户改错机会
+### 3.1 永远校验用户输入
+
+用户输入是不可控的——可能输错、可能故意输入非法值。直接转换不校验是最常见的崩溃来源。
 
 ```python
-# 不推荐:用户输错直接崩溃
-n = int(input("数字: "))      # 输入 abc → ValueError 程序挂
+# 不推荐：直接转换，用户输错就崩溃
+age = int(input("年龄: "))
+print(f"明年 {age + 1} 岁")
 
-# 推荐:捕获异常,提示重输
+# 推荐：try/except 校验，给用户重新输入的机会
 while True:
+    s = input("年龄: ")
     try:
-        n = int(input("数字: "))
+        age = int(s)
         break
     except ValueError:
-        print("  不是合法数字,请重输。")
+        print("  请输入数字。")
+print(f"明年 {age + 1} 岁")
 ```
 
-交互程序绝不能因用户手误而崩溃,`try/except` 是底线。
+### 3.2 用 strip() 清理输入空白
 
-### 3.2 先清洗再转换
-
-用户输入常带前后空格、大小写不一,转换前先 `.strip()`(必要时 `.lower()`):
+用户可能在输入前后多打了空格而不自知。养成 `strip()` 习惯可以避免很多奇怪问题。
 
 ```python
-# 不推荐:用户输了空格就转换失败
-n = int(input("数字: "))        # 输入 " 28 " → 不报错(int 会 strip),但语义不清
+# 不推荐：直接使用原始 input
+choice = input("继续? (y/n): ")
+if choice == "y":   # 用户输入 " y" 就匹配不到
+    print("继续")
 
-# 推荐:显式清洗
-raw = input("数字: ").strip()
-n = int(raw)
-
-# 布尔判断类:清洗+小写+集合判断
-ans = input("(y/n): ").strip().lower()
-if ans in ("y", "yes"):
-    ...
+# 推荐：strip 后再判断
+choice = input("继续? (y/n): ").strip()
+if choice == "y":
+    print("继续")
 ```
 
-显式 `strip()` 让代码意图清晰,也避免依赖"某函数恰好会 strip"这种隐式行为。
-
-### 3.3 不要用 bool(input()) 判断意图
-
-如 2.6 所述,`bool("no")` 是 `True`。判断用户意图要比较具体内容,而非依赖 `bool()`:
+### 3.3 不要用 eval() 解析用户输入
 
 ```python
-# 错误
-if bool(input("继续? ")):
-    ...
+# 不推荐：eval 执行任意代码，安全风险极高
+data = eval(input("输入: "))
+# 用户输入 __import__('os').system('rm -rf /') 就会真的执行！
 
-# 正确
-if input("继续? ").strip().lower() in ("y", "yes"):
-    ...
+# 推荐：ast.literal_eval 只解析字面量，不执行代码
+import ast
+data = ast.literal_eval(input("输入列表: "))
 ```
 
-### 3.4 多值输入优先 split + 推导式
+### 3.4 用函数封装重复的输入逻辑
+
+多处需要"读取整数并校验"时，封装成函数，避免到处复制粘贴 `while True + try/except`。
 
 ```python
-# 一次读多个值,用 split 拆分后转换
-nums = [int(x) for x in input("数字(空格分隔): ").split()]
+# 不推荐：每次都写完整的校验循环
+while True:
+    s = input("年龄: ")
+    try:
+        age = int(s)
+        break
+    except ValueError:
+        print("请输入数字")
+
+while True:
+    s = input("体重: ")
+    try:
+        weight = int(s)
+        break
+    except ValueError:
+        print("请输入数字")
+
+# 推荐：提取函数，一处定义，多处调用
+def read_int(prompt, default=None):
+    while True:
+        s = input(prompt)
+        if s == "" and default is not None:
+            return default
+        try:
+            return int(s)
+        except ValueError:
+            print("  请输入合法整数。")
+
+age = read_int("年龄: ")
+weight = read_int("体重: ")
 ```
 
-比反复调多次 `input` 让用户分多行输入更友好。
-
-### 3.5 交互式用 input,管道用 sys.stdin
-
-- 需要给用户提示、等用户回应 → `input`(带 prompt)。
-- 处理文件/管道批量数据 → `for line in sys.stdin` 或 `sys.stdin.read()`。
-
-混用会丢体验:`for line in sys.stdin` 不会显示提示,交互场景不友好;`input` 读大管道又慢又繁琐。按场景选对工具。
-
-### 3.6 提示语要明确格式
+### 3.5 bool(input()) 判断的用户意图时要匹配关键词
 
 ```python
-# 模糊
-x = input("输入: ")
+# 不推荐：bool(input()) 永远为 True（除非空字符串）
+if input("继续? (y/n): "):
+    do_something()   # 输入 "n" 也会执行！
 
-# 明确:告诉用户期望的格式和单位
-age = input("年龄(整数,岁): ")
-height = input("身高(如 1.75,米): ")
-choice = input("选择 [1]/[2]/[3]: ")
+# 推荐：匹配具体的关键词
+answer = input("继续? (y/n): ").strip().lower()
+if answer in ("y", "yes", "是"):
+    do_something()
 ```
 
-提示越具体,用户输错越少,程序越不需要复杂的校验逻辑。
-
-### 3.7 处理 EOFError
-
-读管道/重定向输入时,务必捕获 `EOFError`,避免输入流意外结束导致崩溃:
+### 3.6 多值输入统一处理分隔符
 
 ```python
-try:
-    s = input("内容: ")
-except EOFError:
-    s = ""
-    print("\n(输入已结束)")
+# 不推荐：假设用户一定用空格或一定用逗号
+nums = input("输入数字: ").split()  # 逗号分隔时无法处理
+
+# 推荐：先替换中文逗号，再按逗号或空格统一分割
+raw = input("输入数字: ").replace("，", ",")
+# 同时兼容空格和逗号
+parts = raw.replace(",", " ").split()  # 先把逗号换成空格，再统一 split
+nums = [int(p) for p in parts]
+print(nums)
+```
+
+### 3.7 密码输入用 getpass 而非 input
+
+```python
+# 不推荐：input 回显密码，旁边人能看到
+password = input("密码: ")
+
+# 推荐：getpass 不回显，保护隐私
+import getpass
+password = getpass.getpass("密码: ")
+```
+
+### 3.8 int() 取整和 round() 四舍五入不要混用
+
+```python
+# 不推荐：用 int() 做"四舍五入"——实际上是截断
+price = 3.9
+print(int(price))   # 3，损失了 0.9
+
+# 推荐：需要四舍五入用 round()
+print(round(price))  # 4
+
+# 注意 round 的银行家舍入行为
+print(round(2.5))    # 2，不是 3
+print(round(3.5))    # 4
 ```
 
 ---
 
 ## 4. 原理
 
-### 4.1 input 的执行链路(底层支持,简略)
+### 4.1 input() 的底层行为
 
-`input` 是内置函数,底层(CPython)实现是先输出 `prompt` 到 `stdout`,再从 `sys.stdin` 读一行。抛开 C 细节,其行为可用等价 Python 模型描述:
+`input()` 的底层实现可以简化为以下等价模型：
 
 ```python
 def my_input(prompt=""):
     import sys
-    sys.stdout.write(prompt)            # 输出提示,不换行
-    sys.stdout.flush()                  # 立即刷出,让用户看到提示
-    line = sys.stdin.readline()         # 读一行(含末尾换行)
-    if not line:                        # 读到 EOF
+    if prompt:
+        sys.stdout.write(prompt)
+        sys.stdout.flush()
+    line = sys.stdin.readline()   # 从标准输入读一行
+    if not line:                  # 读到 EOF
         raise EOFError("EOF when reading a line")
-    return line.rstrip("\n")            # 去掉结尾换行后返回
+    return line.rstrip("\n")     # 去掉末尾换行符后返回
 ```
 
-核心就是"写 prompt → flush → readline → 去换行"。其中 `flush` 很关键:不刷缓冲用户可能迟迟看不到提示。`readline` 遇到 EOF(输入结束)返回空串,`input` 据此抛 `EOFError`。底层细节无需深究,记住这个模型即可解释 `input` 的阻塞、去换行、EOF 报错等行为。
+核心步骤：
+1. **写提示**：如果有 `prompt`，先写到 `sys.stdout`，并 `flush` 确保立即显示。
+2. **读一行**：调用 `sys.stdin.readline()` 阻塞等待，直到用户输入一行（以 `\n` 结尾）。
+3. **处理 EOF**：如果 `readline()` 返回空字符串，说明输入流已结束（管道关闭或 Ctrl+D），抛出 `EOFError`。
+4. **去换行**：`rstrip("\n")` 去掉行末换行符，返回纯内容字符串。
 
-### 4.2 类型转换的协议:__int__ / __float__ / __str__(需手动实现,详述)
+这就是为什么 `input()` 返回的字符串**不含换行符**——它在返回前已经去掉了。这也解释了为什么 `input()` 永远返回字符串——它操作的最小单位就是"一行文本"，不关心文本内容的语义。
 
-`int()`、`float()`、`str()` 这些转换函数,本质是在调用对象类型上的**双下划线协议方法**。理解这条调用链,才能解释"为什么有的对象能转、有的不能",并能自定义类支持类型转换。
+### 4.2 int() 解析字符串的内部逻辑
 
-**int(obj) 的调用链**:
+`int()` 把字符串转为整数时，内部经历以下步骤：
 
-1. 若 `obj` 是字符串,走字符串解析逻辑:去除首尾空白后,按整数文法(可选正负号 + 数字,或带进制的 `0x`/`0o`/`0b` 前缀)逐字符解析。任一字符不合法就抛 `ValueError`。
-2. 若 `obj` 是浮点数,直接截断小数取整(`int(3.9)` → `3`)。
-3. 若 `obj` 是其他类型,查找并调用其 `__int__` 方法,用返回值(须为 int)作为结果;若无 `__int__`,抛 `TypeError`。
+1. 如果参数不是字符串，走数值转换逻辑（如 `int(3.9)` 直接截断）。
+2. 如果是字符串，先 `strip()` 去掉首尾空白。
+3. 检查可选的符号位（`+` 或 `-`）。
+4. 按 `base` 参数（默认 10）逐字符解析每个数字位。
+5. 如果任何字符不在当前进制的合法范围内，抛出 `ValueError`。
 
-这解释了 2.3 的几个现象:`int("3.14")` 失败是因字符串解析阶段 `"3.14"` 不符合整数文法(出现了点和小数);`int(" 28 ")` 成功是因解析前先去了空白;`int(float("3.14"))` 成功是因先转成浮点 3.14,再走浮点截断分支。
+这解释了为什么 `int("3.14")` 会报错——遇到小数点 `.` 后，第 4 步的逐字符解析发现 `.` 不是十进制数字（0-9），立即抛出 `ValueError`。`int()` 不会"智能地"先转 float 再取整。
 
-**自定义类支持 int 转换**:
+````text
+int("3.14") 的解析过程：
+
+  字符 '3' → 合法十进制数字 → 累积值 = 3
+  字符 '.' → 不是合法十进制数字 → 抛出 ValueError！
+  
+int("  -25  ") 的解析过程：
+
+  strip → "-25"
+  字符 '-' → 符号位，记录为负数
+  字符 '2' → 合法 → 累积值 = 2
+  字符 '5' → 合法 → 累积值 = 25
+  最终结果 = -25
+````
+
+### 4.3 bool(input()) 为什么永远为 True
+
+Python 中 `bool()` 的判断规则对字符串是：**空字符串 `""` 为 `False`，任何非空字符串为 `True`**。这来自于 `str` 类的 `__bool__` 魔术方法实现。
 
 ```python
-class Price:
-    def __init__(self, cents):
-        self.cents = cents          # 内部以分为单位存
-    def __int__(self):
-        return self.cents           # int(price) 返回分
-
-p = Price(9990)
-print(int(p))                       # 9990
+# 等价行为
+bool("")     == False   # 空字符串 → False
+bool("0")    == True    # 非空 → True（"0"是一个字符，不是数字零）
+bool("False") == True   # 非空 → True
+bool("no")   == True    # 非空 → True
+bool(" ")    == True    # 空格也是非空 → True（注意和 "" 不同）
 ```
 
-实现了 `__int__`,`int(p)` 才能正常工作。同理,要让对象能被 `float()` 转换,实现 `__float__`;能被 `str()` 转换,实现 `__str__`(这和 print 的字符串化是同一套机制,详见 print 笔记原理章)。
+关键理解：`bool("0")` 为 `True` 是因为 `"0"` 是一个**字符串**，其中包含字符 `'0'`。字符串的 `__bool__` 只看长度——长度为 0（空串）才返回 `False`，长度 > 0 一律返回 `True`。它不会去解析字符串内容是否"看起来像 False"。
 
-**float(obj) 与 str(obj) 的链路**:
+这与 `bool(0)` 完全不同：
 
-- `float()`:字符串走浮点文法解析(`"3.14"`、`"1e3"`、`"inf"` 等合法);其他类型调用 `__float__`。
-- `str()`:调用 `__str__`,没有则回退 `__repr__`,都没有用默认 `object` 表示。见 print 笔记 4.2 节详述。
+```python
+bool(0)      == False   # 整数 0 → False
+bool("0")    == True    # 字符串 "0" → True（完全不同的类型和行为）
+```
 
-**字符串解析为何严格**:字符串到数字的转换必须"逐字符合法",因为字符串里可能混入任何字符,Python 不会猜你的意图。`int("12个")` 失败不是因为不会处理"个",而是文法规定整数串只允许数字和正负号。这种"严格解析 + 失败抛 ValueError"的设计,迫使程序员显式处理非法输入,比"悄悄返回 0"或"取前面能转的部分"更安全。
-
-理解这条协议链后,你能解释所有类型转换的成功/失败,也能让自定义类自然地参与 `int()`/`float()`/`str()` 转换。
-
-### 4.3 input 与 input() 阻塞的底层(底层支持,简略)
-
-`input` 的阻塞来自 `sys.stdin.readline`,它最终调用操作系统的阻塞式读终端系统调用——没数据来时线程被内核挂起,直到用户回车产生数据才唤醒。这是 OS 级别的 I/O 阻塞,Python 层面无法设超时,故标准 `input` 不支持超时。需要超时/非阻塞只能绕道 `signal`、线程或 `select`,底层细节不必深究。
-
-### 4.4 显式转换为何不自动发生
-
-Python 在数值运算时会做**隐式转换**(`1 + 2.0` → `3.0`,int 自动提升为 float),但 `str` 与 `int` 之间**不会隐式转换**——`"28" + 2` 直接报错。原因是:字符串到数字的转换有"可能失败"的风险(用户输入未必是数字),若 Python 猜测式自动转换,会掩盖错误、产生隐蔽 bug。Python 选择"危险/可能失败的转换必须显式声明"(`int(input(...))`),让程序员明确为这种不确定性负责。这是 Python 类型系统的一条设计哲学:**显式优于隐式**。
+这就是 `if input("继续? (y/n)")` 陷阱的根源——`input()` 返回字符串，字符串的 `bool()` 只看长度，不看内容。
 
 ---
 
 ## 5. 总结
 
-### 5.1 本文内容回顾
+本文围绕 `input()` 函数与类型转换展开，主要介绍了以下内容：
 
-- **input 定位**:从 `sys.stdin` 读一行文本的内置函数,与 `print` 相对;阻塞式,用户回车才返回。
-- **核心特性**:返回值恒为字符串、不含结尾换行;`prompt` 参数输出提示且不换行。
-- **类型转换必要性**:input 只给字符串,做数值运算必须显式转换。
-- **转换函数**:`int()`(整数,支持进制、会 strip、字符串可能 ValueError)、`float()`(浮点,支持科学计数法)、`str()`(任意→字符串)、`bool()`(注意非空串恒真陷阱)。
-- **多值输入**:`input().split()` + 推导式/`map` 拆分转换,兼容逗号分隔需指定分隔符。
-- **循环校验**:`while True` + `try/except` + `break` 的健壮输入范式,可封装成 `read_int` 等函数。
-- **阻塞与限制**:input 不支持超时、不能后台读、EOF 抛 `EOFError`;管道批量数据改用 `sys.stdin`。
-- **进阶用法**:int 的 `base` 参数解析二/八/十六进制及 `base=0` 自动识别;`int` 截断与 `round` 银行家舍入的差异;`ast.literal_eval` 安全还原列表/字典字面量(替代危险的 `eval`);菜单式交互与封装;多行输入(结束符/固定行数/读到底);`getpass` 不回显输密码;字符串清洗工具链(strip/lower/replace)。
-- **最佳实践**:转换包 try、先 strip 清洗、不用 bool 判断意图、交互用 input/管道用 stdin、提示语明确格式、捕获 EOFError。
-- **原理**:input 的"写 prompt→flush→readline→去换行"模型;类型转换走 `__int__`/`__float__`/`__str__` 协议链,字符串解析严格故可能失败;阻塞源于 OS 级阻塞 I/O;str→int 不自动转换体现"显式优于隐式"。
-
-### 5.2 读完本文你应能掌握
-
-- 说明 `input` 返回值恒为字符串、去结尾换行的行为,并解释为何 `int(input())` 拿用户输入做运算时常报 `TypeError`/`ValueError`。
-- 正确使用 `prompt` 参数,以及用 `print(end="") + input()` 等价拆分写法。
-- 用 `int`/`float`/`str`/`bool` 对 input 结果转换,并说明各函数的合法输入边界(`int("3.14")` 为何失败、`float("1e3")` 如何处理)。
-- 识别并规避 `bool(input())` 判断用户意图的陷阱,改用 strip+lower+集合比较。
-- 用 `split` + 推导式一次读入并转换多个值,兼容空格/逗号分隔。
-- 编写 `while True` + `try/except` 的健壮输入校验循环,并封装成可复用函数。
-- 在交互场景用 `input`、在管道场景用 `for line in sys.stdin`,并正确捕获 `EOFError`。
-- 说明类型转换背后的 `__int__`/`__float__`/`__str__` 协议链,让自定义类支持相应转换。
-- 阐述 Python 为何不在 str 与 int 间做隐式转换("显式优于隐式"设计哲学)。
+- **input() 的核心行为**：从标准输入读取一行文本，返回值永远是 `str` 类型，不管用户输入的是数字还是其他内容。
+- **基础类型转换**：`int()` 把整数字符串转为整数，`float()` 把数字字符串转为浮点数，`str()` 把任意对象转为字符串。三者各有能接受和不能接受的输入格式。
+- **bool(input()) 陷阱**：非空字符串在布尔上下文中永远为 `True`，包括 `"no"`、`"0"`、`"False"` 等——判断用户意图时要匹配具体关键词，而非直接 `bool()`。
+- **多值输入**：用 `split()` 将一行输入拆分为多个值，支持空格分隔和逗号分隔，注意兼容中文逗号。
+- **循环校验范式**：`while True` + `try/except` 是健壮输入的标准模式，可封装为函数支持默认值和范围校验。
+- **进制转换**：`int(s, base)` 按指定进制解析字符串，`bin()`/`oct()`/`hex()` 做反向转换。
+- **int() 截断 vs round() 四舍五入**：`int()` 向零截断（丢弃小数），`round()` 银行家舍入（四舍六入五成双），处理金额时要注意区分。
+- **ast.literal_eval**：安全解析列表、字典等 Python 字面量，替代危险的 `eval()`。
+- **菜单式交互**：`while` 循环 + `input()` + `if/elif` 分发，构建命令行菜单程序。
+- **getpass 模块**：密码输入不回显，保护敏感信息。
+- **多行输入**：循环读取 `input()` 直到结束标记，适用于批量文本录入。
+- **sys.stdin 与管道输入**：通过管道接收数据，`EOFError` 标志输入结束。
+- **最佳实践**：永远校验输入、`strip()` 清理空白、禁用 `eval()`、封装输入函数、`getpass` 输密码、区分 `int()` 和 `round()` 的取整行为。
+- **原理**：`input()` 底层通过 `sys.stdin.readline()` 读取并去掉换行符；`int()` 逐字符解析，遇到非法字符即报错；字符串的 `bool()` 只看长度不看内容，这是 `bool(input())` 陷阱的根源。
