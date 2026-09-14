@@ -38,19 +38,7 @@ nav:
 
 在 Python 开发流程中，`pip` 处于**依赖管理层**——它连接 PyPI 包仓库与本地 Python 环境，是项目环境搭建的第一步：
 
-```text
-Python 开发流程的层次结构
-
-├── Python 解释器（基础运行时）
-│   └── pip（包管理器）          ← 你在这里
-│       ├── 从 PyPI 下载包
-│       ├── 安装到虚拟环境
-│       └── 管理依赖清单
-├── 虚拟环境（venv）
-│   └── 独立的 site-packages
-└── 项目代码
-    └── import 第三方包
-```
+![示例图片](../images/base/202609142240.svg)
 
 `pip` 从 Python 3.4 起被**默认随 Python 一起安装**，所以装好 Python 就自动有了 `pip`，无需单独安装。它的典型用途：
 
@@ -204,15 +192,7 @@ trusted-host = pypi.tuna.tsinghua.edu.cn
 
 配置有三个级别，pip 按优先级合并（高优先级覆盖低优先级）：
 
-```text
-配置优先级（从高到低）：
-
---venv / --site    ← 当前虚拟环境（最高优先级）
-      ↓
---user             ← 当前用户
-      ↓
---global           ← 全局所有用户（最低优先级）
-```
+![示例图片](../images/base/202609142241.svg)
 
 **常用配置项**：
 
@@ -533,10 +513,7 @@ python3 -m pip install numpy -v
 
 **wheel 文件名与平台标签**：
 
-```text
-numpy-1.26.0-cp312-cp312-manylinux_2_17_x86_64.whl
-       版本    解释器  ABI        平台
-```
+![示例图片](../images/base/202609142242.svg)
 
 | 标签 | 含义 |
 |------|------|
@@ -757,19 +734,7 @@ python3 -m pip install -r requirements.txt       # 部署
 
 **最佳实践图解**：
 
-```text
-项目依赖管理标准流程：
-
-创建 venv → 配镜像源 → 升级 pip → 装依赖 → 固化清单 → 提交代码
-    │           │          │         │         │          │
-    │           │          │         │         │          └─ .venv/ 被忽略
-    │           │          │         │         │             requirements.txt 被提交
-    │           │          │         │         └─ 手写顶层依赖（非 freeze 全量导出）
-    │           │          │         └─ pip install -r requirements.txt
-    │           │          └─ pip install --upgrade pip
-    │           └─ pip config set global.index-url 镜像地址
-    └─ python -m venv .venv && source .venv/bin/activate
-```
+![示例图片](../images/base/202609142243.svg)
 
 **手写顶层依赖 vs freeze 全量导出的权衡**：`freeze` 会把 flask 的所有传递依赖（jinja2、werkzeug 等）及精确版本一并列出，清单冗长且耦合具体环境；手写顶层依赖，让 pip 自动解析传递依赖，清单简洁、聚焦项目真正声明的内容。需要绝对精确锁定时再用 `pip-compile` 生成锁定文件。
 
