@@ -102,18 +102,7 @@ conda 有一个特殊的 **base 环境**——安装 Miniconda/Anaconda 后默�
 
 在 Python 开发生态中，conda 处于**科学计算环境管理层**——它连接 conda 仓库（conda-forge 等）与本地 Python 环境，专为需要复杂二进制依赖的场景提供一站式管理：
 
-```text
-Python 环境管理工具的层次
-
-├── Python 解释器（基础运行时）
-│   ├── pip + venv（轻量级，纯 Python 项目）     ← 通用场景
-│   └── conda（重量级，科学计算/多版本/非 Python 依赖）  ← 本篇主题
-│       ├── 从 conda-forge 下载预编译包（含 C 库）
-│       ├── 管理任意 Python 版本
-│       └── 配合 pip 补充 conda 没有的包
-└── 项目代码
-    └── import 第三方包
-```
+![示例图片](../images/base/202609142310.svg)
 
 conda 在实际开发中的典型用途：
 
@@ -663,19 +652,7 @@ conda activate ds
 
 **完整流程图解**：
 
-```text
-conda 数据科学环境搭建标准流程：
-
-配频道/求解器/镜像 → 升 conda → 建环境 → 装科学栈 → pip 补充 → 验证 → 导出
-       │              │          │         │          │        │       │
-       │              │          │         │          │        │       └─ environment.yml
-       │              │          │         │          │        └─ python -c "import ..."
-       │              │          │         │          └─ conda 没有的包靠 pip 补
-       │              │          │         └─ conda install numpy pandas scipy ...
-       │              │          └─ conda create -n ds python=3.12
-       │              └─ conda update conda
-       └─ config channels + strict + solver libmamba + 镜像
-```
+![示例图片](../images/base/202609142311.svg)
 
 ### 4.2 实战对比：conda vs pip+venv 装 PyTorch
 
