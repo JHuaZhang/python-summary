@@ -728,18 +728,7 @@ print(issubclass(object, type))  # False     —— object 不继承 type
 
 用一张"两个维度"的图理解：
 
-```text
-   继承维度(is a subclass of，向上指父类):
-         object  ←── int, str, list, ..., 自定义类
-           ↑
-          type   ←── (type 也是 object 的子类，特例)
-
-   实例维度(is an instance of，指向类型):
-         int 的类型 → type        (类是 type 的实例)
-         type 的类型 → type       (type 自举)
-         object 的类型 → type     (连 object 也是 type 的实例)
-         42 的类型 → int          (普通实例的类型是它的类)
-```
+![示例图片](../images/base/202609151317.svg)
 
 关键洞察：
 
