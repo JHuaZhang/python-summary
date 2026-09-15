@@ -262,6 +262,7 @@ export default defineConfig({
   title: 'Python 学习笔记',
   logo: basePath + 'logo.png',
   logoText: 'Python 学习笔记',
+  icon: basePath + 'logo.ico',
   root: 'docs',
   base: basePath,
   outDir: 'dist',
