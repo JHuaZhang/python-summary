@@ -687,31 +687,7 @@ tuple 常量作默认参数: set_langs() = ['zh']
 
 实际项目中的常量不是一股脑全放一个文件，而是按层次组织：
 
-```text
-常量分层架构：
-
-┌─────────────────────────────────────────┐
-│  环境变量 (.env / os.environ)            │
-│  → 不同部署环境不同值，代码不变            │
-│  → DATABASE_URL、DEBUG、SECRET_KEY        │
-├─────────────────────────────────────────┤
-│  全局配置常量 (config.py 模块)             │
-│  → 应用级常量，全项目共享                  │
-│  → APP_NAME、MAX_RETRY、HTTP 配置         │
-├─────────────────────────────────────────┤
-│  类级常量 (类内部)                        │
-│  → 与类语义绑定的常量                      │
-│  → Circle.PI、User.ROLE_ADMIN             │
-├─────────────────────────────────────────┤
-│  枚举常量 (enums.py 模块)                 │
-│  → 一组相关命名取值                        │
-│  → OrderStatus、Priority、UserRole        │
-├─────────────────────────────────────────┤
-│  函数内局部常量                           │
-│  → 仅当前函数使用的魔法数常量化             │
-│  → 作用域最小，不暴露给外部                 │
-└─────────────────────────────────────────┘
-```
+![示例图片](../images/base/202609151230.svg)
 
 **分层原则**：
 
@@ -839,17 +815,7 @@ Python 社区曾经多次讨论过引入 `const` 关键字（参见 PEP 讨论�
 
 `typing.Final` 不是运行时强制机制，它是一个**类型注解标记**。工作原理如下：
 
-```text
-Final 的工作流程：
-
-开发者代码                    静态检查器（mypy/Ruff）              Python 运行时
-───────────                  ─────────────────────             ─────────────
-MAX_RETRY: Final = 3   →   记录: MAX_RETRY 是 Final    →    正常绑定: MAX_RETRY = 3
-                                                            (运行时不做检查)
-
-MAX_RETRY = 100         →   报错: Cannot assign to    →    正常执行: MAX_RETRY = 100
-                             final name "MAX_RETRY"        (运行时允许!)
-```
+![示例图片](../images/base/202609151231.svg)
 
 **mypy 检查示例**
 
@@ -885,30 +851,7 @@ mypy 在静态分析阶段发现了对 Final 变量的重新赋值并报错。�
 
 Enum 的运行时只读性来自其**元类** `EnumMeta`。当你定义 `class OrderStatus(Enum)` 时，Python 使用 `EnumMeta` 创建这个类。`EnumMeta` 在类创建过程中做了以下事情：
 
-```text
-EnumMeta 的只读机制：
-
-1. 类创建时：
-   class OrderStatus(Enum):
-       PENDING = "pending"
-   → EnumMeta 将 PENDING 转换为枚举成员对象
-   → 设置 OrderStatus.PENDING 指向该成员对象
-
-2. 防止重新赋值成员：
-   OrderStatus.PENDING = "x"
-   → EnumMeta.__setattr__ 拦截
-   → 抛出 AttributeError: cannot reassign member 'PENDING'
-
-3. 防止修改成员属性：
-   OrderStatus.PENDING.value = "x"
-   → 成员对象没有 __dict__ 或 __setattr__ 被拦截
-   → 抛出 AttributeError: <enum 'Enum'> cannot set attribute 'value'
-
-4. 防止删除成员：
-   del OrderStatus.PENDING
-   → EnumMeta.__delattr__ 拦截
-   → 抛出 AttributeError
-```
+![示例图片](../images/base/202609151232.svg)
 
 **验证性代码**
 
@@ -949,21 +892,7 @@ Color.RED is Color(1): True
 
 `@dataclass(frozen=True)` 的不可变性是通过拦截 `__setattr__` 和 `__delattr__` 实现的。当你设置了 `frozen=True`，dataclass 装饰器会自动生成以下方法：
 
-```text
-frozen dataclass 的拦截机制：
-
-实例属性赋值:
-  config.timeout_seconds = 60
-  → 触发 __setattr__('timeout_seconds', 60)
-  → 生成的 __setattr__ 抛出 FrozenInstanceError
-  → AttributeError: cannot assign to field 'timeout_seconds'
-
-实例属性删除:
-  del config.timeout_seconds
-  → 触发 __delattr__('timeout_seconds')
-  → 生成的 __delattr__ 抛出 FrozenInstanceError
-  → AttributeError: cannot delete field 'timeout_seconds'
-```
+![示例图片](../images/base/202609151233.svg)
 
 **验证性代码**
 
