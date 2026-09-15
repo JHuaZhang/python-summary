@@ -13,466 +13,705 @@ nav:
 
 ## 1. 介绍
 
-### 1.1 什么是 None 与 NoneType
+### 1.1 什么是 None
 
-`None` 是 Python 中表示"没有值"(no value)的常量,它的类型是 `NoneType`。`None` 类型在整个 Python 体系里只存在**唯一一个实例**——也就是 `None` 这个对象本身,这叫**单例**(singleton)。无论你在代码里多少处写 `None`,它们引用的都是同一个对象。
+在 Python 中，`None` 是一个特殊的常量，表示"没有值"或"空"。它是 `NoneType` 类的唯一实例——整个 Python 进程中只有一个 `None` 对象，所有引用 `None` 的变量都指向同一个内存地址。
 
-```python
-print(None)             # None
-print(type(None))       # <class 'NoneType'>
-print(None is None)     # True —— 单例,身份比较
+你可以把 `None` 理解为"空座位"的标签：一个座位上贴着 `None`，不是因为这个座位上放了什么特殊的东西，而是明确表示"这个位置是空的，没有人坐"。这与 `0`（零分）、`""`（空字符串）、`[]`（空列表）不同——后者都是有具体类型的"空内容"，而 `None` 是"压根没有内容"。
+
+在 Python 的类型体系中，`None` 的定位如下：
+
+```text
+Python 内置类型
+├── 数值类型：int, float, complex
+├── 序列类型：str, list, tuple
+├── 映射类型：dict
+├── 集合类型：set, frozenset
+├── 布尔类型：bool
+└── NoneType：None（唯一实例）
 ```
 
-`None` 的核心语义是"无值"——它表示"这里本应有个值,但现在没有"。这与"零"(`0`)、"空字符串"(`''`)、"空列表"(`[]`)是不同的概念:`0` 是一个确定的数值(零本身是值),`''` 是长度为零的字符串对象,而 `None` 表示"根本不存在值"。理解这个细微差别很重要:
+`None` 不属于任何常规类型分类（不是数值，不是序列，不是映射），它自成一类。
+
+### 1.2 最简示例
 
 ```python
-# 0 是有值(数值零),None 是无值
-score = 0               # 有值:分数为 0(真实考了 0 分)
-score = None            # 无值:尚未考试/未录入,与 0 分含义不同
-
-# '' 是有对象(空字符串),None 是无值
-name = ''               # 有值:名字为空串(用户填了空)
-name = None             # 无值:未提供名字(用户没填这一项)
+x = None
+print(x)               # None
+print(type(x))         # <class 'NoneType'>
+print(x is None)       # True
 ```
 
-这种"无值 vs 零值/空值"的区分在实际开发中非常有用:考试成绩 `None` 与 `0` 含义不同(前者未考、后者零分),可选字段 `None` 与 `''` 含义不同(前者未提交、后者提交了空)。用 `None` 明确表达"缺失",避免与真实的零值/空值混淆。
+运行结果：
 
-`None` 在 Python 中的角色极其广泛,几乎无处不在:
+```text
+None
+<class 'NoneType'>
+True
+```
 
-- **函数默认返回值**:函数无 `return`、或 `return` 不带值时,返回 `None`。
-- **函数默认参数哨兵**:用 `None` 作"未传参"标志(规避可变默认参数陷阱)。
-- **变量占位**:变量"尚未赋有效值"时先用 `None` 占位。
-- **可选字段的缺失值**:数据结构中可选字段未提供时为 `None`(JSON 的 `null` 对应)。
-- **链表/树的终止节点**:数据结构用 `None` 表示链表尾/树叶子的"无下一个"。
-- **清空引用**:`x = None` 释放对原对象的引用。
+这段代码展示了 `None` 的三个核心特征：打印出来就是 `None`、类型是 `NoneType`、用 `is None` 可以判断一个变量是否为 `None`。
 
-本篇要系统讲透 `None`:它的单例本质、`NoneType` 类型、**为何判断 `None` 必须用 `is` 而非 `==`**、`None` 在布尔语境中的行为、函数返回与默认参数中的 `None`、`None` 与"空值"(0/''/[]) 的语义辨析、`None` 在数据结构中的用法,以及相关陷阱。虽然 `None` 看似简单(就一个值),但围绕它的判断规范、哨兵模式、与空值的辨析,是写好 Python 必须吃透的细节。
+## 2. 核心内容
 
-### 1.2 None 是单例:身份与唯一性
+### 2.1 None 的单例本质与身份判断
 
-`None` 是**单例**——整个 Python 解释器在运行期间只创建一次 `None` 对象,所有对 `None` 的引用都指向这同一个对象。这是理解 `None` 一切行为的基础。
+#### 2.1.1 None 是全局唯一单例
+
+`None` 在 Python 进程中只有一个实例。无论你在哪里、用什么方式得到 `None`，都是同一个对象：
 
 ```python
 a = None
 b = None
-print(a is b)           # True —— 同一个对象(身份相同)
-print(id(a) == id(b))   # True —— 内存地址相同
-print(a == b)           # True —— 值也相等
+c = (lambda: None)()  # 函数返回 None
+
+print(a is b)          # True —— 同一个对象
+print(a is b is c)     # True —— 全是同一对象
+print(id(a) == id(b))  # True —— 同一内存地址
+print(a == b)          # True —— 值也相等
 ```
 
-无论你多少处写 `None`,`is` 比较都是 `True`——因为只有一个 `None` 对象。这与可变对象不同(两个独立创建的 `[]` 是不同对象,`is` 为 `False`),也与"值相等但身份不同"的情况不同。
+运行结果：
 
-单例性带来的最直接后果:**判断一个值是否为 `None`,应该用 `is`(`x is None`),而不是 `==`(`x == None`)**。这是 Python 最重要的小规范之一,§2 会详述原因。简单说:`None` 是单例,`is` 判身份最直接高效;而 `==` 会调用对象的 `__eq__` 方法,可能被自定义类改写而不可靠。
-
-```python
-# 推荐(判 None 用 is)
-if x is None: ...
-if x is not None: ...
-# 不推荐(== None 不可靠)
-if x == None: ...
+```text
+True
+True
+True
+True
 ```
 
-`NoneType` 是 `None` 的类型,但它没有内置的公开名字——你不能直接写 `NoneType`,要通过 `type(None)` 获取:
+`is` 运算符比较的是两个对象的内存地址（身份），`==` 比较的是值是否相等。对于 `None` 来说，因为只有一个实例，所以 `is` 和 `==` 的结果都是 `True`。但判断 `None` 时应该始终使用 `is`，下面会解释原因。
+
+#### 2.1.2 判 None 必须用 is，不用 ==
+
+Python 官方风格指南（PEP 8）明确要求：**判断一个变量是否为 `None`，必须用 `is None` 或 `is not None`，不要用 `== None`**。
 
 ```python
-print(type(None))           # <class 'NoneType'>
-NoneType = type(None)       # 手动绑定名字
+x = None
+
+# 推荐写法
+print(x is None)       # True
+print(x is not None)   # False
+
+# 不推荐写法
+# print(x == None)     # 能得到 True，但不可靠
+```
+
+为什么 `== None` 不可靠？因为 `==` 运算调用的是对象的 `__eq__` 方法，而 `__eq__` 可以被自定义类改写，从而"欺骗" `==` 判断：
+
+```python
+class AlwaysEqual:
+    """一个与任何值都"相等"的类"""
+    def __eq__(self, other):
+        return True
+
+obj = AlwaysEqual()
+print(obj == None)     # True! —— 误判，obj 根本不是 None
+print(obj is None)     # False —— is 不受 __eq__ 影响，可靠
+```
+
+运行结果：
+
+```text
+True
+False
+```
+
+`obj` 显然不是 `None`，但 `obj == None` 却返回 `True`，因为 `AlwaysEqual` 的 `__eq__` 总是返回 `True`。而 `is` 比较的是内存地址，不受 `__eq__` 影响，永远可靠。
+
+#### 2.1.3 NoneType 没有公开名称
+
+Python 中没有直接可用的 `NoneType` 名字，你需要手动获取它：
+
+```python
+NoneType = type(None)           # 手动绑定名字
+print(NoneType)                 # <class 'NoneType'>
 print(isinstance(None, NoneType))  # True
 ```
 
-`NoneType` 没有公开名是故意的——判 `None` 应该用 `is None`,而非 `isinstance(x, NoneType)`,前者更简洁规范。`type(None)` 主要用于类型注解(`-> None` 表示返回 None)或元编程场景。
+运行结果：
 
-### 1.3 None 在布尔语境中的行为
+```text
+<class 'NoneType'>
+True
+```
 
-`None` 在布尔语境(`if`/`while`/`and`/`or`/`not`)中被判定为**假(falsy)**:
+日常编程中不需要用 `isinstance(x, NoneType)` 来判断 `None`，直接用 `x is None` 即可。`isinstance` 更笨重且性能更低。
+
+#### 2.1.4 None 不支持常规操作
+
+`None` 是"无值"标记，不能调用方法、不能索引、没有长度、不参与算术：
 
 ```python
-print(bool(None))       # False
+x = None
+# x.foo()    # AttributeError: 'NoneType' object has no attribute 'foo'
+# x[0]       # TypeError: 'NoneType' object is not subscriptable
+# len(x)     # TypeError: object of type 'NoneType' has no len()
+# x + 1      # TypeError: unsupported operand type(s) for +: 'NoneType' and 'int'
+```
+
+这些操作都会抛出异常。`None` 继承了 `object` 的基础方法，但自身只覆写了 `__bool__`（返回 `False`）和 `__repr__`（返回 `'None'`）：
+
+```python
+print(None.__bool__())    # False
+print(None.__repr__())   # 'None'
+print(None.__class__)    # <class 'NoneType'>
+```
+
+运行结果：
+
+```text
+False
+None
+<class 'NoneType'>
+```
+
+### 2.2 None 的布尔行为与空值辨析
+
+#### 2.2.1 None 在布尔语境中为假
+
+在 `if`、`while`、`and`、`or` 等需要布尔值的语境中，`None` 被视为 `False`：
+
+```python
+print(bool(None))   # False
+
 if None:
-    print("这不会执行")  # None 为假,跳过
+    print("不会执行")
 else:
-    print("None 为假")   # ← 走这里
+    print("None 为假")  # ← 走这里
 ```
 
-`None` 是 Python 明确定义的"假值"之一(连同 `False`、数值零、空容器)。这让 `if not x:` 之类的判空写法能覆盖 `None`:
+运行结果：
 
-```python
-def greet(name=None):
-    if not name:            # name 为 None 或 '' 都为假
-        name = "陌生人"
-    return f"Hello, {name}"
-print(greet(None))          # Hello, 陌生人
-print(greet(""))            # Hello, 陌生人('' 也为假)
-print(greet("Alice"))       # Hello, Alice
+```text
+False
+None 为假
 ```
 
-⚠️ **但 `if not x:` 与 `if x is None:` 语义不同,这是 None 使用中最常见的混淆点**:
+#### 2.2.2 if not x 与 if x is None 的语义差异
+
+这是一个极其重要的区分点，也是 Python 初学者最容易犯的错误之一。
+
+- `if not x`：判断 x 是否为"假值"——`None`、`0`、`0.0`、`""`、`[]`、`{}`、`False` 都会触发
+- `if x is None`：仅在 x 确实是 `None` 时才触发
 
 ```python
-# if not x:判"是否为假值"(None/0/''/[]/{} 都触发)
-# if x is None:仅判"是否为 None"(只 None 触发,0/''/[] 不触发)
+# 用不同的"假值"测试两种判断
+test_values = [0, [], '', None]
+
+for x in test_values:
+    print(f"x = {repr(x):8} → not x: {not x},  x is None: {x is None}")
 ```
 
-```python
-x = 0
-if not x:           # True —— 0 为假
-    print("假值")
-if x is None:       # False —— 0 不是 None
-    print("None")
+运行结果：
 
-x = []
-if not x:           # True —— 空列表为假
-    print("假值")
-if x is None:       # False —— 空列表不是 None
-    print("None")
+```text
+x = 0        → not x: True,   x is None: False
+x = []       → not x: True,   x is None: False
+x = ''       → not x: True,   x is None: False
+x = None     → not x: True,   x is None: True
 ```
 
-当你想判"是否为 None"时,用 `is None`;当你想判"是否为假值(含 None)"时,用 `not x`。**二者不可混用**——用 `not x` 去判 None 会把 0/''/[] 也判进去(语义错位),用 `is None` 去判"是否为空"会漏掉空容器(0/''/[] 不是 None)。这条区分是 None 实战的核心要点,§3 会详述。
+可以看到，`not x` 对所有假值都返回 `True`，而 `x is None` 只对 `None` 返回 `True`。如果你只想判断"是否为 `None`"，就必须用 `is None`，否则会把 `0`、`""`、`[]` 这些合法值也当作 `None` 误处理。
 
-### 1.4 None 与空值的辨析
+#### 2.2.3 None 与空值的语义辨析
 
-`None`、`0`、`''`、`[]`、`{}`、`False` 这几个值在布尔语境里同为"假",但它们的语义和类型完全不同。辨析它们是理解 `None` 的关键:
+在实际业务中，`None` 和"空值"（如 `0`、`""`）有完全不同的含义：
 
-| 值 | 类型 | 语义 | 布尔值 |
-|----|------|------|--------|
-| `None` | `NoneType` | 无值/缺失 | False |
-| `0` | `int` | 数值零(是值) | False |
-| `0.0` | `float` | 浮点零 | False |
-| `''` | `str` | 空字符串(有对象) | False |
-| `[]` | `list` | 空列表(有对象) | False |
-| `{}` | `dict` | 空字典(有对象) | False |
-| `False` | `bool` | 布尔假 | False |
+| 场景 | None 的含义 | 空值的含义 | 示例 |
+|------|------------|-----------|------|
+| 考试分数 | `None`：未参加考试 | `0`：考了零分 | `score = None` vs `score = 0` |
+| 用户昵称 | `None`：未设置昵称 | `""`：设置为空 | `name = None` vs `name = ""` |
+| 搜索结果 | `None`：未搜索 | `[]`：搜了但没结果 | `result = None` vs `result = []` |
+| 配置参数 | `None`：使用默认值 | `0`/`False`：用户设为零/关 | `timeout = None` vs `timeout = 0` |
 
-关键区分:`None` 表示"缺失",其余表示"存在但为空/零"。它们虽同为假值,但代表的状态不同:
-
-- **考试分数**:`None`(未考试)vs `0`(考了零分)——截然不同的状态,系统里必须区分。
-- **可选字段**:`None`(未填)vs `''`(填了空)vs `"Alice"`(有值)——三态。
-- **缓存查找**:`None`(键不存在)vs `0`(键存在且值为 0)——不能混。
+一个实际的三态处理示例：
 
 ```python
-# 三态字段的正确处理
 def format_name(name):
+    """处理用户昵称的三种状态"""
     if name is None:          # 未提供
         return "(未填写)"
-    if name == "":            # 提供了空
+    if name == "":            # 提供了空字符串
         return "(名字为空)"
-    return name
+    return name               # 有正常值
+
 print(format_name(None))      # (未填写)
 print(format_name(""))        # (名字为空)
 print(format_name("Alice"))   # Alice
 ```
 
-正因为 `None` 与空值语义不同,**判 `None` 必须用 `is None`**(精确),而判"为空或 None"才用 `not x`(宽松)。混用会导致把 0/''/[] 误当 None,或把 None 漏判,产生隐蔽 bug。这是 None 使用的第一原则。
+运行结果：
 
-理解了 None 的单例性、`is` 判断规范、布尔假值、与空值的辨析,就掌握了 None 的核心。后续章节展开各 API 细节与实战场景。
-
----
-
-## 2. 核心内容
-
-本章详解 `None` 的全部用法与陷阱。每节遵循"规则 → demo → 陷阱 → 场景"展开。`is None` 判断规范、函数返回与默认参数哨兵、None 与空值辨析是重点,因为它们最易在生产环境出问题。
-
-### 2.1 判断 None:必须用 is,不用 ==
-
-这是 `None` 使用最核心的规范:**判断一个值是否为 `None`,必须用 `is`(`x is None` / `x is not None`),不要用 `==`(`x == None`)**。
-
-```python
-x = None
-# 推荐
-if x is None:
-    print("x 是 None")
-if x is not None:
-    print("x 非 None")
-# 不推荐
-if x == None:        # 虽此处可行,但有隐患
-    print("x 是 None")
+```text
+(未填写)
+(名字为空)
+Alice
 ```
 
-**为什么必须用 `is`?** 三个原因:
+如果这里误用 `if not name` 来判断，那么 `None` 和 `""` 都会走进同一个分支，无法区分"未填写"和"名字为空"。
 
-**原因一:None 是单例,`is` 判身份最直接高效。** `None` 全解释器只有一个对象,`is` 直接比内存地址(id),无需调用任何方法,是 O(1) 的指针比较。`==` 则要调用 `x.__eq__(None)`,多一层方法调用开销。对单例而言,`is` 既正确又高效。
+#### 2.2.4 假值类型对比
 
-**原因二:`==` 可能被自定义 `__eq__` 改写,行为不可靠。** `==` 调用对象的 `__eq__` 方法,而 `__eq__` 可被自定义类重写。一个类如果把 `__eq__` 实现成"和任意值都相等"或"抛异常",`x == None` 就会失控:
+Python 中的假值各有不同的类型，理解它们的区别有助于避免误判：
 
 ```python
-class AlwaysEqual:
-    def __eq__(self, other):
-        return True       # 与任意值都"相等"
-    # 注意:重写 __eq__ 后 __hash__ 默认变 None(不可哈希),此处省略
-
-obj = AlwaysEqual()
-print(obj == None)        # True! —— 误判,但 obj 根本不是 None
-print(obj is None)        # False —— is 不受 __eq__ 影响,可靠
+print(f"{'值':<10} {'类型':<12} {'bool()':<8}")
+print("-" * 32)
+falsy_values = [None, 0, 0.0, '', [], {}, False]
+for v in falsy_values:
+    print(f"{repr(v):<10} {type(v).__name__:<12} {bool(v):<8}")
 ```
 
-`obj == None` 返回 `True`(被 `__eq__` 欺骗),但 `obj is None` 正确返回 `False`。`is` 只判身份,不受任何方法影响,永远可靠。这是判 None 用 `is` 的根本理由——**身份判断不应被值相等逻辑干扰**。
+运行结果：
 
-**原因三:PEP 8 明确规定。** Python 官方风格指南 PEP 8 写道:"Comparisons to singletons like None should always be done with is or is not, never the equality operators."(与 None 等单例的比较永远应用 is/is not,绝不用相等运算符)。这是社区共识。
-
-**`is not None`(否定形式)** 同样用 `is not`:
-
-```python
-# 推荐
-if x is not None: ...
-# 不推荐
-if not x is None: ...     # 啰嗦,且易读错
-if x != None: ...         # 不可靠(同 == None 的隐患)
+```text
+值         类型          bool()  
+--------------------------------
+None       NoneType     False   
+0          int          False   
+0.0        float        False   
+''         str          False   
+[]         list         False   
+{}         dict         False   
+False      bool         False   
 ```
 
-`is not None` 是 `is None` 的否定,一体适用。`not x is None` 虽语法合法(等价 `is not None`),但啰嗦且易与 `not (x is None)` 混淆,用 `is not None` 更地道。
+这些值在布尔语境中都为 `False`，但它们的类型和含义完全不同。判断其中某一个具体类型时，不能用 `if not x` 一刀切。
 
-**这条规范要刻进肌肉记忆**:**判 None 永远 `is None` / `is not None`**。同样,判 `True`/`False` 单例也用 `is`,但判 None 是最高频、最重要的应用。
+### 2.3 函数返回值中的 None
 
-### 2.2 None 的属性访问与方法
+#### 2.3.1 无 return 语句时返回 None
 
-`None` 作为 `NoneType` 的唯一实例,方法极少——它几乎没有公开方法,试图调用方法或访问属性会报 `AttributeError`:
-
-```python
-x = None
-# x.foo()          # AttributeError: 'NoneType' object has no attribute 'foo'
-# x[0]             # TypeError: 'NoneType' object is not subscriptable(不可索引)
-# len(x)           # TypeError: object of type 'NoneType' has no len()
-# x + 1            # TypeError: unsupported operand type(s) for +: 'NoneType' and 'int'
-```
-
-`None` 不能调用方法、不能索引、无长度、不参与算术——它只是个"无值"标记。这些报错是 None 相关 bug 最常见的表现形式:当你对某个本该有值、实际却是 None 的对象操作时,会撞上这些错误。
+Python 函数如果没有 `return` 语句，或者 `return` 不带值，都会自动返回 `None`：
 
 ```python
-# 典型 None bug:函数返回 None 却被当结果操作
-def get_user(id):
-    if id == 1:
-        return {"name": "Alice"}
-    return None         # 找不到返回 None
-
-user = get_user(999)    # None(用户不存在)
-# print(user["name"])  # TypeError: 'NoneType' is not subscriptable
-# 正确做法:先判 None
-if user is not None:
-    print(user["name"])
-else:
-    print("用户不存在")
-```
-
-`'NoneType' object has no attribute ...` / `'NoneType' is not subscriptable` 是 Python 最高频的错误之一——几乎都源于"对 None 做了需要值的操作"。预防方法:凡是可能返回 None 的函数(查找类、解析类),调用后先判 None 再用。
-
-**`NoneType` 的方法**(很少,但有几个):
-
-```python
-print(NoneType := type(None))
-# NoneType 继承 object,有 object 的通用方法
-print(None.__bool__())      # False —— 真值测试(实现为返回 False)
-print(None.__repr__())      # 'None' —— 字符串表示
-print(None.__class__)       # <class 'NoneType'>
-# 没有业务方法,就是个值标记
-```
-
-`None` 继承 `object`,有 `__bool__`(返回 False,故 None 为假)、`__repr__`/`__str__`(返回 `'None'`)等基础方法,但没有业务方法。它就是个"无值常量",行为极简。
-
-### 2.3 函数返回值与 None
-
-`None` 是函数的默认返回值——当函数没有 `return` 语句、或 `return` 不带值时,函数返回 `None`。这是 `None` 最常见的来源。
-
-```python
-# 无 return 语句 → 返回 None
 def greet(name):
-    print(f"Hello, {name}")    # 只打印,不 return
-result = greet("Alice")        # 打印 Hello, Alice
-print(result)                  # None —— 函数返回 None
+    print(f"Hello, {name}")
 
-# return 不带值 → 返回 None
+result = greet("Alice")
+print(result)   # None —— 函数默认返回 None
+```
+
+运行结果：
+
+```text
+Hello, Alice
+None
+```
+
+```python
 def do_something():
     print("doing")
-    return                    # 等价 return None
-r = do_something()
-print(r)                      # None
+    return       # 等价于 return None
 
-# 显式 return None(明确表达"无返回值")
-def not_found():
-    return None               # 显式,语义清晰
+r = do_something()
+print(r)         # None
 ```
 
-理解这条规则很重要——很多新手不知道"没有 return 的函数返回 None",导致对返回值误用:
+运行结果：
+
+```text
+doing
+None
+```
+
+你也可以显式写 `return None`，语义上更清晰地表达"这里就是返回空"：
 
 ```python
-def append_item(lst, item):
-    lst.append(item)          # 就地修改,无 return
-data = [1, 2]
-result = append_item(data, 3)
-print(result)                 # None!不是 [1,2,3]
-# list.append 返回 None(就地修改类方法都不返回新对象)
-print(data)                   # [1, 2, 3] —— 原列表被改了,但返回值是 None
+def not_found():
+    return None  # 明确表达"这里返回空"
+
+print(not_found())  # None
 ```
 
-`list.append`、`list.sort`、`list.extend`、`dict.update`、`set.add` 等"就地修改"方法都返回 `None`(Python 的统一约定:就地修改的方法不返回新对象,避免误用链式调用滋生 bug)。新手常误以为 `lst.append(x)` 返回追加后的列表,实则返回 None。这条 `None` 返回约定要牢记。
+#### 2.3.2 就地修改方法返回 None
 
-**查找类函数返回 None 表"未找到"**:
+Python 中一个统一的设计约定：**就修修改原对象的方法返回 `None`**，而非返回修改后的对象。这是为了明确区分"就地修改"和"返回新对象"两种模式，避免调用者误以为原对象没被修改。
+
+```python
+# 就地修改 → 返回 None
+data = [1, 2]
+result = data.append(3)
+print(result)   # None! 不是 [1, 2, 3]
+print(data)     # [1, 2, 3] —— 原列表被改了
+
+lst = [3, 1, 2]
+result = lst.sort()
+print(result)   # None
+print(lst)      # [1, 2, 3]
+
+# 对比：返回新对象 → 返回新列表
+lst2 = [3, 1, 2]
+result = sorted(lst2)
+print(result)   # [1, 2, 3] —— 返回新列表
+print(lst2)     # [3, 1, 2] —— 原列表不变
+```
+
+运行结果：
+
+```text
+None
+[1, 2, 3]
+None
+[1, 2, 3]
+[1, 2, 3]
+[3, 1, 2]
+```
+
+常见的就地修改方法与对应的"返回新对象"版本对比：
+
+| 就地修改（返回 None） | 返回新对象 | 说明 |
+|---------------------|-----------|------|
+| `list.append(x)` | `list + [x]` | 添加元素 |
+| `list.sort()` | `sorted(list)` | 排序 |
+| `list.reverse()` | `reversed(list)` | 反转 |
+| `list.extend(iter)` | `list + list(iter)` | 扩展 |
+| `dict.update(d)` | `dict | d`（3.9+） | 合并 |
+| `set.add(x)` | `set | {x}` | 添加元素 |
+
+初学者常犯的错误是把就地修改的返回值赋给变量，结果得到 `None`：
+
+```python
+# 错误写法
+nums = [3, 1, 2]
+nums = nums.sort()    # nums 变成了 None!
+# print(nums[0])      # TypeError: 'NoneType' object is not subscriptable
+
+# 正确写法
+nums = [3, 1, 2]
+nums.sort()           # 就地排序，不接收返回值
+print(nums)            # [1, 2, 3]
+```
+
+#### 2.3.3 查找类函数返回 None 表示"未找到"
+
+当一个函数需要返回查找结果，但没找到时，通常返回 `None` 表示"未找到"：
 
 ```python
 def find_user(user_id):
     users = {1: "Alice", 2: "Bob"}
     if user_id in users:
         return users[user_id]
-    return None           # 找不到返回 None(表"缺失")
+    return None  # 找不到返回 None
 
 name = find_user(999)
-if name is not None:      # 先判 None
-    print(f"找到:{name}")
+if name is not None:   # 先判 None
+    print(f"找到: {name}")
 else:
-    print("未找到")
+    print("未找到")     # ← 走这里
 ```
 
-查找/查询类函数,"找不到"时返回 `None` 是 Python 的惯例(如 `dict.get` 在键缺失时返回 `None`)。调用方必须判 None 处理"缺失"分支,否则对 None 操作会报错。
+运行结果：
 
-**显式 return None vs 隐式**:
-
-```python
-# 隐式(无 return 或 return 不带值):返回 None,但意图不够明确
-def process(x):
-    if x < 0:
-        return            # 隐式 None,啥也没处理
-    # ... 无 return
-
-# 显式 return None:语义清晰(明确表达"这里返回空")
-def process(x):
-    if x < 0:
-        return None       # 明确:负数不处理,返回 None
-    return x * 2
+```text
+未找到
 ```
 
-当函数语义上确实要"返回无值"(如查找失败的哨兵、处理跳过)时,用显式 `return None` 比隐式更清晰,让读代码者明白返回 None 是有意为之。而"无返回值的副作用函数"(如 `print`、`append`)用隐式(不写 return 或空 return)即可——它们本就不该被期望有返回值。按意图选择显式与否。
+注意：如果 `find_user` 有可能返回假值（如空字符串），就必须用 `is not None` 而非 `if name` 来判断是否找到。
 
-### 2.4 None 作函数默认参数哨兵(重点)
+#### 2.3.4 对 None 操作的典型 bug
 
-`None` 作函数默认参数的**哨兵(sentinel)**,是 Python 最经典、最重要的设计模式之一。它解决两个问题:可变默认参数陷阱、区分"未传参"与"传了假值"。
-
-**问题一:可变默认参数陷阱**(详见《变量赋值机制》)。用可变对象(`[]`/`{}`/`set()`)做默认参数会出 bug:
+最常见的 `None` 相关 bug 是：拿到函数返回的 `None` 后直接当正常对象操作，导致 `TypeError`：
 
 ```python
-# 危险:可变默认参数
-def add_item(item, target=[]):    # 默认 target 是同一个 list!
-    target.append(item)
-    return target
-print(add_item(1))    # [1]
-print(add_item(2))    # [1, 2] —— 不是 [2]!默认 list 被多次调用共享累积
-print(add_item(3))    # [1, 2, 3]
-```
+def get_user(uid):
+    if uid == 1:
+        return {"name": "Alice"}
+    return None
 
-函数默认参数在**函数定义时求值一次**,之后所有调用共享同一个默认 list。这是 Python 最经典的 bug。**修复:用 None 哨兵,函数内创建**:
+user = get_user(999)   # 返回 None（用户不存在）
 
-```python
-# 正确:None 哨兵
-def add_item(item, target=None):
-    if target is None:
-        target = []        # 每次调用未传参时,新建 list
-    target.append(item)
-    return target
-print(add_item(1))    # [1]
-print(add_item(2))    # [2] —— 正确!每次 None 则新建
-print(add_item(3, [9]))  # [9, 3] —— 传了则用传入的
-```
+# 错误：直接用 user["name"] → TypeError
+# print(user["name"])  # TypeError: 'NoneType' object is not subscriptable
 
-`None` 哨兵模式:`def f(x=None): if x is None: x = []`。这是 Python 处理"可变默认参数"的标准范式,要刻进 DNA:**可变对象绝不做函数默认参数,用 None 哨兵替代**。
-
-**问题二:区分"未传参"与"传了假值"**。有时默认参数的合法值包含假值(如 `0`/`''`/`False`),你需要在"用户没传"和"用户传了 0"之间区分:
-
-```python
-# 用 None 区分"未传 timeout"和"传了 timeout=0"
-def fetch(url, timeout=None):
-    if timeout is None:         # 未传参 → 用默认 30
-        timeout = 30
-    # 若用户传 timeout=0,这里 timeout=0,不会被替换(is None 为 False)
-    print(f"超时:{timeout}s")
-fetch("a.com")            # 超时:30s(未传,用默认)
-fetch("a.com", timeout=0) # 超时:0s(传了 0,0 是合法值,保留)
-fetch("a.com", timeout=10)# 超时:10s
-```
-
-若用 `def fetch(url, timeout=30)` 配 `if timeout:`(判假值),`timeout=0` 会被当"假值"替换成 30——把合法的 0 吞了。用 None 哨兵 + `is None` 判断,精确区分"未传"(None)与"传了0"(0)。这对"0/False/'' 是合法输入"的参数至关重要。
-
-⚠️ **哨兵判断必须用 `is None`,不能用 `if not timeout`**:
-
-```python
-# 错误:if not timeout 会把 0/''/False 也当"未传"
-def fetch_bad(url, timeout=None):
-    if not timeout:        # timeout 为 0/None/'' 都触发!
-        timeout = 30       # 把合法的 0 也换成 30
-# 正确:if timeout is None 只在真 None 时触发
-def fetch_good(url, timeout=None):
-    if timeout is None:    # 仅 None 触发
-        timeout = 30
-```
-
-`if not x:` 判"假值"(含 None/0/''),`if x is None:` 仅判 None。哨兵场景必须用后者,否则会吞掉合法的假值输入。这条与 §1.3 一致,是 None 哨兵的正确写法。
-
-**多参数哨兵**:
-
-```python
-def configure(host=None, port=None, debug=None):
-    host = host or "localhost"        # None/'' 都用默认(若 '' 非合法)
-    if port is None:                  # 仅 None 用默认(0 是合法端口?这里 port 0 罕见,依场景)
-        port = 8080
-    if debug is None:                 # debug 用 is None,因 False 是合法调试值
-        debug = False
-    print(host, port, debug)
-configure()                           # localhost 8080 False
-configure(port=0, debug=False)        # localhost 0 False(0 和 False 被保留)
-```
-
-多可选参数各自用 None 哨兵,按"该参数的合法值是否含假值"选用 `is None`(含假值,如 debug=False 合法)或 `or`(不含假值或欢迎 falsy 替换,如 host)。这种"逐参数哨兵"是构造灵活 API 的标准模式。`None` 哨兵是 Python 函数设计的高频核心技巧,务必熟练。
-
-### 2.5 None 的安全访问与"可选链"
-
-`None` 的最大风险是"对 None 操作导致 TypeError"。Python 没有 `?.`(可选链)运算符(不像 JavaScript/Kotlin),但有几种安全的 None 处理模式。
-
-**模式一:先判 None 再访问**(最基本):
-
-```python
-user = get_user(999)          # 可能返回 None
-# user["name"]                # 若 user 是 None,TypeError
+# 正确：先判 None
 if user is not None:
     print(user["name"])
 else:
-    print("无用户")
+    print("用户不存在")  # ← 走这里
 ```
 
-**模式二:用容器方法避免对 None 操作**。若 None 来自"查找失败",改用返回空容器或用 `.get()`:
+运行结果：
+
+```text
+用户不存在
+```
+
+### 2.4 None 哨兵模式
+
+#### 2.4.1 可变默认参数陷阱
+
+Python 函数的默认参数在函数定义时只创建一次，后续所有调用共享同一个默认对象。对于可变对象（如 `list`、`dict`），这会导致"上次调用的数据残留到下次调用"的经典陷阱：
 
 ```python
-# dict.get 在键缺失时返回 None(或指定默认),不抛错
+def add_item_bad(item, target=[]):  # 默认 target 是同一个 list
+    target.append(item)
+    return target
+
+print(add_item_bad(1))   # [1]
+print(add_item_bad(2))   # [1, 2] —— 不是 [2]! 默认 list 被共享累积
+```
+
+运行结果：
+
+```text
+[1]
+[1, 2]
+```
+
+第二次调用时，`target` 默认值仍然是第一次调用后已被修改的那个 `[1]`，所以 `append(2)` 后变成了 `[1, 2]`。
+
+#### 2.4.2 用 None 哨兵修复
+
+标准修复方案是用 `None` 作为默认值（哨兵），在函数内部判断后创建新对象：
+
+```python
+def add_item(item, target=None):
+    if target is None:
+        target = []    # 每次调用未传参时新建 list
+    target.append(item)
+    return target
+
+print(add_item(1))       # [1]
+print(add_item(2))       # [2] —— 正确! 每次 None 则新建
+print(add_item(3, [9]))  # [9, 3] —— 传了则用传入的
+```
+
+运行结果：
+
+```text
+[1]
+[2]
+[9, 3]
+```
+
+这个模式适用于所有可变默认参数：`list`、`dict`、`set` 等。
+
+#### 2.4.3 区分"未传参"与"传了假值"
+
+`None` 哨兵的核心价值在于区分"用户没传参数"和"用户传了一个假值"。以 `timeout` 参数为例：
+
+```python
+def fetch(url, timeout=None):
+    if timeout is None:   # 仅 None 触发（未传参 → 用默认 30）
+        timeout = 30
+    # 若用户传 timeout=0，这里 timeout=0，不会被替换
+    print(f"超时: {timeout}s")
+
+fetch("a.com")              # 超时: 30s（未传，用默认）
+fetch("a.com", timeout=0)   # 超时: 0s（传了 0，0 是合法值，保留）
+fetch("a.com", timeout=10)  # 超时: 10s
+```
+
+运行结果：
+
+```text
+超时: 30s
+超时: 0s
+超时: 10s
+```
+
+`timeout=0` 在某些场景下是合法值（表示"不等待"），如果用 `if not timeout` 来判断，`0` 会被当作"未传参"替换成 `30`，导致 bug：
+
+```python
+def fetch_bad(url, timeout=None):
+    if not timeout:       # timeout 为 0/None/'' 都触发!
+        timeout = 30      # 把合法的 0 也换成 30
+    print(f"  bad: {timeout}s")
+
+fetch_bad("a.com", timeout=0)  # bad: 30s —— 0 被吞了!
+```
+
+运行结果：
+
+```text
+  bad: 30s
+```
+
+#### 2.4.4 多参数哨兵
+
+当一个函数有多个可选参数时，每个都需要独立的哨兵处理：
+
+```python
+def configure(host=None, port=None, debug=None):
+    host = host or "localhost"   # None/'' 都用默认（host 无合法假值）
+    if port is None:             # 仅 None 用默认（0 是合法端口，需保留）
+        port = 8080
+    if debug is None:            # 仅 None 用默认（False 是合法调试值）
+        debug = False
+    print(f"  {host}:{port} debug={debug}")
+
+configure()                        # localhost:8080 debug=False
+configure(port=0, debug=False)     # localhost:0 debug=False
+```
+
+运行结果：
+
+```text
+  localhost:8080 debug=False
+  localhost:0 debug=False
+```
+
+注意这里对三个参数用了不同的默认值处理方式：`host` 用 `or`（因为空字符串不是合法 host），`port` 和 `debug` 用 `is None`（因为 `0` 和 `False` 是合法值）。选择哪种方式取决于参数是否有合法的假值。
+
+#### 2.4.5 私有哨兵：区分"未传参"与"显式传 None"
+
+有时候用户可能显式传入 `None` 作为参数值（表示"明确不用"），此时用 `None` 作哨兵就无法区分"未传参"和"传了 `None`"。解决方案是用一个私有对象作哨兵：
+
+```python
+_MISSING = object()  # 私有哨兵，唯一对象，用户不可能传入
+
+def f(timeout=_MISSING):
+    if timeout is _MISSING:   # 用私有哨兵判"是否未传"
+        timeout = 30
+    # f(None) 显式传 None 不会被当"未传"
+    print(f"  timeout={timeout}")
+
+f()         # 未传 → 用 30
+f(None)     # 显式 None → 保留 None
+f(10)       # 10
+```
+
+运行结果：
+
+```text
+  timeout=30
+  timeout=None
+  timeout=10
+```
+
+`object()` 创建一个全新的空对象，用户不可能碰巧传入同一个对象，因此 `is _MISSING` 可以精确区分"未传参"和"显式传了任何值（包括 `None`）"。
+
+### 2.5 None 安全访问模式
+
+当函数可能返回 `None`，而你又需要访问其属性或元素时，直接操作会导致 `TypeError`。以下是几种常见的 `None` 安全访问模式。
+
+#### 2.5.1 模式一：先判 None 再访问
+
+最直接的方式：拿到结果后先判断 `is not None`，再进行操作。
+
+```python
+def get_user(uid):
+    if uid == 1:
+        return {"name": "Alice", "email": "a@mail.com"}
+    return None
+
+user = get_user(999)
+if user is not None:
+    print(user["name"])
+else:
+    print("无用户")   # ← 走这里
+```
+
+运行结果：
+
+```text
+无用户
+```
+
+#### 2.5.2 模式二：用容器方法避免对 None 操作
+
+`dict.get(key)` 在键不存在时返回 `None`（或指定默认值），不会抛异常：
+
+```python
 d = {"a": 1}
-print(d.get("b"))          # None —— 键不存在,安全
-print(d.get("b", 0))       # 0 —— 自定义默认值
-# 但若 dict 本身可能是 None,仍要先判 None
+print(d.get("b"))      # None —— 键不存在，安全
+print(d.get("b", 0))   # 0 —— 自定义默认值
+```
+
+运行结果：
+
+```text
+None
+0
+```
+
+但要注意：如果 `dict` 本身可能是 `None`，仍然需要先判 `None`：
+
+```python
 config = None
-# config.get("x")          # TypeError:None 没有 get
-val = config.get("x") if config is not None else None   # 安全
+# config.get("x")    # TypeError: NoneType 没有 get 方法
+
+val = config.get("x") if config is not None else None
+print(val)            # None
 ```
 
-**模式三:`or` 提供默认**(注意 falsy 覆盖,见 §3):
+运行结果：
 
-```python
-# None 或空都用默认(若默认语义可接受 falsy 替换)
-name = get_name() or "匿名"   # None/'' 都 → "匿名"
-# 注意:若 '' 是合法值(不该被替换),用 is None 而非 or
-name = get_name() if get_name() is not None else "匿名"
+```text
+None
 ```
 
-**模式四:`and` 短路链式访问**(None 为假短路):
+#### 2.5.3 模式三：用 or 提供默认值
+
+`or` 运算符会返回第一个真值，如果左边是 `None`（假值），就返回右边的默认值：
 
 ```python
-# obj 为 None 时,and 短路返回 None,不调 .method()
+name = None
+name = name or "匿名"   # None → "匿名"
+print(name)              # 匿名
+```
+
+运行结果：
+
+```text
+匿名
+```
+
+**注意**：`or` 会把所有假值（包括 `""`、`0`、`[]` 等）都替换为默认值。如果空字符串等是合法值不应该被替换，改用 `is None` 判断：
+
+```python
+name = ""
+name = name if name is not None else "匿名"
+print(name)   # 空串被保留，输出空行
+```
+
+运行结果：
+
+```text
+
+```
+
+#### 2.5.4 模式四：and 短路链式访问
+
+`and` 运算符在左边为假值时会短路返回左边的值。利用这个特性，可以在对象可能为 `None` 时不触发属性访问：
+
+```python
 obj = None
-result = obj and obj.method()    # None —— 短路,不调 method(避免 AttributeError)
-# 但注意:空容器([]/{}/'')也为假,会误短路(见 §3.8)
+result = obj and obj.method()   # None 短路，不调 .method()
+print(result)                   # None，安全
 ```
 
-⚠️ `and` 链式访问只对 None/falsy-非容器对象可靠。对可能为空容器的对象,空容器会短路返回自身而非进入方法。更稳妥仍是显式 `if obj is not None:`。
+运行结果：
 
-**模式五:封装为函数/工具**(模拟可选链):
+```text
+None
+```
+
+**注意**：`and` 短路对所有假值生效，空容器也会被短路：
+
+```python
+empty_cfg = {}
+val = empty_cfg and empty_cfg.get("key")  # {} 为假，短路返回 {}
+print(val)                                # {} —— 不是 get 结果
+```
+
+运行结果：
+
+```text
+{}
+```
+
+因此 `and` 短路只适合"确认对象大概率是 `None` 或非空容器"的场景，不适合需要区分 `None` 和空容器的场景。
+
+#### 2.5.5 模式五：封装 safe_get 模拟可选链
+
+Python 3.10 之前没有 Haskell/JavaScript 那样的可选链操作符（`?.`），但可以通过封装一个工具函数来模拟链式安全访问：
 
 ```python
 def safe_get(obj, *keys, default=None):
-    """安全地沿 keys 链取值,任一层为 None/不存在返回 default。"""
+    """沿 keys 链取值，任一层为 None/不存在返回 default。"""
     for k in keys:
         if obj is None:
             return default
@@ -482,519 +721,453 @@ def safe_get(obj, *keys, default=None):
             obj = getattr(obj, k, default)
     return obj
 
-user = {"profile": {"name": "Alice"}}
-print(safe_get(user, "profile", "name"))      # Alice
-print(safe_get(user, "profile", "age"))       # None —— 安全
-print(safe_get(None, "profile"))              # None —— 安全
-print(safe_get(user, "profile", "age", default=0))  # 0
+user = {"profile": {"name": "Alice", "age": 30}}
+print(safe_get(user, "profile", "name"))           # Alice
+print(safe_get(user, "profile", "phone"))          # None —— 安全
+print(safe_get(None, "profile"))                   # None —— 安全
+print(safe_get(user, "profile", "age", default=0)) # 30
 ```
 
-`safe_get` 沿键链逐层取,任一层 None/缺失返回默认——模拟了 `?.` 链。处理深层嵌套的可选数据(JSON、配置、API 响应)时,这类工具能避免大量 `is not None` 嵌套判断。也可用第三方库(如 `glom`、`pydantic`)处理复杂嵌套。
+运行结果：
 
-Python 没有原生可选链,但"判 None + 容器方法 + 工具函数"组合能安全处理绝大多数 None 访问场景。核心原则:**对可能为 None 的对象,先判 None 再操作**(EAFP 即 try/except 也是一种,见 §3)。
+```text
+Alice
+None
+None
+30
+```
 
-### 2.6 None 在数据结构中的用途
+`safe_get` 沿着 `keys` 路径逐层访问，任意一层为 `None` 或不存在就返回 `default`，不会抛异常。这在处理嵌套 JSON/API 响应时特别有用。
 
-`None` 是构建数据结构的常用"终止/空白"标记。
+Python 3.10+ 可以使用 `match/case` 语法进行更优雅的 `None` 处理，但 `safe_get` 在所有版本都适用。
 
-**链表/树的终止节点**:用 `None` 表示链表末尾、树叶子节点的"无子节点":
+### 2.6 None 在数据结构中的应用
+
+#### 2.6.1 链表终止节点
+
+在链表等数据结构中，`None` 常被用作"终止标记"，表示"后面没有节点了"：
 
 ```python
-# 单链表节点:next 为 None 表末尾
 class Node:
     def __init__(self, value, next=None):
         self.value = value
         self.next = next      # None 表链尾
 
-head = Node(1, Node(2, Node(3, None)))   # 1→2→3→None(尾)
-# 遍历
+head = Node(1, Node(2, Node(3, None)))  # 1→2→3→None(尾)
+
+# 遍历链表
 cur = head
-while cur is not None:        # 遇 None 停止
-    print(cur.value)
+values = []
+while cur is not None:   # 遇 None 停止
+    values.append(cur.value)
     cur = cur.next
+print(values)            # [1, 2, 3]
 ```
 
-`while cur is not None:` 是链表遍历的标准写法——`is not None` 精确判"是否到末尾"。注意不能用 `while cur:`(判假值),若节点 value 为 0/[] 等假值不影响(因 cur 是 Node 对象非假),但用 `is not None` 更明确意图、更稳健。
+运行结果：
 
-**二叉树的空子节点**:
+```text
+[1, 2, 3]
+```
+
+#### 2.6.2 二叉树空子节点
+
+在二叉树中，`None` 表示"空子节点"（没有左子或右子），遍历时遇到 `None` 就返回：
 
 ```python
 class TreeNode:
     def __init__(self, val, left=None, right=None):
         self.val = val
-        self.left = left      # None 表无左子
-        self.right = right    # None 表无右子
+        self.left = left
+        self.right = right
+
+#       2
+#      / \
+#     1   3
+root = TreeNode(2, TreeNode(1), TreeNode(3))
 
 def traverse(node):
-    if node is None:          # 空节点,返回
+    if node is None:   # 空节点，返回
         return
     traverse(node.left)
-    print(node.val)
+    print(node.val, end=" ")
     traverse(node.right)
+
+traverse(root)   # 1 2 3
 ```
 
-树/递归算法中,`if node is None: return` 是终止条件的标准写法。`None` 表示"没有子树",让递归自然终止。
+运行结果：
 
-**占位/延迟赋值**:变量先声明为 `None`,后续再赋有效值:
+```text
+1 2 3
+```
+
+`TreeNode(1)` 没有传 `left` 和 `right`，它们默认是 `None`。遍历时遇到 `None` 就递归返回，不会继续往下走。
+
+#### 2.6.3 占位与延迟赋值
+
+`None` 常用于"先占位，后面再赋值"的模式——先声明一个变量为 `None`，在满足条件时才赋真实值：
 
 ```python
-result = None             # 占位,先无值
+candidates = [85, 55, 92, 78, 60]
+result = None   # 占位，先无值
+
 for candidate in candidates:
-    if is_valid(candidate):
-        result = candidate # 找到才赋值
+    if candidate >= 90:
+        result = candidate
         break
-if result is not None:    # 判断是否找到
-    use(result)
+
+if result is not None:
+    print(f"找到优秀分数: {result}")
+else:
+    print("未找到")
 ```
 
-`result = None` 占位 + `if result is not None` 判断,是"搜索/查找"逻辑的标准结构。比"先不定义变量"更好(后者在未找到时 `result` 不存在,NameError)。
+运行结果：
 
-**清空引用**:用 `None` 释放对原对象的引用(配合垃圾回收):
+```text
+找到优秀分数: 92
+```
+
+用 `None` 作初始值的好处是：循环结束后可以通过 `is not None` 精确判断"是否找到了"，而用 `0` 作初始值就无法区分"没找到"和"找到的值恰好是 0"。
+
+#### 2.6.4 清空引用释放大对象
+
+当一个大对象不再需要时，将变量设为 `None` 可以解除引用，让垃圾回收器尽快回收内存：
 
 ```python
-big_data = load_huge()    # 大对象
-process(big_data)
-big_data = None           # 解除引用,若无人引用,对象可被 GC 回收
-# 不能用 del big_data?也可,但 = None 更温和(只解除引用,不删名字)
+big_data = [0] * 1000000      # 大对象
+print(f"big_data 长度: {len(big_data)}")
+
+big_data = None               # 解除引用，对象可被 GC 回收
+print(f"big_data = {big_data}")
 ```
 
-`x = None` 让 `x` 改指 None,原对象引用计数减一,若无其他引用则被回收。这用于"主动释放大对象内存"。
+运行结果：
 
-### 2.7 None 与 JSON / null
+```text
+big_data 长度: 1000000
+big_data = None
+```
 
-JSON 是数据交换的标准格式,JSON 的 `null` 对应 Python 的 `None`,`json` 模块自动转换:
+注意：Python 的垃圾回收会自动管理内存，大多数情况下不需要手动设 `None`。但在处理特别大的对象、循环引用、或需要精确控制释放时机的场景中，手动设 `None` 仍有价值。
+
+### 2.7 None 与 JSON 的映射
+
+#### 2.7.1 Python None 与 JSON null 的双向转换
+
+JSON 中没有 `None`，对应的值是 `null`。Python 的 `json` 模块会自动处理两者之间的转换：
 
 ```python
 import json
-# Python → JSON:None 变 null
+
+# Python → JSON: None 变 null
 data = {"name": "Alice", "age": None, "scores": [90, None]}
 js = json.dumps(data)
-print(js)                    # {"name": "Alice", "age": null, "scores": [90, null]}
+print(js)   # {"name": "Alice", "age": null, "scores": [90, null]}
 
-# JSON → Python:null 变 None
+# JSON → Python: null 变 None
 parsed = json.loads('{"name": "Bob", "age": null}')
 print(parsed)                # {'name': 'Bob', 'age': None}
-print(parsed["age"])         # None
 print(parsed["age"] is None) # True
 ```
 
-JSON `null` ⇄ Python `None` 是 `json` 模块的自动映射。处理来自前端/API 的 JSON 数据时,缺失字段常表现为 `null`→`None`,需用 `is None` 判断。
+运行结果：
 
-⚠️ **JSON 字段缺失 vs 字段值为 null 是两回事**:
+```text
+{"name": "Alice", "age": null, "scores": [90, null]}
+{'name': 'Bob', 'age': None}
+True
+```
+
+#### 2.7.2 字段缺失与字段值为 null 的三态处理
+
+在处理 API 响应时，一个字段可能处于三种状态：
+
+1. **有值**：字段存在且值不为 `null`
+2. **值为 null**：字段存在但值为 `null`（JSON 中明确写了 `"city": null`）
+3. **字段缺失**：JSON 中根本没有这个字段
+
+这三种状态需要谨慎区分：
 
 ```python
 # 字段值为 null
-{"name": "Alice", "age": null}   # age 字段存在,值为 None
-# 字段缺失
-{"name": "Alice"}                # 没有 age 字段
-
-# 解析后区分
 d1 = {"name": "Alice", "age": None}
+# 字段缺失
 d2 = {"name": "Alice"}
-print("age" in d1, d1.get("age"))    # True None(字段存在,值 None)
-print("age" in d2, d2.get("age"))    # False None(字段缺失,get 返回 None)
-# 用 in 区分"字段缺失"与"值为 null",用 .get 都返回 None 无法区分
+
+# 用 in 区分"字段存在"与"字段缺失"
+print("age" in d1, d1.get("age"))   # True None（字段存在，值 None）
+print("age" in d2, d2.get("age"))   # False None（字段缺失，get 返回 None）
+
+# d["age"] 在字段缺失时抛 KeyError
+try:
+    d2["age"]
+except KeyError:
+    print("KeyError: age 字段缺失")
+
+# .get 在缺失和 null 时都返回 None，无法区分
+print(d1.get("age"))   # None（值是 null）
+print(d2.get("age"))   # None（字段缺失）—— 同样 None，无法区分
 ```
 
-`d["age"]` 在字段缺失时抛 `KeyError`,`d.get("age")` 在字段缺失和值为 None 时都返回 None(无法区分)。要区分"字段缺失"和"值是 null",用 `in` 运算符(`"age" in d`)而非 `.get`。这是处理 JSON/可变数据时区分"三态"的细节。
+运行结果：
 
-### 2.8 综合示例:None 在实战中的全貌
+```text
+True None
+False None
+KeyError: age 字段缺失
+None
+None
+```
 
-下面这个片段综合演示 None 的各类用法与陷阱:
+**关键点**：`.get()` 在"字段值为 `null`"和"字段缺失"时都返回 `None`，如果需要区分这两种情况，必须先用 `in` 运算符判断字段是否存在。
+
+一个完整的 JSON 三态处理示例：
 
 ```python
-# 1. 函数默认返回 None + 哨兵默认参数
-def find(items, key, default=None):
-    """查找 key,找到返回值,否则返回 default。"""
-    for k, v in items:
-        if k == key:
-            return v
-    return default            # 找不到返回 default(None 或自定义)
+api_response = {"name": "Alice", "age": 30, "city": None}
+# name: 有值
+# age: 有值
+# city: 字段存在但值为 null
+# phone: 字段缺失
 
-data = [("a", 1), ("b", 2)]
-print(find(data, "b"))        # 2
-print(find(data, "z"))        # None(默认)
-print(find(data, "z", 0))     # 0(自定义默认,即便 0 是合法返回也能区分"找到0"和"未找到")
-
-# 2. None 哨兵:区分未传参与传了假值
-def connect(host=None, port=None, timeout=None):
-    host = host or "localhost"      # None/'' 用默认
-    if port is None:                # 仅 None(0 是合法端口?此处假设 0 用默认)
-        port = 8080
-    if timeout is None:             # 仅 None(0 是合法超时?此处 0 保留)
-        timeout = 30
-    print(f"{host}:{port} timeout={timeout}")
-connect()                          # localhost:8080 timeout=30
-connect(port=0, timeout=0)         # localhost:0 timeout=0(0 被保留,因 is None 判断)
-
-# 3. 判 None 用 is,与空值区分
-values = [None, 0, "", [], False, "x"]
-for v in values:
-    if v is None:
-        print(f"{v!r:8} -> None(无值)")
-    elif not v:
-        print(f"{v!r:8} -> 假值(但有对象)")
+for field in ["name", "age", "city", "phone"]:
+    if field not in api_response:
+        print(f"  {field}: 字段缺失")
+    elif api_response[field] is None:
+        print(f"  {field}: 值为 null")
     else:
-        print(f"{v!r:8} -> 真值")
-
-# 4. 安全访问:判 None 再操作
-def get_email(user):
-    if user is None:                # 先判 None
-        return "无用户"
-    return user.get("email", "无邮箱")
-print(get_email(None))              # 无用户
-print(get_email({"name": "A"}))     # 无邮箱
-
-# 5. JSON null ⇄ None
-import json
-js = '{"name": "Alice", "age": null, "city": "杭州"}'
-obj = json.loads(js)
-print(obj["age"] is None)           # True(null → None)
-print("city" in obj, "phone" in obj) # True False(用 in 区分字段存在/缺失)
-
-# 6. 数据结构:链表用 None 作终止
-class Node:
-    def __init__(self, v, nxt=None):
-        self.v, self.next = v, nxt
-head = Node(1, Node(2, Node(3)))
-cur = head
-while cur is not None:              # is not None 判终止
-    print(cur.v, end=" ")           # 1 2 3
-    cur = cur.next
-print()
+        print(f"  {field}: {api_response[field]}")
 ```
 
-跑一遍这段示例,对照输出:None 作默认返回、哨兵区分未传参与假值、`is None` 与空值辨析、安全访问、JSON null 互转、链表终止——None 的完整实战全貌就清晰了。核心:**判 None 用 is、哨兵用 is None 区分假值、对 None 先判再操作、None 表缺失与空值有别**。
+运行结果：
 
----
+```text
+  name: Alice
+  age: 30
+  city: 值为 null
+  phone: 字段缺失
+```
 
 ## 3. 最佳实践
 
-### 3.1 判 None 必须用 is None / is not None,不用 == None
+### 3.1 判断 None 的正确方式
+
+| 场景 | 推荐写法 | 不推荐写法 | 原因 |
+|------|---------|-----------|------|
+| 判断是否为 None | `x is None` | `x == None` | `==` 可能被 `__eq__` 改写 |
+| 判断是否非 None | `x is not None` | `x != None` | 同上 |
+| 哨兵判断 | `if target is None:` | `if not target:` | `not` 会误杀 `0`/`''`/`False` 等合法值 |
+| 类型检查 | `x is None` | `isinstance(x, NoneType)` | `is None` 更简洁、更快 |
+
+### 3.2 常见错误模式及修正
+
+**错误模式 1：用 == None 判断**
 
 ```python
-# 推荐
-if x is None: ...
-if x is not None: ...
 # 不推荐
-if x == None: ...      # 可能被自定义 __eq__ 改写,不可靠
-if x != None: ...      # 同上
-```
+if x == None:
+    ...
 
-`None` 是单例,`is` 判身份最直接可靠高效;`==` 调 `__eq__` 可能被改写。PEP 8 明确规定判 None 用 is。这条是 None 使用的第一规范,刻进肌肉记忆。
-
-### 3.2 区分 "判 None" 与 "判假值",别混用
-
-```python
-# 判 None(精确,只 None 触发)
-if x is None: ...
-# 判假值(宽松,None/0/''/[]/False 都触发)
-if not x: ...
-```
-
-`is None` 与 `not x` 语义不同:前者只判 None,后者把 0/''/[] 也判进去。要"是否为 None"用 is None,要"是否为空或无值"用 not x。按真实意图选,混用会产生 0/''/[] 被误当 None 的 bug。
-
-### 3.3 哨兵判断用 is None,不用 if not x(避免吞假值)
-
-```python
-# 正确:哨兵用 is None,保留合法的 0/False/'' 输入
-def f(timeout=None):
-    if timeout is None:
-        timeout = 30
-# 错误:if not timeout 会把 timeout=0 也当"未传"换成 30
-def f_bad(timeout=None):
-    if not timeout:        # 0/None/'' 都触发!
-        timeout = 30
-```
-
-默认参数哨兵必须用 `is None` 判断,这样 `timeout=0`(合法值)能被保留,只有真未传参(None)才用默认。`if not x` 会吞掉 0/False/'' 等合法假值输入。
-
-### 3.4 可变对象绝不做默认参数,用 None 哨兵
-
-```python
-# 正确
-def f(items=None):
-    if items is None:
-        items = []
-# 错误(可变默认陷阱)
-def f(items=[]):
+# 推荐
+if x is None:
     ...
 ```
 
-可变默认参数(`[]`/`{}`/`set()`)在函数定义时求值一次,多次调用共享导致累积 bug。一律用 None 哨兵,函数内创建。Python 函数设计的铁律。
-
-### 3.5 对可能返回 None 的对象,先判 None 再操作
+**错误模式 2：用 if not x 代替 if x is None**
 
 ```python
-# 推荐:查找类返回 None,先判
-user = get_user(id)
+# 不推荐：0/''/[]/False 都会走进来
+if not timeout:
+    timeout = 30
+
+# 推荐：仅 None 触发
+if timeout is None:
+    timeout = 30
+```
+
+**错误模式 3：就地修改方法返回值赋给原变量**
+
+```python
+# 不推荐
+nums = nums.sort()   # nums 变成 None
+
+# 推荐
+nums.sort()          # 就地修改，不接收返回值
+```
+
+**错误模式 4：对函数返回值不加 None 检查**
+
+```python
+# 不推荐
+user = get_user(999)
+print(user["name"])  # 可能 TypeError
+
+# 推荐
+user = get_user(999)
 if user is not None:
     print(user["name"])
 else:
-    print("不存在")
-# 不推荐:直接操作,可能 TypeError
-print(user["name"])   # user 为 None 时崩溃
+    print("用户不存在")
 ```
 
-查找/解析类函数常用 None 表"未找到/失败"。调用后先 `is not None` 判断再访问属性/索引,避免 `'NoneType' has no attribute` / `NoneType is not subscriptable` 错误。
-
-### 3.6 None 作"缺失值"与 0/'' 的"零值/空值"语义别混
+**错误模式 5：可变默认参数**
 
 ```python
-# 区分三态:未提供(None)、空('')、有值
-if name is None:      # 未提供
-elif name == "":      # 提供了空
-else:                 # 有值
+# 不推荐：默认 list 在调用间共享
+def f(item, target=[]):
+    target.append(item)
+    return target
+
+# 推荐：用 None 哨兵
+def f(item, target=None):
+    if target is None:
+        target = []
+    target.append(item)
+    return target
 ```
 
-`None`(缺失)、`0`/`''`/`[]`(存在但空)、有值,是三种不同状态(如考试未考 vs 0 分)。用 `is None` 精确判缺失,别用 `not x` 把三者混为一谈。需要区分时逐态判断。
+### 3.3 or 与 is None 的选择
 
-### 3.7 区分 JSON 字段缺失与值为 null,用 in 不用 get
+| 场景 | 推荐方式 | 原因 |
+|------|---------|------|
+| `None` 或空都用默认，无需区分 | `name or "默认值"` | 简洁 |
+| `None` 用默认，但 `""`/`0` 等是合法值 | `name if name is not None else "默认值"` | 不会误杀合法假值 |
+| 函数参数未传用默认 | `if param is None: param = 默认值` | 哨兵判断的标准写法 |
 
-```python
-# 字段缺失 vs 值为 null 是两回事
-d = {"name": "Alice", "age": None}
-if "age" in d:        # True —— 字段存在(值是 null/None)
-    ...
-if "phone" in d:      # False —— 字段缺失
-    ...
-# .get 在缺失和 null 都返回 None,无法区分
-```
-
-JSON/null 处理中,字段缺失与字段值为 null 不同。用 `"key" in d` 区分,`.get` 两者都返回 None 无法分辨。处理 API/配置数据的"三态"时用 in。
-
-### 3.8 and 链式访问只对 None 可靠,空容器会误短路
-
-```python
-# None 安全(可靠)
-val = obj and obj.method()      # obj 为 None 短路
-# 但 obj 为空容器([]/{}/'')时,也会短路返回空容器本身(非方法结果)
-# 稳妥:显式判 None 或直接用容器方法
-val = obj.method() if obj is not None else None
-```
-
-`and` 链式访问对 None 可靠,但空容器为假会误短路。对可能为空容器的对象,用 `is not None` 判断或直接调无副作用的容器方法(如 `{}.get(x)` 空 dict 也不报错)。
-
-### 3.9 显式 return None 表"有意无返回值",副作用函数用隐式
-
-```python
-# 查找失败:显式 return None,语义清晰
-def find(x):
-    if x in data:
-        return data[x]
-    return None        # 明确:找不到返回 None
-# 副作用函数(append/print):隐式(无 return),本就无返回值
-def log(msg):
-    print(msg)         # 隐式返回 None,无歧义
-```
-
-函数语义上"返回无值"(查找失败哨兵、跳过处理)时用显式 `return None` 让意图清晰;副作用函数(无返回值)用隐式。按意图选择,提升可读性。
-
-### 3.10 EAFP:对 None 操作可 try/except,但 is None 通常更清晰
-
-```python
-# LBYL(先查):先判 None
-if user is not None:
-    user.do()
-# EAFP(请求原谅):直接试,捕获
-try:
-    user.do()
-except AttributeError:
-    ...
-```
-
-处理 None 有两种风格:LBYL(先 `is not None` 判断)和 EAFP(直接操作,捕获 AttributeError)。Python 倾向 EAFP,但对 None 这一明确的单例,LBYL 的 `is not None` 通常更清晰高效(避免异常开销)。判断 None 用 `is`,别滥用 try/except 替代明确判断。
-
-### 3.11 链表/树遍历用 is not None 判终止,意图明确
-
-```python
-cur = head
-while cur is not None:     # 明确:判"未到尾"
-    ...
-    cur = cur.next
-# 虽 while cur: 也常可行(Node 对象非假),但 is not None 意图更明确
-```
-
-数据结构遍历用 `is not None` 判终止,比 `while cur:`(判假值)意图更明确——前者直说"没到 None 终止",后者依赖"Node 非假"的隐含假设。明确表达意图优先。
-
-### 3.12 配置/可选字段用 None 表"未设置",配合 is None 与默认值
-
-```python
-def serve(host=None, port=None, retries=None):
-    host = host or "0.0.0.0"        # None/'' 用默认
-    port = port if port is not None else 8080   # 0 是合法端口,用 is None
-    retries = retries if retries is not None else 3
-```
-
-可选配置字段用 None 表"未设置"。按"该字段合法值是否含假值"选 `is None`(含假值,如 port=0)或 `or`(不含或欢迎替换)。逐字段哨兵构造灵活 API。
-
----
+选择标准：如果参数存在合法的假值（如 `timeout=0`、`debug=False`），必须用 `is None`；如果没有合法假值（如 host 不会是空字符串），用 `or` 更简洁。
 
 ## 4. 原理
 
-本章讲清 `None` 背后的机制:`None` 单例的实现、`NoneType` 没有公开名的原因、`is` vs `==` 判 None 的内部差异(`LOAD_CONST`+`IS_OP` vs `__eq__`)、`None` 布尔假值的实现、函数默认返回 None 的字节码。这些是"None 为何如此"的根基。
+### 4.1 None 单例的字节码验证
 
-### 4.1 None 的单例实现(需理解,详述)
-
-`None` 是单例——CPython 在解释器初始化时创建**唯一一个** `None` 对象,此后所有对 `None` 的引用都指向它。源码层(`object.c`),`_Py_NoneStruct` 是那个唯一的 None 对象,`None` 这个名字绑定到它。
-
-```python
-# 验证单例:所有 None 引用同一对象
-a = None
-b = None
-c = (lambda: None)()
-print(a is b is c)         # True —— 全是同一对象
-print(id(a) == id(b))      # True —— 同一内存地址
-```
-
-无论 None 从何而来(字面量、函数默认返回、变量赋值、`dict.get` 缺失),都是同一个对象。这与"每次写 `[]` 创建新列表"截然不同——`None` 只有一个。
-
-**单例的内存意义**:所有 `None` 引用共享一个对象,内存里不存在"多个 None 副本"。一千万个变量都赋 `None`,它们指向同一个对象,内存开销极小(一个对象的指针)。这是 None 设计成单例的实用理由之一——"无值"如此常见,共用一个对象最省。
-
-**`NoneType` 没有公开名的原因**:`None` 的类型 `NoneType` 没有像 `int`/`str` 那样的内置名(你不能直接写 `NoneType`)。这是故意的——判 None 应该用 `is None`(简洁、规范、高效),而非 `isinstance(x, NoneType)`(啰嗦且需先 `type(None)` 取类型)。`NoneType` 的"无名"引导开发者用正确的 `is None` 判断:
-
-```python
-# 规范(被引导的写法)
-if x is None: ...
-# 不推荐(需绕弯取类型)
-NoneType = type(None)
-if isinstance(x, NoneType): ...
-```
-
-`type(None)` 主要用于类型注解元编程(如 `-> None`)或框架内部,日常判 None 一律 `is None`。
-
-**None 的不可变性**:`None` 不可变且无属性可改——你不能给 None 加属性、不能改它的"值"(它就是个常量标记)。这与单例配合,保证 None 永远是那个唯一的"无值"对象,行为绝对确定。任何代码都无法伪造或改变 None,这让 `is None` 判断永远可靠。
-
-### 4.2 is vs == 判 None 的内部差异(需理解,详述)
-
-§2.1 讲了判 None 用 `is` 而非 `==`,这里讲清字节码层的差异,理解了就知为何 `is` 更优。
-
-**`x is None` 的实现**——身份比较,直接比指针:
+`None` 是 CPython 解释器内置的全局单例。用 `dis` 模块查看字节码，可以验证 `is None` 的底层实现：
 
 ```python
 import dis
+
+# is None 的字节码
 dis.dis(compile("x is None", "", "eval"))
-# LOAD_NAME x
-# LOAD_CONST None            —— 加载 None 单例常量
-# IS_OP 0                    —— 身份比较(直接比指针/id),结果 bool
 ```
 
-`is None` 的字节码:`LOAD_NAME x` 加载 x,`LOAD_CONST None` 加载 None 单例(编译期常量,直接拿那个唯一对象),`IS_OP` 比较两个指针是否指向同一对象。全程是**指针比较**,不调用任何方法,O(1),极快,且结果确定(True/False)。
+运行结果：
 
-**`x == None` 的实现**——值相等,调用 `__eq__`:
-
-```python
-dis.dis(compile("x == None", "", "eval"))
-# LOAD_NAME x
-# LOAD_CONST None
-# IS_OP 0 / COMPARE_OP ==    —— 实际调用 x.__eq__(None)(及反射 None.__eq__(x))
+```text
+  1           0 LOAD_NAME                0 (x)
+              2 LOAD_CONST               0 (None)
+              4 IS_OP                    0
+              6 RETURN_VALUE
 ```
 
-`== None` 的字节码走 `COMPARE_OP ==`,内部会调用 `x.__eq__(None)`(若 x 未定义或返回 NotImplemented,再试 `None.__eq__(x)`)。这条路径:
+`is None` 只需要三条字节码指令：
+1. `LOAD_NAME x`：加载变量 `x`
+2. `LOAD_CONST None`：加载 `None` 单例常量
+3. `IS_OP 0`：身份比较——直接比较两个对象的内存地址（指针），时间复杂度 O(1)
 
-- **可能被自定义 `__eq__` 改写**:如 §2.1 的 `AlwaysEqual`,`x == None` 返回 True(被欺骗)。
-- **多一层方法调用开销**:比 `is` 的指针比较慢(虽差异极小)。
-- **结果可能不确定**:取决于 `__eq__` 实现,甚至可能抛异常。
-
-这就是 `is None` 优于 `== None` 的字节码根源:**身份比较(IS_OP,指针,确定)vs 值比较(COMPARE_OP,方法,可能被改)**。对 None 这种单例,身份比较才是语义正确的判断方式——"是不是那个 None",本就应是身份问题,不是值相等问题。
-
-**PEP 8 的依据**:正因为 `== None` 可能被 `__eq__` 干扰而 `is None` 不会,PEP 8 规定判 None 用 is。这不是风格偏好,是基于语言语义的正确性要求。
-
-### 4.3 None 布尔假值的实现
-
-`None` 在布尔语境为假,底层是 `NoneType.__bool__` 返回 `False`:
-
-```python
-print(type(None).__bool__)      # <slot wrapper '__bool__' of 'object' objects> 或类似
-print(bool(None))               # False
-# NoneType 定义了 __bool__ 返回 False(或等价的"非真"实现)
-```
-
-`NoneType` 实现了 `__bool__`(继承自 object 或自定义),返回 `False`,故 `bool(None)` 为 `False`,`if None:` 不执行。这是 None 作为假值的字节码依据——`if x:` 等价 `if bool(x):`(实际用 `POP_JUMP_IF_FALSE` 等指令 + 真值测试),None 走 `__bool__` 得 False。
-
-**与"空容器靠 `__len__` 为假"的对比**:None 没有长度(`len(None)` 报错),它为假靠的是 `__bool__` 直接返回 False,而非 `__len__==0`。这是 None 真值测试的精确实现:NoneType 自身明确"我永远是假",不依赖长度推断。
-
-理解 None 的 `__bool__` 返回 False,就理解了 `if not x:` 为何能覆盖 None——None 走 `__bool__` 得 False,`not False` 为 True。但这也提醒:`if not x:` 判的是"假值"(None/0/'' 都触发),与 `if x is None:`(只 None)不同,§3 已强调不要混用。
-
-### 4.4 函数默认返回 None 的字节码
-
-函数无 `return` 时返回 None,字节码层体现为函数末尾隐式 `RETURN_CONST None`:
+### 4.2 is None 与 == None 的字节码差异
 
 ```python
 import dis
+
+# == None 的字节码
+dis.dis(compile("x == None", "", "eval"))
+```
+
+运行结果：
+
+```text
+  1           0 LOAD_NAME                0 (x)
+              2 LOAD_CONST               0 (None)
+              4 COMPARE_OP               2 (==)
+              6 RETURN_VALUE
+```
+
+`== None` 使用 `COMPARE_OP` 而非 `IS_OP`。`COMPARE_OP` 内部会调用 `x.__eq__(None)`，这意味着：
+- 如果 `x` 的类覆写了 `__eq__`，比较逻辑可以被自定义，从而返回错误结果
+- `__eq__` 调用比指针比较有额外开销
+
+这就是为什么 `is None` 既安全又高效——它只比指针，不受 `__eq__` 影响。
+
+### 4.3 函数默认返回 None 的字节码
+
+Python 函数如果没有显式 `return`，解释器会在函数末尾隐式添加 `LOAD_CONST None; RETURN_VALUE`：
+
+```python
+import dis
+
 def f(x):
     print(x)
+
 dis.dis(f)
-# ...
-# LOAD_CONST None            —— 隐式加载 None
-# RETURN_VALUE               —— 返回 None
 ```
 
-函数体末尾,CPython 自动插入 `LOAD_CONST None; RETURN_VALUE`——若无显式 return,函数返回 None 单例。`return`(不带值)同样展开为 `return None`。这就是"无 return 的函数返回 None"的字节码根源——不是运行时决定,是编译期就在函数末尾放好了返回 None 的指令。
+运行结果：
 
-**就地修改方法返回 None 的约定**:`list.append`、`list.sort` 等就地修改方法,其 C 实现明确 `return None`(C 层 `Py_RETURN_NONE`)。这是 Python 的有意约定:就地修改的方法返回 None,而非返回修改后的对象(或 self),目的是**防止链式调用滋生 bug**。若 `lst.append(x)` 返回 lst,用户可能误以为它返回新列表(像函数式风格),导致 `result = lst.append(x)` 把 None 赋给 result。Python 选择让就地方法返回 None,强制用户区分"就地修改"(返回 None)与"返回新对象"(如 `sorted` 返回新列表):
+```text
+  3           0 PUSH_NULL
+              2 LOAD_GLOBAL              0 (print)
+              4 LOAD_FAST                0 (x)
+              6 PRECALL                  0
+              8 CALL                     1
+             10 POP_TOP
+
+  4          12 LOAD_CONST               0 (None)
+             14 RETURN_VALUE
+```
+
+最后两条字节码 `LOAD_CONST 0 (None)` 和 `RETURN_VALUE` 就是解释器自动添加的——加载 `None` 并返回。这也解释了为什么无 `return` 的函数总是返回 `None`。
+
+### 4.4 NoneType 的方法继承
+
+`NoneType` 继承自 `object`，自身只覆写了 `__bool__` 和 `__repr__`：
 
 ```python
-lst = [3, 1, 2]
-print(lst.sort())      # None —— 就地修改,返回 None
-print(sorted(lst))     # [1, 2, 3] —— 返回新列表
+print(dir(type(None)))
 ```
 
-`lst.sort()`(就地,返回 None)vs `sorted(lst)`(返回新列表)是这一约定的典型对照。理解就地方法返回 None 是有意设计,就能正确选择"就地 vs 返回新"两种方法,避免对返回值误用。
+运行结果：
 
-### 4.5 None 作哨兵的语义根基
-
-`None` 作函数默认参数哨兵为何可靠?根基在于 None 的三个性质:
-
-1. **单例**:None 只有一个对象,作"未传参标志"不会与其他值冲突——任何调用中 `arg is None` 都精确判"是否未传"(传了 None 本身除外,见下)。
-2. **不可伪造**:用户代码无法创建"另一个 None 对象",`x is None` 永远只对真 None 为 True。哨兵安全性由此保证。
-3. **布尔假值但不等于其他假值**:None 与 0/''/[]/False 在 `is` 比较下严格区分(`0 is None` 为 False),让哨兵能用 `is None` 精确区分"未传(None)"与"传了假值(0/False/...)"。
-
-这三条性质让 None 成为完美的"未传参哨兵":单例保证唯一性、不可伪造保证安全性、`is` 区分保证精确性。§2.4 的 `def f(timeout=None): if timeout is None: timeout = 30` 正是利用这三条,精确区分"未传"(None→用默认)与"传了0"(0→保留)。
-
-⚠️ **哨兵的唯一局限:无法区分"未传参"与"调用者显式传了 None"**。若用户明确写 `f(timeout=None)`,哨兵 `is None` 会把它当"未传",用默认值覆盖——无法区分"用户没传"和"用户传了 None"。这种罕见需求(需区分两种 None)要用**私有哨兵对象**:
-
-```python
-_MISSING = object()    # 私有哨兵,唯一对象,用户不可能传入
-
-def f(timeout=_MISSING):
-    if timeout is _MISSING:    # 用私有哨兵判"是否未传"
-        timeout = 30
-    # 这样 f(None) 显式传 None 不会被当"未传"(None is not _MISSING)
-f()           # 未传 → 用 30
-f(None)       # 显式 None → 保留 None(不再被默认覆盖)
+```text
+['__bool__', '__class__', '__delattr__', '__dir__', '__doc__', '__eq__', '__format__', '__ge__', '__getattribute__', '__getstate__', '__gt__', '__hash__', '__init__', '__init_subclass__', '__le__', '__lt__', '__ne__', '__new__', '__reduce__', '__reduce_ex__', '__repr__', '__setattr__', '__sizeof__', '__str__', '__subclasshook__']
 ```
 
-`_MISSING = object()` 创建一个唯一的私有对象,用它而非 None 作哨兵,能区分"未传参"与"传了 None"。这是高级用法,仅当 None 可能是合法显式输入时才需要——绝大多数场景 None 哨兵已足够。理解 None 哨兵的语义根基(单例、不可伪造、is 区分)与这一局限,就能在需要时正确升级到私有哨兵。
+其中：
+- `__bool__` 返回 `False`——使得 `None` 在布尔语境中为假
+- `__repr__` 返回 `'None'`——使得 `print(None)` 输出 `None`
+- 其余方法（`__eq__`、`__hash__` 等）继承自 `object` 的默认实现
 
----
+`None` 是不可变的：不能给它添加属性，不能创建"另一个 `None` 对象"。这种设计保证了 `is None` 永远可靠——没有任何方式可以伪造一个 `None` 假对象来欺骗 `is` 判断。
+
+### 4.5 就地修改返回 None 的设计哲学
+
+Python 选择"就地修改返回 `None`"的设计，核心目的是**消除歧义**。如果 `list.sort()` 返回排序后的列表，调用者会困惑：原列表到底被修改了没有？
+
+```text
+设计决策对比：
+
+方案 A（Python 的选择）：就地修改返回 None
+  → 调用者看到 None，明确知道"原对象被修改了"
+  → 但不能链式调用 nums.sort().reverse()
+
+方案 B（替代方案）：就地修改返回自身
+  → 调用者看到返回值，不确定原对象是否被修改
+  → 可以链式调用，但容易引入隐蔽 bug
+```
+
+Python 选择了方案 A，牺牲了链式调用的便利，换取了语义的明确性。这是一个属于"安全优于便利"的典型设计决策。
 
 ## 5. 总结
 
-### 5.1 本文内容回顾
+本文围绕 Python 的 `None` 类型展开，主要介绍了以下内容：
 
-- **None 定义**:Python 表示"无值"的常量,类型 NoneType,全解释器唯一单例;语义为"缺失",区别于 0/''/[] 的"零值/空值"。
-- **单例性**:所有 None 引用同一对象,故 `is None` 判身份可靠;NoneType 无公开名,引导用 `is None` 判断。
-- **布尔行为**:None 是假值(`if not x:` 覆盖),但 `if not x:`(判假值)与 `if x is None:`(判 None)语义不同,不可混用。
-- **None 与空值辨析**:`None`(缺失)/`0`/`''`/`[]`(存在但空)语义不同,用 `is None` 精确判缺失。
-- **判 None 用 is**:`x is None`/`x is not None`,不用 `== None`(`__eq__` 可能被改写不可靠,PEP 8 规定)。
-- **None 属性/方法**:几乎无方法,对 None 调方法/索引/算术抛 AttributeError/TypeError;这是 None bug 高频来源。
-- **函数返回 None**:无 return/return 不带值返回 None;就地修改方法(append/sort 等)返回 None 是有意约定;查找类用 None 表"未找到"。
-- **None 哨兵(重点)**:可变默认参数用 None 哨兵规避陷阱;区分"未传参"与"传了假值"用 `is None`(不用 `if not x`,避免吞 0/False/'');多参数逐个哨兵。
-- **安全访问**:先判 None 再操作、用容器方法(.get)、`and` 短路链(空容器误短路)、工具函数模拟可选链;Python 无原生 `?.`。
-- **数据结构用法**:链表/树终止节点、占位/延迟赋值、清空引用(释放大对象)。
-- **JSON null ⇄ None**:`json` 模块自动映射;字段缺失 vs 值为 null 用 `in` 区分(`.get` 无法区分)。
-- **原理**:None 单例实现(唯一对象,共享省内存,不可变不可伪造);`is None` 用 IS_OP 指针比(确定),`== None` 用 COMPARE_OP 调 `__eq__`(可能被改);None 假值靠 `__bool__` 返回 False;函数默认返回 None 是编译期末尾隐式 RETURN CONST None;就地方法返回 None 是防链式 bug 的有意约定;None 哨兵可靠源于单例+不可伪造+is 区分,局限是无法区分未传与显式传 None(用私有 `object()` 哨兵解决)。
-- **最佳实践**:判 None 用 is、区分判 None 与判假值、哨兵用 is None、可变默认用 None 哨兵、先判 None 再操作、None 与空值语义别混、JSON 缺失/null 用 in、and 链防空容器、显式 return None 表意、EAFP 与 is 取衡、遍历用 is not None、配置字段逐个哨兵。
-
-### 5.2 读完本文你应能掌握
-
-- 说明 `None` 的定义与单例性,区分"无值(None)"与"零值/空值(0/''/[])"的语义。
-- 说明判 None 必须用 `is None`/`is not None`,阐述 `== None` 因 `__eq__` 改写不可靠的原因(PEP 8)。
-- 区分 `if x is None:`(判 None)与 `if not x:`(判假值)的语义,避免混用。
-- 用 None 作可变默认参数哨兵,修复可变默认陷阱,用 `is None` 区分"未传参"与"传了假值"。
-- 说明函数默认返回 None 的规则,理解就地修改方法返回 None 的约定(append/sort vs sorted)。
-- 对可能返回 None 的对象安全访问(先判 None、用 .get、工具函数),避免 'NoneType' 错误。
-- 用 None 作链表/树终止节点、占位变量、清空引用。
-- 处理 JSON null 与 None 的互转,用 `in` 区分字段缺失与值为 null。
-- 阐述 None 单例实现、is/== 判 None 的字节码差异、None 假值的 `__bool__`、函数默认返回 None 的编译机制、None 哨兵的语义根基与私有哨兵升级。
+- `None` 是 `NoneType` 的全局唯一单例，表示"没有值"，不在任何常规类型分类中
+- 判断 `None` 必须用 `is None` / `is not None`，不能用 `== None`——`==` 可能被自定义 `__eq__` 改写，导致误判
+- `None` 在布尔语境中为 `False`，但 `if not x` 与 `if x is None` 语义不同——前者对所有假值生效，后者仅对 `None` 生效
+- 函数无 `return` 或 `return` 不带值时自动返回 `None`；就地修改方法（如 `append`、`sort`）统一返回 `None` 以区分"就地修改"与"返回新对象"
+- `None` 哨兵模式用于解决可变默认参数陷阱，并能区分"未传参"与"传了假值"；私有哨兵 `object()` 可进一步区分"未传参"与"显式传 `None`"
+- `None` 安全访问模式包括先判 `None`、`dict.get`、`or` 默认值、`and` 短路、`safe_get` 模拟可选链
+- `None` 在数据结构中用作链表终止节点、二叉树空子节点、占位变量和引用释放标记
+- Python `None` 与 JSON `null` 自动映射，但需注意"字段值 `null`"与"字段缺失"的三态区分
+- 字节码层面，`is None` 使用 `IS_OP` 做指针比较（O(1)），`== None` 使用 `COMPARE_OP` 调用 `__eq__`，前者更安全高效
+- 就地修改方法返回 `None` 是 Python"安全优于便利"的设计决策，确保语义明确无歧义
