@@ -316,6 +316,68 @@ export default defineConfig({
                     "link": "/Base/04-list-22"
                 }
             ]
+        },
+        {
+            "text": "【05】元组介绍",
+            "collapsible": true,
+            "items": [
+                {
+                    "text": "元组概述与基本概念",
+                    "link": "/Base/05-tuple-01"
+                },
+                {
+                    "text": "元组的创建方式",
+                    "link": "/Base/05-tuple-02"
+                },
+                {
+                    "text": "元组的索引与切片",
+                    "link": "/Base/05-tuple-03"
+                },
+                {
+                    "text": "元组与运算符",
+                    "link": "/Base/05-tuple-04"
+                },
+                {
+                    "text": "元组的拼接与重复",
+                    "link": "/Base/05-tuple-05"
+                },
+                {
+                    "text": "元组的成员判断与比较",
+                    "link": "/Base/05-tuple-06"
+                },
+                {
+                    "text": "count 方法统计元素",
+                    "link": "/Base/05-tuple-07"
+                },
+                {
+                    "text": "index 方法查找索引",
+                    "link": "/Base/05-tuple-08"
+                },
+                {
+                    "text": "元组的可哈希性与 hash 方法",
+                    "link": "/Base/05-tuple-09"
+                },
+                {
+                    "text": "元组的不可变性深度剖析",
+                    "link": "/Base/05-tuple-10"
+                },
+                {
+                    "text": "元组解包与星号表达式",
+                    "link": "/Base/05-tuple-11"
+                },
+                {
+                    "text": "元组与列表对比",
+                    "link": "/Base/05-tuple-12"
+                },
+                {
+                    "text": "命名元组 namedtuple",
+                    "link": "/Base/05-tuple-13"
+                },
+                {
+                    "text": "元组常用技巧与惯用法",
+                    "link": "/Base/05-tuple-14"
+                }
+            ]
         }
     ]
 },
