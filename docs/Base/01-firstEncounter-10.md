@@ -441,15 +441,13 @@ print(f"父类折扣 {vip._Order__secret_discount} 与子类折扣 {vip._VipOrde
 
 **原则**：
 
-```text
-作用域宽度          命名长度        示例
-────────────────────────────────────────────────────────
-全局/模块级     →    长而具体       user_session_timeout = 1800
-类属性          →    长而具体       self.order_id
-参数            →    中等          calculate_total(items)
-函数内局部      →    短            total = sum(...)
-循环变量/临时   →    极短或_        for _ in range(3)
-```
+| 作用域宽度     | 命名长度   | 示例                          |
+| -------------- | ---------- | ----------------------------- |
+| 全局/模块级    | 长而具体   | `user_session_timeout = 1800` |
+| 类属性         | 长而具体   | `self.order_id`               |
+| 参数           | 中等       | `calculate_total(items)`      |
+| 函数内局部     | 短         | `total = sum(...)`            |
+| 循环变量/临时  | 极短或 `_` | `for _ in range(3)`           |
 
 **示例**：
 
@@ -860,16 +858,14 @@ def calculate_total(price, quantity):
 
 **触发条件一览**：
 
-```text
-写法            是否触发名称重整     重整后的名字
-──────────────────────────────────────────────────
-__secret        是                _ClassName__secret
-__secret_       是                _ClassName__secret_
-__init__        否                保持不变（前后双下划线）
-___secret__     否                保持不变（以双下划线结尾）
-__              否                保持不变（只有下划线）
-_secret         否                保持不变（单下划线前缀）
-```
+| 写法         | 是否触发名称重整 | 重整后的名字                   |
+| ------------ | ---------------- | ----------------------------- |
+| `__secret`   | 是               | `_ClassName__secret`          |
+| `__secret_`  | 是               | `_ClassName__secret_`         |
+| `__init__`   | 否               | 保持不变（前后双下划线）       |
+| `___secret__`| 否               | 保持不变（以双下划线结尾）     |
+| `__`         | 否               | 保持不变（只有下划线）         |
+| `_secret`    | 否               | 保持不变（单下划线前缀）       |
 
 **验证性代码**：
 
@@ -909,42 +905,7 @@ for attr in sorted(vars(t)):
 
 **数据流**：
 
-```text
-类定义体:
-  self.__secret = 0.05
-        │
-        ▼
-编译器检测到 __secret 满足重整条件
-        │
-        ▼
-改写为: self._Order__secret = 0.05
-        │
-        ▼
-存储在 instance.__dict__["_Order__secret"] = 0.05
-
-类内部访问:
-  self.__secret
-        │
-        ▼
-编译器同样改写为: self._Order__secret
-        │
-        ▼
-在 __dict__ 中找到 → 正常返回
-
-类外部访问:
-  order.__secret
-        │
-        ▼
-编译器不做改写（不在类定义体内）
-        │
-        ▼
-在 __dict__ 中寻找 "__secret" → 找不到 → AttributeError
-
-  order._Order__secret
-        │
-        ▼
-在 __dict__ 中寻找 "_Order__secret" → 找到 → 正常返回
-```
+![示例图片](../images/base/202609151133.svg)
 
 ### 4.3 名称重整的设计目的
 
