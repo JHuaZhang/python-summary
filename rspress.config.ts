@@ -378,6 +378,108 @@ export default defineConfig({
                     "link": "/Base/05-tuple-14"
                 }
             ]
+        },
+        {
+            "text": "【06】字典介绍",
+            "collapsible": true,
+            "items": [
+                {
+                    "text": "字典概述与基本概念",
+                    "link": "/Base/06-dict-01"
+                },
+                {
+                    "text": "字典的创建方式",
+                    "link": "/Base/06-dict-02"
+                },
+                {
+                    "text": "字典的访问与查找",
+                    "link": "/Base/06-dict-03"
+                },
+                {
+                    "text": "字典的增删改操作",
+                    "link": "/Base/06-dict-04"
+                },
+                {
+                    "text": "字典的遍历方法",
+                    "link": "/Base/06-dict-05"
+                },
+                {
+                    "text": "字典推导式",
+                    "link": "/Base/06-dict-06"
+                },
+                {
+                    "text": "字典的嵌套与深度操作",
+                    "link": "/Base/06-dict-07"
+                },
+                {
+                    "text": "字典的 get 方法与默认值",
+                    "link": "/Base/06-dict-08"
+                },
+                {
+                    "text": "字典的 setdefault 方法",
+                    "link": "/Base/06-dict-09"
+                },
+                {
+                    "text": "字典的 update 与合并",
+                    "link": "/Base/06-dict-10"
+                },
+                {
+                    "text": "字典的 pop 与 popitem 方法",
+                    "link": "/Base/06-dict-11"
+                },
+                {
+                    "text": "字典的 keys / values / items 方法",
+                    "link": "/Base/06-dict-12"
+                },
+                {
+                    "text": "字典的 fromkeys 方法",
+                    "link": "/Base/06-dict-13"
+                },
+                {
+                    "text": "字典的拷贝深浅剖析",
+                    "link": "/Base/06-dict-14"
+                },
+                {
+                    "text": "字典与运算符",
+                    "link": "/Base/06-dict-15"
+                },
+                {
+                    "text": "字典的哈希机制与键要求",
+                    "link": "/Base/06-dict-16"
+                },
+                {
+                    "text": "字典的内存模型与性能",
+                    "link": "/Base/06-dict-17"
+                },
+                {
+                    "text": "有序字典 OrderedDict",
+                    "link": "/Base/06-dict-18"
+                },
+                {
+                    "text": "字典与 JSON 互转",
+                    "link": "/Base/06-dict-19"
+                },
+                {
+                    "text": "字典与列表对比",
+                    "link": "/Base/06-dict-20"
+                },
+                {
+                    "text": "defaultdict 默认值字典",
+                    "link": "/Base/06-dict-21"
+                },
+                {
+                    "text": "Counter 计数字典",
+                    "link": "/Base/06-dict-22"
+                },
+                {
+                    "text": "字典常用技巧与惯用法",
+                    "link": "/Base/06-dict-23"
+                },
+                {
+                    "text": "字典与数据类对比",
+                    "link": "/Base/06-dict-24"
+                }
+            ]
         }
     ]
 },
