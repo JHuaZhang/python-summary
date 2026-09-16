@@ -1,7 +1,7 @@
 ---
 group:
   title: 【05】元组介绍
-  order: 6
+  order: 5
 order: 14
 title: 元组常用技巧与惯用法
 nav:

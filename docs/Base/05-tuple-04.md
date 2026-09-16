@@ -1,7 +1,7 @@
 ---
 group:
   title: 【05】元组介绍
-  order: 6
+  order: 5
 order: 4
 title: 元组与运算符
 nav:

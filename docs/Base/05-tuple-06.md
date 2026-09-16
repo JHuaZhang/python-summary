@@ -1,7 +1,7 @@
 ---
 group:
   title: 【05】元组介绍
-  order: 6
+  order: 5
 order: 6
 title: 元组的成员判断与比较
 nav:

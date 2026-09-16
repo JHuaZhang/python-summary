@@ -1,7 +1,7 @@
 ---
 group:
   title: 【05】元组介绍
-  order: 6
+  order: 5
 order: 5
 title: 元组的拼接与重复
 nav:

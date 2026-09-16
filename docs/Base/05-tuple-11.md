@@ -1,7 +1,7 @@
 ---
 group:
   title: 【05】元组介绍
-  order: 6
+  order: 5
 order: 11
 title: 元组解包与星号表达式
 nav:

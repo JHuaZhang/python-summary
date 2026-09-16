@@ -1,7 +1,7 @@
 ---
 group:
   title: 【05】元组介绍
-  order: 6
+  order: 5
 order: 9
 title: 元组的可哈希性与 hash 方法
 nav:
