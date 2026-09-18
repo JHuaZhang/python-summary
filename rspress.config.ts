@@ -480,6 +480,92 @@ export default defineConfig({
                     "link": "/Base/06-dict-24"
                 }
             ]
+        },
+        {
+            "text": "【07】集合介绍",
+            "collapsible": true,
+            "items": [
+                {
+                    "text": "集合概述与基本概念",
+                    "link": "/Base/07-set-01"
+                },
+                {
+                    "text": "集合的创建方式",
+                    "link": "/Base/07-set-02"
+                },
+                {
+                    "text": "集合的添加操作",
+                    "link": "/Base/07-set-03"
+                },
+                {
+                    "text": "集合的删除操作",
+                    "link": "/Base/07-set-04"
+                },
+                {
+                    "text": "集合的成员判断与遍历",
+                    "link": "/Base/07-set-05"
+                },
+                {
+                    "text": "集合与运算符",
+                    "link": "/Base/07-set-06"
+                },
+                {
+                    "text": "集合的并集操作",
+                    "link": "/Base/07-set-07"
+                },
+                {
+                    "text": "集合的交集操作",
+                    "link": "/Base/07-set-08"
+                },
+                {
+                    "text": "集合的差集操作",
+                    "link": "/Base/07-set-09"
+                },
+                {
+                    "text": "集合的对称差集操作",
+                    "link": "/Base/07-set-10"
+                },
+                {
+                    "text": "集合的子集与超集判断",
+                    "link": "/Base/07-set-11"
+                },
+                {
+                    "text": "集合的交集判断",
+                    "link": "/Base/07-set-12"
+                },
+                {
+                    "text": "集合推导式",
+                    "link": "/Base/07-set-13"
+                },
+                {
+                    "text": "集合的哈希机制与元素要求",
+                    "link": "/Base/07-set-14"
+                },
+                {
+                    "text": "frozenset 不可变集合",
+                    "link": "/Base/07-set-15"
+                },
+                {
+                    "text": "集合的拷贝与内存模型",
+                    "link": "/Base/07-set-16"
+                },
+                {
+                    "text": "集合的性能与时间复杂度",
+                    "link": "/Base/07-set-17"
+                },
+                {
+                    "text": "集合去重与去重方案对比",
+                    "link": "/Base/07-set-18"
+                },
+                {
+                    "text": "集合与其他数据类型对比",
+                    "link": "/Base/07-set-19"
+                },
+                {
+                    "text": "集合常用技巧与惯用法",
+                    "link": "/Base/07-set-20"
+                }
+            ]
         }
     ]
 },
