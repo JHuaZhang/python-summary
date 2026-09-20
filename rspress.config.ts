@@ -570,6 +570,64 @@ export default defineConfig({
                     "link": "/Base/07-set-20"
                 }
             ]
+        },
+        {
+            "text": "【08】运算符和表达式",
+            "collapsible": true,
+            "items": [
+                {
+                    "text": "运算符与表达式概述与基本概念",
+                    "link": "/Base/08-operator-01"
+                },
+                {
+                    "text": "算术运算符",
+                    "link": "/Base/08-operator-02"
+                },
+                {
+                    "text": "赋值与复合赋值运算符",
+                    "link": "/Base/08-operator-03"
+                },
+                {
+                    "text": "比较运算符",
+                    "link": "/Base/08-operator-04"
+                },
+                {
+                    "text": "逻辑运算符与短路求值",
+                    "link": "/Base/08-operator-05"
+                },
+                {
+                    "text": "位运算符",
+                    "link": "/Base/08-operator-06"
+                },
+                {
+                    "text": "成员运算符",
+                    "link": "/Base/08-operator-07"
+                },
+                {
+                    "text": "身份运算符",
+                    "link": "/Base/08-operator-08"
+                },
+                {
+                    "text": "条件表达式",
+                    "link": "/Base/08-operator-09"
+                },
+                {
+                    "text": "海象运算符",
+                    "link": "/Base/08-operator-10"
+                },
+                {
+                    "text": "运算符优先级与结合性",
+                    "link": "/Base/08-operator-11"
+                },
+                {
+                    "text": "运算符重载",
+                    "link": "/Base/08-operator-12"
+                },
+                {
+                    "text": "运算符常用技巧与惯用法",
+                    "link": "/Base/08-operator-13"
+                }
+            ]
         }
     ]
 },
