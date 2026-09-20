@@ -186,6 +186,41 @@ d.bark()                  # 汪!
 | `bases` | `tuple` | 父类元组，空元组 `()` 默认继承 `object` |
 | `dict` | `dict` | 类的命名空间字典，含方法/类属性 |
 
+关于 `bases` 参数——它必须是一个 **tuple（元组）**，但元组里可以放**多个父类**，对应多继承：
+
+```python
+# 0 个父类 —— 空元组 ()，默认继承 object
+A = type("A", (), {"x": 1})
+
+# 1 个父类 —— 元组里放一个类
+class Base:
+    def hello(self): return "hi"
+B = type("B", (Base,), {"y": 2})
+
+# 多个父类 —— 元组里放多个类，就是多继承
+class FlyMixin:
+    def fly(self): return "飞"
+class SwimMixin:
+    def swim(self): return "游"
+C = type("C", (FlyMixin, SwimMixin), {"z": 3})
+
+c = C()
+print(c.fly())    # 飞 —— 继承 FlyMixin
+print(c.swim())   # 游 —— 继承 SwimMixin
+print(C.__mro__)  # (C, FlyMixin, SwimMixin, object) —— 多继承链
+```
+
+所以 `bases` 元组没有数量限制，放几个父类就是几重继承，这与 `class Dog(A, B, C): ...` 的语法完全对应——括号里的 `A, B, C` 本质就是一个元组。
+
+⚠️ 易错点：单个父类时也不能省略逗号——`(Base,)` 是元组，而 `(Base)` 只是带括号的表达式，不是元组：
+
+```python
+# 正确：单个父类也要写成元组
+Dog = type("Dog", (Animal,), {"fetch": fetch})
+# 错误：漏了逗号，(Animal) 不是元组而是普通括号
+# Dog = type("Dog", (Animal), {"fetch": fetch})  # 会报 TypeError
+```
+
 它等价于 `class` 语句，只是把"写死的类定义"变成"运行时动态构造"：
 
 ```python
@@ -711,37 +746,200 @@ class AuthPlugin(Plugin): ...     # 显式继承，isinstance(auth, Plugin) 才�
 
 ### 4.1 type 与 object 的自洽关系
 
-`type` 与 `object` 的互相引用是 Python 类型系统的基石。两条核心事实：
+`type` 与 `object` 是 Python 类型系统的两个"原点"。理解它们的自洽关系，是理解"一切皆对象"的关键。本节从核心事实出发，逐步拆解。
 
-**事实一：`object` 是所有类的根基类。** 每个类（含 `type` 自身）都继承 `object`。所以 `issubclass(int, object)`、`issubclass(type, object)` 都为 `True`——`object` 处于继承链的顶端，万物皆 `object` 子类。
+#### 4.1.1 两条核心事实
 
-**事实二：`type` 是所有类的类型（元类）。** 每个类对象本身的"类型"是 `type`。所以 `type(int) is type`、`type(object) is type`——连 `object` 这个根基类，它自身的类型也是 `type`。`type` 处于"实例→类"链的顶端，所有类都是 `type` 的实例。
+**事实一：`object` 是所有类的根基类（继承维度的顶点）。**
 
-这两个事实看似循环（`type` 继承 `object`、`object` 类型是 `type`），实则在解释器启动时就被 hardcoded 建立为自洽的初始结构：
+Python 里每一个类——无论是内置的 `int`/`str`/`list`，还是你写的 `class Foo`，连 `type` 自身——都直接或间接继承自 `object`。`object` 处于继承链的顶端，没有父类（`object.__bases__` 为空元组 `()`）：
 
 ```python
-print(type(object))      # <class 'type'>   —— object 的类型是 type
-print(type(type))        # <class 'type'>   —— type 的类型是 type 自己
-print(issubclass(type, object))  # True      —— type 继承 object
-print(issubclass(object, type))  # False     —— object 不继承 type
+print(object.__bases__)       # ()  —— object 没有父类，它是根
+print(int.__bases__)          # (<class 'object'>,)  —— int 直接继承 object
+print(type.__bases__)        # (<class 'object'>,)  —— type 也直接继承 object
 ```
 
-用一张"两个维度"的图理解：
+**事实二：`type` 是所有类的类型（实例维度的顶点）。**
+
+Python 里每一个类对象——无论是 `int`/`str`/`list`，还是 `object` 自身——它们的"类型"都是 `type`。`type` 处于"实例→类"链的顶端，它的类型是它自己（`type(type) is type`，自举）：
+
+```python
+print(type(int))             # <class 'type'>  —— int 的类型是 type
+print(type(str))             # <class 'type'>  —— str 的类型是 type
+print(type(object))          # <class 'type'>  —— 连 object 的类型也是 type
+print(type(type))            # <class 'type'>  —— type 的类型是自己（自举）
+```
+
+用一句话总结两条事实的分工：
+
+- **`object` 管继承**：回答"谁是谁的父类"，所有类最终收束到 `object`。
+- **`type` 管类型**：回答"谁是谁的实例"，所有类最终收束到 `type`。
+
+#### 4.1.2 为什么说"自洽"——看似循环实则是自举
+
+把两条事实放一起，会发现一个看似循环的依赖：
+
+| 事实 | 说明 |
+|------|------|
+| `type` 继承 `object` | 所以 `type` 是个"类"，是 `object` 的子类 |
+| `object` 的类型是 `type` | 所以 `object` 是 `type` 的实例 |
+
+"`type` 是 `object` 的子类" + "`object` 是 `type` 的实例"——这不就是"鸡生蛋蛋生鸡"吗？
+
+答案：**不是逻辑循环，而是解释器在启动时 hardcoded 的自洽初始结构。** 在 CPython 源码中，`type` 和 `object` 是在解释器初始化阶段最先被创建的两个内置对象，它们的内部指针在 C 代码里被直接写死：
+
+- `type.ob_type = &type`（type 的类型指针指向自己）
+- `type.tp_bases = (object,)`（type 的父类是 object）
+- `object.ob_type = &type`（object 的类型指针指向 type）
+- `object.tp_bases = ()`（object 没有父类，是根）
+
+这不是运行时递归推导的，而是 C 代码直接赋值建立的。所以不存在"先有谁"的问题——它们是同时被创建、互相指向的。用验证代码确认这一切：
+
+```python
+print(type(object))            # <class 'type'>     —— object 的类型是 type
+print(type(type))              # <class 'type'>     —— type 的类型是 type 自己
+print(issubclass(type, object))  # True              —— type 继承 object
+print(issubclass(object, type))  # False             —— object 不继承 type（它更高层）
+print(isinstance(type, object))  # True              —— type 是 object 的子类，所以也是 object 实例
+print(isinstance(object, type))  # True              —— object 是 type 的实例（类是对象）
+```
+
+最后一行 `isinstance(object, type)` 为 `True` 很关键——`object` 虽然是"根基类"，但它**自身也是一个对象**，而它作为"类对象"的类型就是 `type`，所以 `object` 也是 `type` 的实例。但反过来 `issubclass(object, type)` 为 `False`——`object` 不继承 `type`，在继承维度上 `object` 比 `type` 更高。
+
+#### 4.1.3 type vs object 的完整对比
+
+把 `type` 和 `object` 逐维度对比，能看清两者的角色差异：
+
+| 维度 | `object` | `type` |
+|------|----------|-------|
+| **角色** | 根基类（root base class） | 元类（metaclass，类的类） |
+| **管什么** | 继承链（"谁是父类"） | 类型链（"谁是谁的实例"） |
+| **位置** | 继承链的顶点（无父类） | 类型链的顶点（类型是自己） |
+| **`__bases__`（父类）** | `()` 空元组，没有父类 | `(object,)` 继承 object |
+| **`type(它自己)`** | `type`（object 是 type 的实例） | `type`（type 是自己的实例，自举） |
+| **`issubclass(x, 它)`** | 任何类都为 True（万物继承 object） | 只有元类（type 的子类）才为 True |
+| **`isinstance(x, 它)`** | 任何对象都为 True（万物皆 object） | 只有类对象才为 True（类是 type 实例） |
+| **`__mro__`** | `(object,)` 只有自身 | `(type, object)` 含 object |
+| **能否被继承** | 能，且几乎所有类都继承它 | 能，自定义元类继承它 |
+| **能否被调用造实例** | 能，`object()` 造一个空对象 | 能，`type(name,bases,dict)` 造一个新类 |
+
+这张表揭示了核心分工：**`object` 是"所有类的祖先"，`type` 是"所有类的类型"。一个管继承，一个管实例关系。**
+
+#### 4.1.4 用关键属性验证自洽结构
+
+我们可以通过 Python 内部属性直接验证 `type` 和 `object` 的关系，不需要靠推理：
+
+```python
+# === 验证 type 的结构 ===
+print(type.__name__)          # 'type'
+print(type.__bases__)         # (object,)  —— type 的父类是 object
+print(type.__mro__)           # (type, object)  —— type 的继承链含 object
+print(type(type))             # <class 'type'>  —— type 的类型是 type 自己
+
+# === 验证 object 的结构 ===
+print(object.__name__)        # 'object'
+print(object.__bases__)       # ()  —— object 没有父类，是根
+print(object.__mro__)         # (object,)  —— object 的继承链只有自己
+print(type(object))           # <class 'type'>  —— object 的类型是 type
+
+# === 验证两者的实例关系 ===
+print(isinstance(type, object))    # True  —— type 是 object 子类→也是 object 实例
+print(isinstance(object, type))    # True  —— object 是 type 的实例（类是对象）
+print(issubclass(type, object))    # True  —— type 继承 object
+print(issubclass(object, type))    # False —— object 不继承 type
+```
+
+逐行解读：
+
+- `type.__bases__` 是 `(object,)`——`type` 继承 `object`，所以 `type` 是个"类"。
+- `object.__bases__` 是 `()`——`object` 没有父类，它是继承链的绝对根。
+- `type(type)` 返回 `type`——`type` 自举，它的类型指向自己。
+- `type(object)` 返回 `type`——`object` 这个"根基类"本身也是 `type` 的一个实例。
+- `isinstance(type, object)` 为 `True`——因为 `type` 继承 `object`，子类实例也是父类实例。
+- `isinstance(object, type)` 为 `True`——因为 `object` 是一个类，而所有类都是 `type` 的实例。
+- `issubclass(object, type)` 为 `False`——这是**唯一不对称**的一行：`type` 继承 `object`，但 `object` 不继承 `type`。在继承维度上 `object` 比 `type` 更高层。
+
+#### 4.1.5 两个维度的文字图解
+
+用文字图把两个维度画清楚，帮你建立直觉：
+
+**维度一：继承链（`issubclass` 的世界）—— `object` 是顶点**
+
+![示例图片](../images/base/202609201244.svg)
+
+继承链回答"谁是谁的父类"。无论 `type`、`int` 还是你写的类，往上追一定到 `object`。`object` 在这条链的顶点。
+
+**维度二：类型链（`type()` / `isinstance` 的世界）—— `type` 是顶点**
+
+![示例图片](../images/base/202609201245.svg)
+
+类型链回答"谁是谁的实例"。所有"类对象"本身都是 `type` 的实例，包括 `object` 自己。`type` 在这条链的顶点，且自举。
+
+**把两个维度叠在一起看 `type` 和 `object` 的特殊关系：**
+
+![示例图片](../images/base/202609201246.svg)
+
+这张图的关键洞察：`type` 和 `object` 在两个维度上互为顶点——继承链上 `object` 在上，类型链上 `type` 在上。它们互相"托举"：`type` 继承 `object` 保证了 type 是个类（能被继承、有方法），`object` 是 `type` 的实例保证了 object 是个对象（有类型、能被 isinstance 判断）。这正是自洽的核心。
+
+配合 SVG 图更直观地理解两个维度的关系：
 
 ![示例图片](../images/base/202609151317.svg)
 
-关键洞察：
+#### 4.1.6 用一个具体类串联两个维度
 
-- **`type` 是个"类"**（它继承 `object`），所以 `isinstance(type, object)` 为 `True`、"type 是一个 object"。
-- **`type` 又是"造类的类"**（元类），所有类的类型是 `type`，所以 `isinstance(int, type)` 为 `True`、"int 是 type 的实例"。
-- **`object` 也是 `type` 的实例**（类是对象，object 这个类也是 type 造的），但 `object` 不是 `type` 的父类——它是 `type` 的祖先类（`type` 继承 `object`）。
+拿 `int` 类作为例子，完整走一遍两个维度：
 
-这个自洽结构的意义：它让"一切皆对象"在类型层面闭环——任何对象（含类本身）都有类型（指向 `type`），任何类都收束到 `object`。理解它能解释：
+```python
+# === 继承链维度 ===
+print(int.__bases__)         # (object,)  —— int 的直接父类是 object
+print(int.__mro__)           # (int, object)  —— 继承链：int → object
+print(issubclass(int, object))  # True  —— int 是 object 的子类
 
-- 为何 `isinstance(任意对象, object)` 恒 `True`（万物继承 object）。
-- 为何 `isinstance(任意类, type)` 恒 `True`（所有类都是 type 的实例）。
-- 为何能用 `type(name, bases, dict)` 动态造类（type 是造类的类，调用它就是"让 type 造一个类"）。
-- 后续元类编程（自定义 `metaclass`）为何继承 `type`——因为 type 就是默认元类，自定义元类是 type 的子类。
+# === 类型链维度 ===
+print(type(int))             # <class 'type'>  —— int 这个类对象的类型是 type
+print(isinstance(int, type)) # True  —— int 是 type 的实例
+
+# === 实例维度（42 是 int 的实例）===
+print(type(42))              # <class 'int'>  —— 42 的类型是 int
+print(isinstance(42, int))   # True  —— 42 是 int 的实例
+print(isinstance(42, object)) # True —— 42 间接继承 object，也是 object 实例
+```
+
+完整链路：`42` →（实例）→ `int` →（继承）→ `object`，同时 `int` →（实例）→ `type`，`type` →（继承）→ `object`。这就是一切皆对象的全景。
+
+#### 4.1.7 这个自洽结构能解释什么
+
+理解 `type` 与 `object` 的自洽关系后，之前章节中很多现象就有了统一的解释：
+
+```python
+# 1. 为何 isinstance(任何对象, object) 恒为 True？
+#    因为所有类都继承 object，任何对象都间接是 object 的实例。
+print(isinstance(42, object))       # True
+print(isinstance(int, object))      # True（int 类也是 object 的子类）
+print(isinstance(type, object))     # True（type 也是 object 的子类）
+
+# 2. 为何 isinstance(任何类, type) 恒为 True？
+#    因为所有类对象的"类型"都是 type——type 是元类。
+print(isinstance(int, type))        # True
+print(isinstance(str, type))        # True
+print(isinstance(object, type))     # True（连 object 都是 type 的实例）
+
+# 3. 为何能用 type(name, bases, dict) 动态造类？
+#    因为 type 是"造类的类"——调用 type 就是"让 type 造一个类"，
+#    就像调用 int(42) 是"让 int 造一个整数实例"。
+Dog = type("Dog", (object,), {"bark": lambda self: "汪"})
+print(isinstance(Dog, type))        # True —— Dog 是 type 的实例
+
+# 4. 为何自定义元类要继承 type？
+#    因为 type 是默认元类，自定义元类是 type 的子类，才能接管"造类"流程。
+class MyMeta(type):                # 继承 type → 是个元类
+    pass
+print(issubclass(MyMeta, type))    # True
+print(isinstance(MyMeta, type))    # True —— MyMeta 也是 type 的实例
+```
+
+这个自洽结构是整个 Python 类型系统的数学骨架：**每个对象都有类型（最终指向 `type`），每个类都收束到 `object`。** 日常编码不必时刻推演这个闭环，但建立"`type` 是造类的类、`object` 是所有类的根"的认知，是理解后续 isinstance/issubclass 沿 MRO 查找、元类定制类创建等机制的钥匙。
 
 ### 4.2 isinstance/issubclass 如何沿 MRO 查找
 
