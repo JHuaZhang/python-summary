@@ -35,6 +35,7 @@ export const KNOWLEDGE_DATA: KnowledgeItem[] = [
   { id: '/Base/02-dataType-05', label: 'bool类型与短路逻辑', parentId: 'Base-02基础数据类型和类型系统', link: '/Base/02-dataType-05', color: '#555', bg: '#fff' },
   { id: '/Base/02-dataType-06', label: 'None类型详解', parentId: 'Base-02基础数据类型和类型系统', link: '/Base/02-dataType-06', color: '#555', bg: '#fff' },
   { id: '/Base/02-dataType-07', label: 'complex复数类型', parentId: 'Base-02基础数据类型和类型系统', link: '/Base/02-dataType-07', color: '#555', bg: '#fff' },
+  { id: '/Base/02-dataType-08', label: 'bytes类型详解', parentId: 'Base-02基础数据类型和类型系统', link: '/Base/02-dataType-08', color: '#555', bg: '#fff' },
   { id: 'Base-03字符串介绍', label: '【03】字符串介绍', parentId: 'Base', color: '#0958d9', bg: '#e6f4ff' },
   { id: '/Base/03-string-01', label: '字符串创建与驻留机制', parentId: 'Base-03字符串介绍', link: '/Base/03-string-01', color: '#555', bg: '#fff' },
   { id: '/Base/03-string-02', label: '字符串索引与切片', parentId: 'Base-03字符串介绍', link: '/Base/03-string-02', color: '#555', bg: '#fff' },

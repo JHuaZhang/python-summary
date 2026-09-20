@@ -110,6 +110,10 @@ export default defineConfig({
                 {
                     "text": "complex复数类型",
                     "link": "/Base/02-dataType-07"
+                },
+                {
+                    "text": "bytes类型详解",
+                    "link": "/Base/02-dataType-08"
                 }
             ]
         },
