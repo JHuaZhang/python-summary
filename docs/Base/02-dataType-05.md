@@ -47,23 +47,6 @@ name = name or "匿名"
 print(name)              # 匿名
 ```
 
-### 1.3 在 Python 类型体系中的定位
-
-```text
-Python 内置类型
-├── 数值类型
-│   ├── int      —— 任意精度整数
-│   ├── float    —— IEEE 754 双精度浮点数
-│   ├── complex  —— 复数
-│   └── bool     —— 布尔值（int 的子类，True=1, False=0）
-├── 序列类型
-│   ├── str / list / tuple
-│   └── ...
-└── ...
-```
-
-`bool` 在类型层次中位于 `int` 之下——`bool` 继承自 `int`，是 Python 类型系统中唯一的"子类型"内置类型。理解这一点，是理解后面 `True + 1 == 2`、`isinstance(True, int)` 等行为的关键。
-
 ---
 
 ## 2. 核心内容
@@ -691,8 +674,8 @@ elif isinstance(val, int):
 | 判空 | `if len(items) > 0:` | `if items:` | Pythonic，适用所有容器 |
 | 判 None | `if x == None:` | `if x is None:` | PEP 8 规范，None 是单例 |
 | 判非 None | `if x != None:` | `if x is not None:` | PEP 8 规范 |
-| 判布尜值 | `if flag == True:` | `if flag:` | 简洁，避免多余比较 |
-| 判布爮假 | `if flag == False:` | `if not flag:` | 简洁，避免多余比较 |
+| 判布尔值 | `if flag == True:` | `if flag:` | 简洁，避免多余比较 |
+| 判布尔假 | `if flag == False:` | `if not flag:` | 简洁，避免多余比较 |
 | 判字符串非空 | `if len(s) > 0:` | `if s:` | 统一的真值测试 |
 | 判集合非空 | `if len(d) > 0:` | `if d:` | 统一的真值测试 |
 
@@ -751,11 +734,15 @@ print(status)               # 成年
 
 ---
 
-## 4. 原理：短路逻辑与布尔运算的字节码
+## 4. 原理：布尔运算与短路逻辑的实现机制
 
-### 4.1 and 的字节码：JUMP_IF_FALSE_OR_POP
+前几节展示了 `and`/`or`/`not` 的外在行为：`and`/`or` 返回操作数本身、`not` 恒返回布尔值、链式比较会短路。这些并不是"刚好如此"，而是 Python 求值时对栈的不同操作方式直接决定的。本节从原理层面回答"为什么会这样"，每条原理都用 `dis` 反汇编出的字节码作为实现佐证。
 
-`and` 的短路行为在字节码层面体现为条件跳转指令：
+### 4.1 原理一：and 是"假则短路返回，真则取第二个"
+
+`and` 的语义本质不是"算出两个布尔值再做与"，而是**短路选择**：先求值左操作数，若其为假，结果已确定，直接返回左操作数，右操作数根本不求值；若左操作数为真，结果取决于右操作数，于是求值并返回右操作数。这就是第 2.3 节"`3 and 5` 得 `5`"的底层来源——`and` 从头到尾没有把操作数转成布尔值，只是在两者中"选一个"返回。
+
+这一原理在字节码里体现为一条条件跳转指令：
 
 ```python
 import dis
@@ -772,9 +759,11 @@ dis.dis(compile("a and b", "", "eval"))
       ...
 ```
 
-`JUMP_IF_FALSE_OR_POP` 的含义：看栈顶（`a`）——如果为假，保留 `a` 在栈上并跳到结束（短路返回 `a`）；如果为真，弹出 `a`（POP），继续加载 `b`。
+`JUMP_IF_FALSE_OR_POP` 的含义：看栈顶（`a`）——如果为假，保留 `a` 在栈上并跳到结束（短路返回 `a`，`b` 从未被 `LOAD`）；如果为真，弹出 `a`（`POP`），继续加载 `b`。注意全程没有任何"把值转成 `True`/`False`"的指令——这就是 `and` 返回原操作数的直接证据。
 
-### 4.2 or 的字节码：JUMP_IF_TRUE_OR_POP
+### 4.2 原理二：or 是"真则短路返回，假则取第二个"
+
+`or` 与 `and` 镜像：左操作数为真时结果已定，直接返回它并跳过右操作数；为假时才求值并返回右操作数。这正是第 2.4 节 `or` 设默认值惯用法的底层原理——"左值存在用左值，否则用右值"。
 
 ```python
 dis.dis(compile("a or b", "", "eval"))
@@ -790,11 +779,11 @@ dis.dis(compile("a or b", "", "eval"))
       ...
 ```
 
-`JUMP_IF_TRUE_OR_POP` 是 `and` 的镜像：栈顶为真时保留并跳转（短路返回 `a`）；为假时弹出并加载 `b`。
+`JUMP_IF_TRUE_OR_POP` 是 `and` 指令的镜像：栈顶为真时保留并跳转（短路返回 `a`）；为假时弹出并加载 `b`。两条指令都只在栈上"保留或弹出"，从不做布尔转换——这正是 `and`/`or` 返回操作数本身而非布尔值的物理原因。
 
-这两条指令解释了为什么 `and`/`or` 返回操作数本身而非布尔值——它们只是在栈上选择保留或弹出，没有做任何布尔转换。
+### 4.3 原理三：not 是唯一"真正布尔化"的运算符
 
-### 4.3 not 的字节码：UNARY_NOT
+`and`/`or` 是"选择器"，而 `not` 的语义是"取反"——它必须给出一个明确的布尔结论，因此结果始终是 `True` 或 `False`，类型恒为 `bool`。这与 `and`/`or` 形成对照：同样是逻辑运算符，`not` 的职责是"布尔化并取反"，而非"在操作数间做选择"。
 
 ```python
 dis.dis(compile("not x", "", "eval"))
@@ -808,25 +797,27 @@ dis.dis(compile("not x", "", "eval"))
   4 RETURN_VALUE
 ```
 
-`UNARY_NOT` 对栈顶值做真值测试后取反，结果恒为 `bool`。这就是 `not` 始终返回 `True`/`False` 的底层原因。
+`UNARY_NOT` 对栈顶值做一次真值测试再取反，结果恒为 `bool`。这就是 `not` 始终返回 `True`/`False`、`type(not 0)` 是 `bool` 的底层原因。
 
-### 4.4 链式比较的字节码：DUP_TOP
+### 4.4 原理四：链式比较按 and 语义短路，中间量只求值一次
+
+链式比较 `a < b < c` 并非"先算 `a < b` 再算 `b < c` 两次比较"，而是按 `(a < b) and (b < c)` 的短路语义执行：左半段为假就直接判定为假，右半段不求值。但与手写 `a < b and b < c` 不同，中间量 `b` 只会被求值**一次**——这正是第 2.6 节"链式比较更高效且对有副作用的表达式更安全"的原理所在。
 
 ```python
 dis.dis(compile("a < b < c", "", "eval"))
 ```
 
-链式比较使用 `DUP_TOP` 指令复制中间操作数（`b`），让两次比较共享同一个 `b` 值。这解释了为什么链式比 `a < b and b < c` 更高效——`b` 只被评估一次。
+链式比较使用 `DUP_TOP` 指令复制栈顶的中间操作数（`b`），让两次比较共享同一个 `b` 值，从而避免重复求值。相比之下，手写 `a < b and b < c` 中 `b` 会被求值两次；链式写法既短路又只算一次。
 
-### 4.5 True/False 在字节码中的表示
+### 4.5 原理五：True/False 是常量单例，由指令直接加载
 
-`True` 和 `False` 在字节码中是 `LOAD_CONST` 指令加载的常量，不需要查找名字空间：
+`True`/`False` 并非普通名字，而是关键字常量与解释器级单例。这决定了三点：它们不可被赋值（赋值会 `SyntaxError`）、全进程唯一（`True is True` 恒成立）、访问时无需查找名字空间（高效）。这是它们与一般变量在实现层面的根本区别。
 
 ```python
 dis.dis(compile("x = True", "", "exec"))
 ```
 
-`True` 直接作为常量加载（`LOAD_CONST True`），而不是作为变量名查找（`LOAD_NAME`），这保证了 `True`/`False` 的高效访问和不可赋值特性。
+因为 `True` 直接作为常量加载（`LOAD_CONST True`），而非作为变量名查找（`LOAD_NAME`），它在编译期就已固化在常量池里，访问高效、不可被覆盖，这也保证了"不可赋值"的语义。
 
 ---
 
@@ -843,4 +834,4 @@ dis.dis(compile("x = True", "", "exec"))
 - `==` 与 `is` 的区别：`==` 比较值、`is` 比较身份、判 `None` 用 `is`、小整数缓存陷阱
 - `bool` 作为 `int` 子类的实际影响：参与算术运算、`sum` 统计惯用法、`isinstance` 陷阱
 - 条件判断的推荐写法（`if x:` 优于 `if len(x) > 0:`、`if x is None:` 优于 `if x == None:`）
-- `and`/`or`/`not` 的字节码实现：`JUMP_IF_FALSE_OR_POP`、`JUMP_IF_TRUE_OR_POP`、`UNARY_NOT` 指令如何实现短路和返回操作数本身
+- 布尔运算的底层原理：`and`/`or` 本质是"短路选择器"而非布尔运算、`not` 因取反语义恒返回 bool、链式比较按 `and` 语义短路且中间值只求值一次、`True`/`False` 是常量单例；并以 `JUMP_IF_FALSE_OR_POP`、`JUMP_IF_TRUE_OR_POP`、`UNARY_NOT`、`DUP_TOP`、`LOAD_CONST` 字节码作为实现佐证

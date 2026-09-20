@@ -41,21 +41,6 @@ print(0.1 + 0.2 == 0.3)    # False
 
 `0.1 + 0.2` 不等于 `0.3`，这不是 bug，而是 IEEE 754 浮点数表示法的必然结果。后面会详细解释原因和应对方案。
 
-### 1.3 在 Python 类型体系中的定位
-
-```text
-Python 数值类型层次
-├── int      —— 任意精度整数，没有溢出问题
-├── float    —— IEEE 754 双精度浮点数（本篇主题）
-├── complex  —— 复数（实部 + 虚部，均为 float）
-├── bool     —— 布尔值（int 的子类，True=1, False=0）
-└── 标准库扩展
-    ├── decimal.Decimal   —— 十进制浮点数，精度可控
-    └── fractions.Fraction —— 精确有理数（分数）
-```
-
-`float` 是 Python 数值类型中唯一一个"有限精度"的浮点类型——`int` 可以无限大，`Decimal` 可以自定义精度，`Fraction` 是精确分数，只有 `float` 受限于 IEEE 754 的 64 位表示。
-
 ---
 
 ## 2. 核心内容
