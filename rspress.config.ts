@@ -628,6 +628,72 @@ export default defineConfig({
                     "link": "/Base/08-operator-13"
                 }
             ]
+        },
+        {
+            "text": "【09】条件分支",
+            "collapsible": true,
+            "items": [
+                {
+                    "text": "条件分支概述与基本概念",
+                    "link": "/Base/09-conditionalBranch-01"
+                },
+                {
+                    "text": "布尔值与真值测试",
+                    "link": "/Base/09-conditionalBranch-02"
+                },
+                {
+                    "text": "if 语句基础",
+                    "link": "/Base/09-conditionalBranch-03"
+                },
+                {
+                    "text": "if-else 二分支结构",
+                    "link": "/Base/09-conditionalBranch-04"
+                },
+                {
+                    "text": "if-elif-else 多分支结构",
+                    "link": "/Base/09-conditionalBranch-05"
+                },
+                {
+                    "text": "嵌套 if 语句",
+                    "link": "/Base/09-conditionalBranch-06"
+                },
+                {
+                    "text": "比较运算符在条件中的应用",
+                    "link": "/Base/09-conditionalBranch-07"
+                },
+                {
+                    "text": "逻辑运算符与条件组合",
+                    "link": "/Base/09-conditionalBranch-08"
+                },
+                {
+                    "text": "成员与身份运算符在条件中",
+                    "link": "/Base/09-conditionalBranch-09"
+                },
+                {
+                    "text": "链式比较",
+                    "link": "/Base/09-conditionalBranch-10"
+                },
+                {
+                    "text": "条件表达式三元运算符",
+                    "link": "/Base/09-conditionalBranch-11"
+                },
+                {
+                    "text": "pass 语句与空分支",
+                    "link": "/Base/09-conditionalBranch-12"
+                },
+                {
+                    "text": "match-case 结构化模式匹配",
+                    "link": "/Base/09-conditionalBranch-13"
+                },
+                {
+                    "text": "条件分支嵌套优化与扁平化",
+                    "link": "/Base/09-conditionalBranch-14"
+                },
+                {
+                    "text": "条件分支常用技巧与惯用法",
+                    "link": "/Base/09-conditionalBranch-15"
+                }
+            ]
         }
     ]
 },
