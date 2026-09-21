@@ -460,19 +460,22 @@ class Point:
     def __init__(self, x, y):
         self.x, self.y = x, y
     def clone(self):
-        return self.__class__(self.x, self.y)   # 用自身类构造，子类克隆也正确
+        return self.__class__(self.x, self.y)   # 用自身类构造，返回实例的真实类型
 
 class Point3D(Point):
     def __init__(self, x, y, z):
         super().__init__(x, y)
         self.z = z
+    def clone(self):                            # 子类需重写以复制新增属性 z
+        return self.__class__(self.x, self.y, self.z)
 
 p = Point3D(1, 2, 3)
 q = p.clone()              # 子类实例的 clone 返回 Point3D，因 __class__ 是 Point3D
 print(type(q))             # <class 'Point3D'> —— 而非 Point
+print(q.x, q.y, q.z)       # 1 2 3
 ```
 
-`self.__class__(...)` 比 `Point(...)` 更稳健——它在子类调用时自动用子类构造，体现"多态构造"。这是 `__class__` 的实用价值。
+`self.__class__(...)` 比 `Point(...)` 更稳健——它在子类调用时返回子类实例，体现"多态构造"。需注意：基类 `clone` 只能复制基类已知的属性，子类若有新增属性（如 `z`）必须重写 `clone`，但 `self.__class__` 仍确保返回类型正确。这是 `__class__` 的实用价值。
 
 ### 2.6 用抽象基类（ABC）做结构化判断
 
