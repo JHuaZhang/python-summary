@@ -694,6 +694,68 @@ export default defineConfig({
                     "link": "/Base/09-conditionalBranch-15"
                 }
             ]
+        },
+        {
+            "text": "【10】循环结构",
+            "collapsible": true,
+            "items": [
+                {
+                    "text": "循环结构概述与基本概念",
+                    "link": "/Base/10-loopStructure-01"
+                },
+                {
+                    "text": "while 循环基础",
+                    "link": "/Base/10-loopStructure-02"
+                },
+                {
+                    "text": "for 循环基础与迭代协议",
+                    "link": "/Base/10-loopStructure-03"
+                },
+                {
+                    "text": "range 与步进控制",
+                    "link": "/Base/10-loopStructure-04"
+                },
+                {
+                    "text": "break 与 continue",
+                    "link": "/Base/10-loopStructure-05"
+                },
+                {
+                    "text": "循环 else 子句",
+                    "link": "/Base/10-loopStructure-06"
+                },
+                {
+                    "text": "字典遍历与多变量解包",
+                    "link": "/Base/10-loopStructure-07"
+                },
+                {
+                    "text": "enumerate 与 zip",
+                    "link": "/Base/10-loopStructure-08"
+                },
+                {
+                    "text": "嵌套循环与复杂解包",
+                    "link": "/Base/10-loopStructure-09"
+                },
+                {
+                    "text": "列表推导式入门",
+                    "link": "/Base/10-loopStructure-10"
+                },
+                {
+                    "text": "推导式进阶：过滤、条件与嵌套",
+                    "link": "/Base/10-loopStructure-11"
+                },
+                {
+                    "text": "字典集合推导式与生成器表达式",
+                    "link": "/Base/10-loopStructure-12"
+                },
+                {
+                    "text": "循环惯用法与技巧",
+                    "link": "/Base/10-loopStructure-13"
+                },
+                {
+                    "text": "循环常见易错点",
+                    "link": "/Base/10-loopStructure-14"
+                }
+            ]
         }
     ]
 },
