@@ -435,14 +435,12 @@ print(s2)                     # line1（换行）line2
 
 不同操作系统的文本文件使用不同的换行符，这是历史原因造成的。"回车"和"换行"这两个动作在打字机时代就已存在，计算机继承了这一传统，但各系统做出了不同选择：
 
-```text
-平台          换行符    缩写    来源
-─────────────────────────────────────────────────
-Windows       \r\n     CRLF    DOS 时代遗留（源于早期 DEC 操作系统）
-Unix/Linux    \n       LF      AT&T Unix 的选择
-macOS(现代)   \n       LF      OS X 起与 Unix 统一
-旧版 macOS    \r       CR      macOS 9 及之前
-```
+| 平台 | 换行符 | 缩写 | 来源 |
+| ---- | ------ | ---- | ---- |
+| Windows | `\r\n` | CRLF | DOS 时代遗留（源于早期 DEC 操作系统） |
+| Unix/Linux | `\n` | LF | AT&T Unix 的选择 |
+| macOS(现代) | `\n` | LF | OS X 起与 Unix 统一 |
+| 旧版 macOS | `\r` | CR | macOS 9 及之前 |
 
 ```python
 # 各系统的换行符常量
