@@ -53,9 +53,7 @@ print(f"GDP: {gdp:,.2f}")  # 输出: GDP: 1,234,567,890.57
 
 精度控制的核心是在格式化字符串的**格式规范**中指定精度，其基本语法结构如下：
 
-```
-:{填充字符 对齐方式 宽度 , 千分位 . 精度 类型}
-```
+![示例图片](../images/base/202609221153.svg)
 
 其中与精度直接相关的是**精度说明符**（precision specifier），其格式为：
 
@@ -113,15 +111,9 @@ print("%.2f" % value)
 
 f-string（formatted string literal）是 Python 3.6 引入的字符串格式化机制，它以 `f` 或 `F` 为前缀，在字符串内部直接嵌入表达式。f-string 的基本语法是：
 
-```python
-f"文本 {表达式:格式规范} 文本"
-```
+![示例图片](../images/base/202609221154.svg)
 
-其中**格式规范**（format spec）是精度控制的核心所在。格式规范的完整结构如下：
-
-```
-[[fill]align][sign][#][0][width][grouping_option][.precision][type]
-```
+其中**格式规范**（format spec）是精度控制的核心所在。参数含义如下：
 
 - `fill`：填充字符（可选，用于不足宽度时的填充）
 - `align`：对齐方式（`<`, `>`, `^`, `=`）
@@ -818,9 +810,7 @@ print(f"{z.imag:>10.2f}")   #      67.89
 
 `%` 格式化的基本语法来源于 C 语言的 `printf` 函数，其格式规范的结构如下：
 
-```
-%[flags][width][.precision]type
-```
+![示例图片](../images/base/202609221155.svg)
 
 与 f-string 的 `{value:format_spec}` 语法不同，`%` 格式化将格式规范放在 `%` 符号之后，类型字符放在最后。
 
