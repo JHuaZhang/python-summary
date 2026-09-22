@@ -150,7 +150,7 @@ export default defineConfig({
                     "link": "/Base/03-string-07"
                 },
                 {
-                    "text": "字符串与字符编码",
+                    "text": "占位符精度控制",
                     "link": "/Base/03-string-08"
                 },
                 {
@@ -158,7 +158,7 @@ export default defineConfig({
                     "link": "/Base/03-string-09"
                 },
                 {
-                    "text": "占位符精度控制",
+                    "text": "字符串与字符编码",
                     "link": "/Base/03-string-10"
                 },
                 {
