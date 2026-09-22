@@ -3,1743 +3,1171 @@ group:
   title: 【03】字符串介绍
   order: 3
 order: 10
-title: 占位符精度控制
+title: 字符串与字符编码
 nav:
   title: Python基础
   order: 1
 ---
 
-# 占位符精度控制
+# 字符串与字符编码
 
 ## 1. 介绍
 
-### 1.1 什么是占位符精度控制
+### 1.1 要理解什么
 
-在 Python 中进行字符串格式化时，我们经常需要对输出的数值、字符串等内容进行精度控制——比如限定小数点后保留几位、字符串最大截取长度、数字的千分位分隔格式等。这种在格式化字符串中控制输出精度的方式，就是**占位符精度控制**。
+字符编码是计算机处理文本的基础——计算机只认识 0 和 1，而人类使用的是"中""A""😀"这样的字符。字符编码就是连接这两者的桥梁：它定义了每个字符对应哪些字节，以及如何在这些字节和字符之间来回转换。
 
-精度控制是字符串格式化功能的核心组成部分，它出现在 Python 的三种主流格式化方式中：
+Python 3 中，`str` 类型内部存储的是 Unicode 码点（人类可读的文本），而 `bytes` 类型存储的是原始字节序列（机器可读的二进制数据）。`encode()` 把 `str` 编码成 `bytes`，`decode()` 把 `bytes` 解码回 `str`。理解编码原理，你才能正确处理中文乱码、多语言文本、文件读写、网络传输中的字符问题。
 
-- **f-string（格式化字符串字面量）**：Python 3.6+ 引入的现代格式化语法，如 `f"{value:.2f}"` 表示保留两位小数
-- **str.format() 方法**：传统的 `.format()` 格式化方式，如 `"{:.2f}".format(value)`
-- **% 格式化（旧式）**：源自 C 语言的 `%` 操作符格式化，如 `"%.2f" % value`
+### 1.2 为什么需要理解它
 
-精度控制的典型应用场景包括：
+如果你只会写 `print("Hello")`，编码对你没有影响。但一旦涉及以下场景，不理解编码就会踩坑：
 
-- **金融计算**：金额保留两位小数、精确到分的计算结果展示
-- **科学计算**：控制浮点数的有效数字、避免精度误差
-- **数据展示**：表格对齐、数字格式化（如千分位）
-- **日志记录**：控制输出长度、避免过长的数值占满屏幕
-- **用户界面**：固定小数位数、百分比展示、货币格式
+- **中文乱码**：读取文件出现 `ä½ å¥½` 这样的乱码，不知道怎么修复
+- **网络传输**：HTTP 请求/响应的编码处理不当，导致数据损坏
+- **跨平台兼容**：Windows 默认 GBK，Linux 默认 UTF-8，同一份文件在不同系统上表现不同
+- **多语言支持**：处理日文、韩文、阿拉伯文、Emoji 等非 ASCII 字符时出错
+- **文件读写**：`open()` 默认编码在不同操作系统上行为不一致，导致读取失败
+
+这些问题的根源都是编码不一致——编码时用了 A 编码，解码时用了 B 编码，结果就对不上。理解编码原理后，你能快速定位"哪个环节用错了编码"，并给出修复方案。
+
+## 2. 整体架构
+
+### 2.1 从字符到字节的完整映射链
+
+计算机处理文本的核心流程：
+
+```text
+人类字符  →  Unicode 码点  →  编码(encode)  →  字节序列  →  存储/传输
+  '中'        U+4E2D          UTF-8          E4 B8 AD      磁盘/网络
+
+计算机读取  →  字节序列  →  解码(decode)  →  Unicode 码点  →  Python str
+  磁盘/网络    E4 B8 AD        UTF-8           U+4E2D          '中'
+```
+
+这条链路中有三个关键层：
+
+| 层 | 内容 | 示例 |
+|----|------|------|
+| 字符层 | 人类可读的文本符号 | `'中'`、`'A'`、`'😀'` |
+| 码点层 | Unicode 为每个字符分配的唯一编号 | `U+4E2D`、`U+0041`、`U+1F600` |
+| 字节层 | 计算机存储的字节序列 | `E4 B8 AD`、`41`、`F0 9F 98 80` |
+
+### 2.2 编码方案的发展历程
+
+```text
+ASCII (1963)
+  ↓ 7 位, 128 个字符, 只覆盖英文
+ISO 8859-1 / Latin-1 (1986)
+  ↓ 8 位, 256 个字符, 覆盖西欧语言
+GBK / Shift-JIS / Big5 (1990s)
+  ↓ 各国自行扩展, 互不兼容
+Unicode (1991)
+  ↓ 统一码点空间, 覆盖全世界所有文字
+  ↓
+UTF-8 / UTF-16 / UTF-32
+  ↓ Unicode 的不同编码实现方案
+```
+
+### 2.3 Python 3 中的 str 与 bytes
+
+Python 3 明确区分了"文本"和"数据"两种概念，分别用 `str` 和 `bytes` 类型表示：
+
+```text
+str  =  Unicode 字符序列   →  人类文本   →  len() 返回字符数
+bytes = 字节序列(0~255)    →  机器数据   →  len() 返回字节数
+
+str → bytes :  encode('编码方式')   (编码)
+bytes → str :  decode('编码方式')   (解码)
+```
+
+### 2.4 各组件职责
+
+| 组件 | 职责 | Python 表示 |
+|------|------|-------------|
+| Unicode | 定义字符与码点的映射 | `ord('中')` → `20013` |
+| UTF-8 | 码点到字节的编码方案 | `'中'.encode('utf-8')` → `b'\xe4\xb8\xad'` |
+| UTF-16 | 码点到字节的编码方案（定宽+字节序） | `'中'.encode('utf-16')` → `b'\xff\xfe-D'` |
+| `str` | Python 中的文本类型 | `'中文'` |
+| `bytes` | Python 中的字节序列类型 | `b'\xe4\xb8\xad\xe6\x96\x87'` |
+| `encode()` | str → bytes 的方法 | `'中'.encode('utf-8')` |
+| `decode()` | bytes → str 的方法 | `b'\xe4\xb8\xad'.decode('utf-8')` |
+
+## 3. 关键机制拆解
+
+### 3.1 ASCII — 一切的起点
+
+ASCII（American Standard Code for Information Interchange）是最早的字符编码标准，用 7 位二进制数表示 128 个字符，覆盖英文字母、数字和常用符号。
 
 ```python
-# 精度控制在实际场景中的应用示例
-price = 1234.567
-quantity = 100
+# ord() 查看字符的码点（ASCII 范围内 0~127）
+print(f"'A' 的码点: {ord('A')}")    # 65
+print(f"'a' 的码点: {ord('a')}")    # 97
+print(f"'0' 的码点: {ord('0')}")    # 48
+print(f"' ' 的码点: {ord(' ')}")    # 32
 
-# 金融场景：金额保留两位小数
-total = price * quantity
-print(f"总价: {total:.2f}")  # 输出: 总价: 123456.70
-
-# 科学计算：控制有效数字
-pi = 3.141592653589793
-print(f"π的近似值: {pi:.4f}")  # 输出: π的近似值: 3.1416
-
-# 数据展示：千分位 + 两位小数
-gdp = 1234567890.567
-print(f"GDP: {gdp:,.2f}")  # 输出: GDP: 1,234,567,890.57
+# chr() 码点转字符
+print(f"码点 65 → '{chr(65)}'")    # A
+print(f"码点 97 → '{chr(97)}'")    # a
 ```
 
-### 1.2 精度控制的基本语法
+ASCII 的 128 个字符分为两类：
 
-精度控制的核心是在格式化字符串的**格式规范**中指定精度，其基本语法结构如下：
+```text
+控制字符 (0~31, 共 32 个): 不可打印的控制信号
+  0   NUL  空字符
+  9   TAB  制表符
+  10  LF   换行符 \n
+  13  CR   回车符 \r
+  ...
 
+可打印字符 (32~127, 共 96 个): 可显示的文本符号
+  32       空格
+  48~57    数字 0-9
+  65~90    大写字母 A-Z
+  97~122   小写字母 a-z
+  其余      标点符号和运算符
 ```
-:{填充字符 对齐方式 宽度 , 千分位 . 精度 类型}
-```
 
-其中与精度直接相关的是**精度说明符**（precision specifier），其格式为：
-
-- `.数字` — 指定小数精度（对浮点数）
-- `.数字` — 指定最大字符宽度（对字符串）
-
-精度说明符的位置在格式规范的**最后**，位于类型说明符之前。例如：
+用代码查看 ASCII 字符分类：
 
 ```python
-value = 3.1415926
-
-# .2 表示保留两位小数
-print(f"{value:.2f}")    # 输出: 3.14
-print(f"{value:.4f}")    # 输出: 3.1416
-print(f"{value:.10f}")   # 输出: 3.1415926000
-```
-
-精度控制涉及的组件较多，本章将逐一展开。首先从最常用的 f-string 精度控制讲起，因为它是最现代、最推荐的写法。
-
-### 1.3 精度控制与格式化方式的关系
-
-在 Python 中，不同的格式化方式对精度控制的语法大致相同，但也有一些细微差异。了解这些差异，有助于我们在不同场景下选择合适的格式化方式。
-
-```python
-value = 123.456789
-
-# f-string 方式（推荐）
-print(f"{value:.2f}")    # 3.6+ 推荐写法
-
-# format() 方式
-print("{:.2f}".format(value))
-
-# % 旧式方式
-print("%.2f" % value)
-```
-
-三种方式的精度控制语法对比如下：
-
-| 特性 | f-string | format() | % 格式化 |
-|------|----------|----------|----------|
-| 浮点精度 | `.2f` | `.2f` | `.2f` |
-| 字符串截断 | `.5s` | `.5s` | `.5s` |
-| 整体宽度 | `>10.2f` | `>10.2f` | `%10.2f` |
-| 千分位 | `,.2f` | `,.2f` | 无原生支持 |
-
-从 Python 3.6 开始，f-string 因其简洁性和可读性成为了首选的格式化方式。本篇笔记将围绕 f-string 展开讲解，同时也涵盖另外两种方式的对应写法，确保读者在不同代码库中都能灵活应对。
-
----
-
-## 2. 核心内容
-
-### 2.1 f-string 精度控制基础
-
-#### 2.1.1 f-string 的基本结构
-
-f-string（formatted string literal）是 Python 3.6 引入的字符串格式化机制，它以 `f` 或 `F` 为前缀，在字符串内部直接嵌入表达式。f-string 的基本语法是：
-
-```python
-f"文本 {表达式:格式规范} 文本"
-```
-
-其中**格式规范**（format spec）是精度控制的核心所在。格式规范的完整结构如下：
-
-```
-[[fill]align][sign][#][0][width][grouping_option][.precision][type]
-```
-
-- `fill`：填充字符（可选，用于不足宽度时的填充）
-- `align`：对齐方式（`<`, `>`, `^`, `=`）
-- `sign`：符号（`+`, `-`, ` `）
-- `#`： Alternate form（alternate form）
-- `0`：零填充（equivalent to fill='0' and align='='）
-- `width`：总宽度
-- `grouping_option`：千分位分隔符（`,` 或 `_`）
-- `.precision`：精度（小数位数或最大字符数）
-- `type`：类型格式化符
-
-精度控制主要涉及 `.precision` 部分，以及与之配合的 `width` 和 `type`。
-
-#### 2.1.2 精度说明符的基本用法
-
-精度说明符（precision specifier）以英文句点 `.` 开头，后跟一个非负整数。它的作用取决于被格式化值的类型：
-
-- **对浮点数**：指定小数点后保留的位数
-- **对字符串**：指定最大字符宽度（超长截断）
-
-```python
-# 浮点数精度控制
-pi = 3.141592653589793
-
-print(f"π保留2位: {pi:.2f}")      # 输出: π保留2位: 3.14
-print(f"π保留4位: {pi:.4f}")      # 输出: π保留4位: 3.1416
-print(f"π保留0位: {pi:.0f}")      # 输出: π保留0位: 3
-print(f"π保留10位: {pi:.10f}")    # 输出: π保留10位: 3.1415926535
-```
-
-精度为 `0` 时会显示整数部分，小数点后的 `0` 全部省去。精度 `10` 表示保留小数点后 10 位，不足部分用 `0` 补齐。
-
-```python
-# 字符串精度控制
-text = "Hello, World!"
-
-print(f"截取5字符: {text:.5s}")    # 输出: 截取5字符: Hello
-print(f"截取10字符: {text:.10s}")  # 输出: 截取10字符: Hello, Wor
-print(f"截取20字符: {text:.20s}")  # 输出: 截取20字符: Hello, World!
-print(f"截取0字符: {text:.0s}")    # 输出: 截取0字符: (空)
-```
-
-字符串的精度控制是**最大字符数**，不是固定宽度。如果字符串长度小于精度，则原样显示；如果超过精度，则截断到指定长度。
-
-### 2.2 浮点数精度控制详解
-
-#### 2.2.1 基本精度控制：`.nf` 格式
-
-浮点数精度控制最常见的用法是 `.nf`，其中 `n` 是保留的小数位数，`f` 表示 fixed-point（定点数）格式。
-
-```python
-# 基础用法：.nf 格式化浮点数
-value = 123.456789
-
-# 保留不同位数
-print(f"原始值: {value}")                    # 输出: 原始值: 123.456789
-print(f"保留1位: {value:.1f}")               # 输出: 保留1位: 123.5
-print(f"保留2位: {value:.2f}")               # 输出: 保留2位: 123.46
-print(f"保留3位: {value:.3f}")               # 输出: 保留3位: 123.457
-print(f"保留6位: {value:.6f}")               # 输出: 保留6位: 123.456789
-print(f"保留10位: {value:.10f}")             # 输出: 保留10位: 123.4567890000
-```
-
-**关键点说明**：
-
-1. **四舍五入规则**：Python 使用银行家舍入（round half to even），即遇到中间值时向偶数舍入。例如 `2.5` 舍入到 `2`，`3.5` 舍入到 `4`。这与传统的"四舍五入"略有不同。
-
-```python
-# 银行家舍入示例
-print(f"{2.5:.0f}")   # 2 (2.5 → 2，因为2是偶数)
-print(f"{3.5:.0f}")   # 4 (3.5 → 4，因为4是偶数)
-print(f"{4.5:.0f}")   # 4 (4.5 → 4，因为4是偶数)
-print(f"{5.5:.0f}")   # 6 (5.5 → 6，因为6是偶数)
-```
-
-2. **精度补零**：当精度大于实际小数位数时，会在末尾补零。
-
-```python
-value = 3.14
-print(f"{value:.1f}")    # 3.1
-print(f"{value:.5f}")    # 3.14000 （补两个0）
-print(f"{value:.10f}")   # 3.1400000000 （补7个0）
-```
-
-3. **精度为0**：显示为整数，小数点不显示。
-
-```python
-value = 99.9
-print(f"{value:.0f}")    # 输出: 100
-print(f"{value:.1f}")    # 输出: 99.9
-```
-
-#### 2.2.2 精度控制与宽度控制结合
-
-精度控制经常与宽度控制配合使用，以实现对齐和固定格式输出的效果。
-
-```python
-# 精度与宽度结合
-price1 = 12.5
-price2 = 1234.56
-price3 = 9.9
-
-# 每种价格统一宽度为10，保留2位小数
-print(f"价格1: {price1:10.2f}")   # 输出: 价格1:      12.50
-print(f"价格2: {price2:10.2f}")   # 输出: 价格2:    1234.56
-print(f"价格3: {price3:10.2f}")   # 输出: 价格3:       9.90
-```
-
-宽度控制的几种对齐方式：
-
-```python
-value = 123.456
-
-# 左对齐（默认对字符串，数值默认右对齐）
-print(f"{value:<10.2f}")   # 输出: 123.46    (左对齐，宽10)
-
-# 右对齐（数值的默认对齐方式）
-print(f"{value:>10.2f}")   # 输出:     123.46 (右对齐，宽10)
-
-# 居中对齐
-print(f"{value:^10.2f}")   # 输出:   123.46   (居中，宽10)
-
-# 0 填充（特殊对齐方式）
-print(f"{value:010.2f}")   # 输出: 0000123.46 (用0填充到宽度10)
-```
-
-**对齐方式说明**：
-
-- `<`：左对齐，填充字符放在右侧
-- `>`：右对齐，填充字符放在左侧
-- `^`：居中对齐，填充字符均匀分布在两侧
-- `=`：符号后的填充（仅对数值），如负号 `-0123.46` 的 `-` 在最左边，0 填充在符号后
-
-```python
-# 负数的0填充
-value = -123.456
-print(f"{value:010.2f}")   # 输出: -00123.46 (负号在最左，0填充在中间)
-print(f"{value:>10.2f}")   # 输出:   -123.46 (右对齐时负号在最左)
-print(f"{value:=10.2f}")   # 输出: -00123.46 (等号效果同0填充，负号紧贴数字)
-```
-
-#### 2.2.3 千分位与精度结合
-
-处理大数值时，千分位分隔符（`,` 或 `_`）可以提高可读性，它常与精度控制结合使用。
-
-```python
-# 千分位分隔符
-value = 1234567.89123
-
-# 基本的千分位格式化
-print(f"{value:,.2f}")    # 输出: 1,234,567.89 (逗号千分位)
-print(f"{value:_.2f}")    # 输出: 1_234_567.89 (下划线千分位，Python 3.6+)
-
-# 宽度 + 千分位 + 精度 组合
-print(f"{value:15,.2f}")  # 输出:    1,234,567.89 (宽15，右对齐)
-print(f"{value:15_.2f}")  # 输出:    1_234_567.89 (宽15，下划线分隔)
-
-# 填充 + 对齐 + 宽度 + 千分位 + 精度
-print(f"{value:*>15,.2f}")  # 输出: ****1,234,567.89 (左填充*)
-print(f"{value:*^20,.2f}")  # 输出: ****1,234,567.89**** (居中填充*)
-```
-
-千分位格式化在实际应用中非常常见，特别是财务报表、数据展示等场景：
-
-```python
-# 真实业务场景示例
-revenue = 98765432.109
-cost = 12345678.999
-profit = revenue - cost
-
-print(f"营业收入: {revenue:,.2f}")
-print(f"营业成本: {cost:,.2f}")
-print(f"毛利润:   {profit:,.2f}")
-# 输出:
-# 营业收入: 98,765,432.11
-# 营业成本: 12,345,678.99
-# 毛利润:   86,419,753.12
-```
-
-### 2.3 整数精度控制详解
-
-#### 2.3.1 整数的宽度控制
-
-整数本身没有小数位数，但精度控制的概念可以扩展为**最小宽度**控制——即输出整数的最小字符位数，不足时用填充字符补齐。
-
-```python
-# 整数宽度控制
-num = 42
-
-# 基本宽度控制
-print(f"{num:d}")          # 42 （默认，无填充）
-print(f"{num:5d}")         #   42 （宽5，右对齐）
-print(f"{num:05d}")        # 00042 （宽5，0填充）
-print(f"{num:010d}")       # 0000000042 （宽10，0填充）
-```
-
-精度说明符在整数格式化中有特殊含义：**表示最小数字位数**，而非小数位数。
-
-```python
-# 整数的"精度"——最小位数
-num = 42
-
-# 精度控制：最小显示位数
-print(f"{num:02d}")      # 42 （2位足够，原样显示）
-print(f"{num:05d}")      # 00042 （补足到5位）
-print(f"{num:010d}")     # 0000000042 （补足到10位）
-```
-
-**注意**：整数格式化中使用 `.precision` 是非标准的，标准做法是直接使用宽度（`width`）。但在一些文档中会看到用 0 来表示最小位数的用法：
-
-```python
-# 特殊的0前缀精度（常见但非标准写法）
-num = 7
-print(f"{num:03d}")    # 007 —— 用03d表示至少3位
-# 而不是 f"{num:.3d}"（后者在某些实现中等效于{d，但没有广泛支持）
-```
-
-#### 2.3.2 整数与进制的精度控制
-
-整数格式化可以配合进制转换一起使用，此时精度控制仍然有效。
-
-```python
-# 整数进制的精度控制
-num = 255
-
-# 十六进制
-print(f"{num:x}")        # ff
-print(f"{num:02x}")      # ff （2位足够）
-print(f"{num:04x}")      # 00ff （补足到4位）
-print(f"{num:08x}")      # 000000ff （补足到8位）
-
-# 十六进制大写
-print(f"{num:X}")        # FF
-print(f"{num:08X}")      # 000000FF
-
-# 二进制
-print(f"{num:b}")        # 11111111
-print(f"{num:08b}")      # 11111111
-print(f"{num:016b}")     # 0000000011111111
-
-# 八进制
-print(f"{num:o}")        # 377
-print(f"{num:06o}")      # 000377
-print(f"{num:010o}")     # 0000000377
-```
-
-#### 2.3.3 进制前缀的显示控制
-
-使用 `#` 选项可以在十六进制、八进制、二进制的输出前添加 `0x`、`0o`、`0b` 前缀。
-
-```python
-# 显示进制前缀
-num = 255
-
-# 带前缀的进制输出
-print(f"{num:#x}")       # 0xff
-print(f"{num:#X}")       # 0xFF
-print(f"{num:#o}")       # 0o377
-print(f"{num:#b}")       # 0b11111111
-
-# 配合宽度和精度
-print(f"{num:#010x}")    # 0x000000ff (宽10，含前缀)
-print(f"{num:#012X}")    # 0X00000000FF (宽12，大写)
-```
-
-这种带前缀的格式化常用于调试输出、代码生成、数据序列化等场景：
-
-```python
-# 调试输出示例
-value = 255
-
-print(f"十进制: {value:d}")     # 十进制: 255
-print(f"十六进制: {value:#x}")  # 十六进制: 0xff
-print(f"二进制: {value:#b}")    # 二进制: 0b11111111
-
-# 内存地址风格输出
-print(f"地址: 0x{value:08X}")   # 地址: 0x000000FF
-```
-
-### 2.4 字符串精度控制详解
-
-#### 2.4.1 字符串截断：`.ns` 格式
-
-字符串的精度控制表示**最大字符数**，超过这个长度的部分会被截断。
-
-```python
-# 字符串截断精度控制
-text = "Hello, World!"
-
-# 精度控制就是最大字符数
-print(f"截取5字符: {text:.5s}")    # 输出: Hello
-print(f"截取10字符: {text:.10s}")  # 输出: Hello, Wor
-print(f"截取20字符: {text:.20s}")  # 输出: Hello, World! (长度不足，原样显示)
-print(f"截取0字符: {text:.0s}")    # 输出: (空字符串)
-```
-
-这个功能在以下场景特别有用：
-
-1. **列表项预览**：长文本的简短预览
-2. **表格列宽控制**：限制每列的最大显示宽度
-3. **日志截断**：避免过长的日志行
-4. **UI 文本截断**：按钮文本、超长标题的省略
-
-```python
-# 实际应用场景
-
-# 场景1：商品名称截断（用于列表展示）
-products = ["iPhone 15 Pro Max 256GB", "无线蓝牙耳机", "笔记本电脑支架"]
-
-for p in products:
-    print(f"商品: {p:.15s}")
+# ASCII 字符分类
+categories = {
+    "控制字符 (0-31)": range(0, 32),
+    "空格 (32)": range(32, 33),
+    "数字 (48-57)": range(48, 58),
+    "大写字母 (65-90)": range(65, 91),
+    "小写字母 (97-122)": range(97, 123),
+    "符号": range(33, 48),
+}
+
+for name, codes in categories.items():
+    chars = "".join(chr(c) if 32 <= c < 127 else f"\\x{c:02x}" for c in codes)
+    print(f"  {name}: [{chars}]")
 
 # 输出:
-# 商品: iPhone 15 Pro
-# 商品: 无线蓝牙耳机
-# 商品: 笔记本计算
+#   控制字符 (0-31): [\x00\x01\x02\x03...]
+#   空格 (32): [ ]
+#   数字 (48-57): [0123456789]
+#   大写字母 (65-90): [ABCDEFGHIJKLMNOPQRSTUVWXYZ]
+#   小写字母 (97-122): [abcdefghijklmnopqrstuvwxyz]
+#   符号: [!"#$%&'()*+,-./]
+```
 
-# 场景2：日志消息截断
-log_messages = [
-    "User logged in successfully from IP 192.168.1.100",
-    "Database connection established after 3 retries",
-    "Error: Connection refused - service unavailable at port 8080"
+ASCII 的局限：128 个字符只能覆盖英文。中文、日文、韩文等非拉丁文字的字符远远超过 128 个，ASCII 无法表示它们。
+
+```python
+# 码点 128 以上不在 ASCII 范围内
+print(f"码点 128 (非 ASCII): {chr(128)}")
+print(f"码点 256: {chr(256)}")      # Ā (扩展拉丁字母)
+
+# 中文的码点远超 ASCII 范围
+print(f"'中' 的码点: {ord('中')}")   # 20013，远超 127
+```
+
+### 3.2 Unicode — 统一码点空间
+
+Unicode 是解决 ASCII 局限性的方案。它为世界上所有文字系统、符号、Emoji 的每个字符都分配了一个唯一的码点，形成统一空间。
+
+#### 3.2.1 码点空间
+
+Unicode 的码点范围是 `U+0000` 到 `U+10FFFF`，共 1,114,112 个码点：
+
+```text
+Unicode 码点分区:
+
+  基本多语言平面 BMP (U+0000 ~ U+FFFF)
+    → 绝大多数常用字符（中、日、韩、拉丁、阿拉伯、西里尔等）
+    → 65,536 个码点
+
+  补充平面 (U+10000 ~ U+10FFFF)
+    → Emoji、古文字、罕见汉字等
+    → 1,048,576 个码点
+
+  总计: 1,114,112 个码点
+```
+
+```python
+print("Unicode 码点分区:")
+print(f"  BMP (U+0000 ~ U+FFFF): {0x0000} ~ {0xFFFF}")
+print(f"  补充平面 (U+10000 ~ U+10FFFF): {0x10000} ~ {0x10FFFF}")
+print(f"  总码点数: {0x10FFFF + 1:,}")
+# 总码点数: 1,114,112
+```
+
+#### 3.2.2 各语言字符的码点
+
+```python
+# 中文常用字
+print("中文常用字码点:")
+for ch in ["中", "文", "编", "码", "字", "符"]:
+    print(f"  '{ch}' → U+{ord(ch):04X} (十进制 {ord(ch)})")
+# '中' → U+4E2D (十进制 20013)
+# '文' → U+6587 (十进制 25991)
+
+# 日文平假名
+print("\n日文平假名码点:")
+for ch in "あいうえお":
+    print(f"  '{ch}' → U+{ord(ch):04X}")
+# 'あ' → U+3042
+
+# Emoji (在补充平面，码点超过 U+FFFF)
+print("\nEmoji 码点:")
+for e in ["😀", "🐍", "❤", "✓", "①"]:
+    print(f"  '{e}' → U+{ord(e):05X}")
+# '😀' → U+1F600
+# '🐍' → U+1F40D
+```
+
+#### 3.2.3 Python 3 中 str 的 Unicode 本质
+
+Python 3 的 `str` 类型直接存储 Unicode 码点，每个 Unicode 字符都是 `str` 的一个独立元素：
+
+```python
+s = "Hello中文😀"
+print(f"字符串: '{s}'")
+print(f"长度: {len(s)}")  # 8 (每个 Unicode 字符算 1 个)
+print("逐字符码点:")
+for i, ch in enumerate(s):
+    print(f"  [{i}] '{ch}' → U+{ord(ch):04X}")
+
+# 输出:
+#   [0] 'H' → U+0048
+#   [1] 'e' → U+0065
+#   ...
+#   [5] '中' → U+4E2D
+#   [6] '文' → U+6587
+#   [7] '😀' → U+1F600
+```
+
+这与 Python 2 中 `str` 存字节、`unicode` 存码点的设计完全不同。Python 3 中 `str` 就是 Unicode 文本，不再需要区分"字节字符串"和"Unicode 字符串"。
+
+#### 3.2.4 Unicode 转义表示
+
+Python 支持三种 Unicode 转义写法：
+
+```python
+# \uXXXX: 4 位十六进制，适用于 BMP 范围 (U+0000 ~ U+FFFF)
+print(f"'\\u4e2d\\u6587' = '\u4e2d\u6587'")  # 中文
+
+# \UXXXXXXXX: 8 位十六进制，适用于完整 Unicode 范围 (含补充平面)
+print(f"'\\U0001F600' = '\U0001F600'")  # 😀
+
+# \N{name}: 通过 Unicode 字符名称引用
+print(f"'\\N{{CJK UNIFIED IDEOGRAPH-4E2D}}' = '\N{CJK UNIFIED IDEOGRAPH-4E2D}'")  # 中
+```
+
+#### 3.2.5 Unicode 字符属性
+
+Python 标准库 `unicodedata` 可以查询字符的 Unicode 属性：
+
+```python
+import unicodedata
+
+test_chars = [("A", "大写字母"), ("中", "中文"), ("1", "数字"), (" ", "空格"), ("😀", "emoji")]
+print("Unicode 属性检查:")
+for ch, desc in test_chars:
+    name = unicodedata.name(ch, "未知")
+    category = unicodedata.category(ch)
+    print(f"  '{ch}' ({desc}): 名称={name}, 类别={category}")
+
+# 输出:
+#   'A' (大写字母): 名称=LATIN CAPITAL LETTER A, 类别=Lu
+#   '中' (中文): 名称=CJK UNIFIED IDEOGRAPH-4E2D, 类别=Lo
+#   '1' (数字): 名称=DIGIT ONE, 类别=Nd
+#   ' ' (空格): 名称=SPACE, 类别=Zs
+#   '😀' (emoji): 名称=GRINNING FACE, 类别=So
+```
+
+类别编码的含义：`Lu` = 大写字母，`Lo` = 其他字母（如中文），`Nd` = 十进制数字，`Zs` = 空格分隔符，`So` = 其他符号（如 Emoji）。
+
+### 3.3 UTF-8 — 最常用的编码方案
+
+UTF-8 是 Unicode 的变长编码方案——不同的字符用不同数量的字节编码，从 1 到 4 字节不等。它是 Web 上最广泛使用的编码，也是 Python 3 的默认编码。
+
+#### 3.3.1 UTF-8 的变长编码规则
+
+```text
+码点范围           字节数   字节格式
+───────────────────────────────────────────────────────
+U+0000 ~ U+007F    1 字节   0xxxxxxx
+U+0080 ~ U+07FF    2 字节   110xxxxx 10xxxxxx
+U+0800 ~ U+FFFF    3 字节   1110xxxx 10xxxxxx 10xxxxxx
+U+10000 ~ U+10FFFF 4 字节   11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
+```
+
+关键规则：
+- 第一个字节的最高位 `1` 的个数表示这个字符占几个字节
+- 后续字节都以 `10` 开头（标记为"延续字节"）
+
+用 Python 验证不同字符的 UTF-8 编码：
+
+```python
+print("UTF-8 编码字节数:")
+# 1 字节: ASCII 字符
+b = 'A'.encode('utf-8')
+print(f"  'A' → {list(b)} (1 字节, 0x41)")
+
+# 2 字节: 拉丁扩展字符
+b = 'é'.encode('utf-8')
+print(f"  'é' → {list(b)} (2 字节, 0xC3 0xA9)")
+
+# 3 字节: 中文字符 (中文在 BMP 范围 U+0800 ~ U+FFFF)
+b = '中'.encode('utf-8')
+print(f"  '中' → {list(b)} (3 字节, 0xE4 0xB8 0xAD)")
+
+# 4 字节: Emoji (在补充平面 U+10000 ~ U+10FFFF)
+b = '😀'.encode('utf-8')
+print(f"  '😀' → {list(b)} (4 字节, 0xF0 0x9F 0x98 0x80)")
+```
+
+#### 3.3.2 UTF-8 字节前缀验证
+
+通过查看二进制形式，可以清楚地看到 UTF-8 的字节前缀规则：
+
+```python
+print("UTF-8 字节前缀验证:")
+for ch in ["A", "中", "é", "😀"]:
+    b = ch.encode('utf-8')
+    byte_list = list(b)
+    hex_str = " ".join(f"0x{byte:02X}" for byte in byte_list)
+    binary_str = " ".join(f"{byte:08b}" for byte in byte_list)
+    print(f"  '{ch}' (U+{ord(ch):04X}):")
+    print(f"    十六进制: {hex_str}")
+    print(f"    二进制:   {binary_str}")
+
+# 输出:
+#   'A' (U+0041):
+#     十六进制: 0x41
+#     二进制:   01000001          ← 0 开头 = 1 字节
+#   '中' (U+4E2D):
+#     十六进制: 0xE4 0xB8 0xAD
+#     二进制:   11100100 10111000 10101101   ← 1110 开头 = 3 字节
+#   '😀' (U+1F600):
+#     十六进制: 0xF0 0x9F 0x98 0x80
+#     二进制:   11110000 10011111 10011000 10000000   ← 11110 开头 = 4 字节
+```
+
+可以看到字节前缀的规律：`0` 开头是 1 字节，`110` 开头是 2 字节的第一字节，`1110` 开头是 3 字节的第一字节，`11110` 开头是 4 字节的第一字节。后续字节都以 `10` 开头。
+
+#### 3.3.3 UTF-8 与 ASCII 的兼容性
+
+UTF-8 的一个重要设计决策是向下兼容 ASCII——所有 128 个 ASCII 字符的 UTF-8 编码就是它本身（1 字节，值相同）：
+
+```python
+print("UTF-8 与 ASCII 兼容性:")
+for code in range(128):
+    char = chr(code)
+    utf8_bytes = char.encode('utf-8')
+    if len(utf8_bytes) == 1 and utf8_bytes[0] == code:
+        pass  # 兼容
+    else:
+        print(f"  不兼容! code={code}")
+        break
+else:
+    print("  所有 128 个 ASCII 字符的 UTF-8 编码与 ASCII 编码完全一致")
+```
+
+这意味着一份纯英文的 ASCII 文件同时就是一份合法的 UTF-8 文件——UTF-8 编码的英文文本和 ASCII 编码的英文文本在字节层面完全相同。这保证了 UTF-8 对遗留系统的向后兼容。
+
+#### 3.3.4 UTF-8 与 UTF-16 编码效率对比
+
+不同的编码方案对同一字符的字节消耗不同：
+
+```python
+print("UTF-8 vs UTF-16 编码字节数对比:")
+samples = [
+    ("A", "ASCII 字符"),
+    ("中", "中文"),
+    ("é", "拉丁扩展"),
+    ("😀", "Emoji"),
+    ("𠮷", "CJK 扩展B"),
 ]
 
-for msg in log_messages:
-    print(f"[LOG] {msg:.40s}")
-
-# 输出:
-# [LOG] User logged in successfully from IP
-# [LOG] Database connection established after 3
-# [LOG] Error: Connection refused - service unav
+for ch, desc in samples:
+    utf8 = ch.encode('utf-8')
+    utf16 = ch.encode('utf-16')
+    utf16le = ch.encode('utf-16-le')
+    print(f"  '{ch}' ({desc}, U+{ord(ch):04X}):")
+    print(f"    UTF-8:    {len(utf8)} 字节 {list(utf8)}")
+    print(f"    UTF-16:   {len(utf16)} 字节 {list(utf16)} (含BOM)")
+    print(f"    UTF-16LE: {len(utf16le)} 字节 {list(utf16le)} (无BOM)")
 ```
 
-#### 2.4.2 字符串宽度控制与精度结合
+**运行结果**：
 
-字符串也可以指定总输出宽度，与精度控制结合使用。
+```text
+  'A' (ASCII 字符, U+0041):
+    UTF-8:    1 字节 [65]
+    UTF-16:   4 字节 [255, 254, 65, 0] (含BOM)
+    UTF-16LE: 2 字节 [65, 0] (无BOM)
+  '中' (中文, U+4E2D):
+    UTF-8:    3 字节 [228, 184, 173]
+    UTF-16:   4 字节 [255, 254, 45, 78] (含BOM)
+    UTF-16LE: 2 字节 [45, 78] (无BOM)
+  'é' (拉丁扩展, U+00E9):
+    UTF-8:    2 字节 [195, 169]
+    UTF-16:   4 字节 [255, 254, 233, 0] (含BOM)
+    UTF-16LE: 2 字节 [233, 0] (无BOM)
+  '😀' (Emoji, U+1F600):
+    UTF-8:    4 字节 [240, 159, 152, 128]
+    UTF-16:   6 字节 [255, 254, 61, 216, 0, 222] (含BOM)
+    UTF-16LE: 4 字节 [61, 216, 0, 222] (无BOM)
+```
+
+**编码效率对比**：
+
+| 字符类型 | UTF-8 | UTF-16 (无BOM) | 更优 |
+|---------|-------|---------------|------|
+| ASCII 字符 | 1 字节 | 2 字节 | UTF-8 |
+| 拉丁扩展 | 2 字节 | 2 字节 | 持平 |
+| 中日韩字符 | 3 字节 | 2 字节 | UTF-16 |
+| Emoji | 4 字节 | 4 字节 | 持平 |
+
+UTF-8 对英文最优，UTF-16 对中文略优。但 UTF-8 的 ASCII 兼容性和无字节序问题使其成为 Web 上的默认选择。
+
+### 3.4 encode() / decode() — 编码与解码
+
+`encode()` 和 `decode()` 是 Python 中 `str` 与 `bytes` 之间转换的桥梁。
+
+#### 3.4.1 encode() 编码
+
+`str.encode(encoding)` 将字符串按指定编码编码为 `bytes` 对象：
 
 ```python
-# 字符串宽度 + 精度控制
-text = "Hello"
-
-# 只有精度：截断
-print(f"精度5: {text:.5s}")      # Hello (足够，原样)
-print(f"精度3: {text:.3s}")      # Hel (截断)
-
-# 只有宽度：右对齐（默认）
-print(f"宽度10: {text:10s}")     #      Hello
-
-# 宽度 + 精度：优先截断，再对齐
-print(f"宽度10精度5: {text:10.5s}")    # Hello     (截断到5字符，再右对齐)
-print(f"宽度10精度3: {text:10.3s}")    # Hel       (截断到3字符，再右对齐)
-print(f"宽度10精度10: {text:10.10s}")  # Hello     (精度足够，无截断)
-
-# 左对齐 + 宽度 + 精度
-print(f"左对齐10.3: {text:<10.3s}")    # Hel
-print(f"右对齐10.3: {text:>10.3s}")    #       Hel
-print(f"居中10.3: {text:^10.3s}")      #    Hel
+# 编码: str → bytes
+text = "Hello中文"
+encoded = text.encode('utf-8')
+print(f"编码: '{text}' → {encoded}")
+print(f"类型: {type(encoded)}")      # <class 'bytes'>
+print(f"字节列表: {list(encoded)}")   # [72, 101, 108, 108, 111, 228, 184, 173, 230, 150, 135]
 ```
 
-**重要理解**：字符串的 `.precision` 是**先截断**再填充对齐。处理的顺序是：
-
-1. 先根据精度（`.ns`）对字符串进行截断
-2. 然后将截断后的结果按照指定宽度和对齐方式进行填充
+`encode` 找不到编码方式时抛出 `LookupError`，编码失败（字符不在编码范围内）时抛出 `UnicodeEncodeError`：
 
 ```python
-# 处理顺序验证
-text = "HelloWorld"
-
-# 精度10，但字符串只有10字符，不截断
-print(f"{text:10.10s}")   # HelloWorld (5+5 spacing)
-# 输出: HelloWorld (后跟空格到宽度10)
-
-# 精度5，截断到5字符，再右对齐到宽度10
-print(f"{text:10.5s}")    #      Hello (5字符 + 5空格)
-# 输出:      Hello
-
-# 精度3，截断到3字符，再居中到宽度10
-print(f"{text:^10.3s}")   #    Hel
-# 输出:    Hel (3字符 + 7空格分布两侧)
+# ASCII 无法编码中文
+try:
+    "中文".encode('ascii')
+except UnicodeEncodeError as e:
+    print(f"编码失败: {e}")
+# 'ascii' codec can't encode character '\u4e2d' in position 0: ordinal not in range(128)
 ```
 
-### 2.5 百分号格式化详解
+#### 3.4.2 decode() 解码
 
-#### 2.5.1 百分号的产生：`.n%` 格式
-
-在 Python 格式化中， `%` 类型说明符会将数值乘以 100 并格式化为百分数形式。这在统计分析、概率计算、进度展示等场景非常有用。
+`bytes.decode(encoding)` 将字节序列按指定编码解码为 `str`：
 
 ```python
-# 百分号格式化
-ratio = 0.8756
-
-# 基本百分号格式化
-print(f"{ratio:%}")        # 87.560000% （默认6位小数）
-print(f"{ratio:.1%}")      # 87.6% （保留1位小数）
-print(f"{ratio:.2%}")      # 87.56% （保留2位小数）
-print(f"{ratio:.0%}")      # 88% （四舍五入到整数）
-print(f"{ratio:.3%}")      # 87.560% （保留3位小数）
+# 解码: bytes → str
+encoded = "Hello中文".encode('utf-8')
+decoded = encoded.decode('utf-8')
+print(f"解码: {encoded} → '{decoded}'")
+print(f"类型: {type(decoded)}")      # <class 'str'>
+print(f"往返一致: {text == decoded}") # True
 ```
 
-**原理说明**：`.%` 的核心是将数值乘以 100，然后加上 `%` 符号。所以在处理时 `0.8756` 变成了 `87.56%`。
+`decode` 在字节序列不符合编码规则时抛出 `UnicodeDecodeError`——这是中文乱码的核心原因。
+
+#### 3.4.3 常用编码方式对比
 
 ```python
-# 百分号格式化原理
-value = 0.3
-
-print(f"{value:%}")        # 30.000000% (0.3 × 100 = 30)
-print(f"{value:.0%}")      # 30% (0.3 × 100，四舍五入)
-print(f"{value:.1%}")      # 30.0% (0.3 × 100 = 30.0)
-print(f"{value:.2%}")      # 30.00%
-print(f"{(1-value):.1%}")  # 70.0% (也可以这样计算剩余比例)
-```
-
-#### 2.5.2 百分号与宽度控制
-
-百分号格式化同样可以配合宽度、填充、对齐使用。
-
-```python
-# 百分号的宽度控制
-completion_rate = 0.756
-accuracy = 0.9456
-
-# 基本宽度控制
-print(f"完成率: {completion_rate:8.1%}")   # 完成率:   75.6%
-print(f"准确率: {accuracy:8.2%}")         #   准确率:   94.56%
-
-# 0 填充
-print(f"{completion_rate:08.1%}")         # 075.6%
-
-# 左对齐
-print(f"{completion_rate:<10.1%}")         # 75.6%
-
-# 负数的百分号
-negative_ratio = -0.25
-print(f"{negative_ratio:.1%}")             # -25.0%
-print(f"{negative_ratio:08.1%}")           # -025.0%
-```
-
-#### 2.5.3 百分号的实际应用场景
-
-```python
-# 场景1：数据统计分析
-scores = [0.8567, 0.9234, 0.7890, 0.9456]
-print("正确率统计:")
-for i, s in enumerate(scores, 1):
-    print(f"  题目{i}: {s:.1%}")
-
-# 输出:
-# 正确率统计:
-#   题目1: 85.7%
-#   题目2: 92.3%
-#   题目3: 78.9%
-#   题目4: 94.6%
-
-# 场景2：进度条显示
-import time
-
-def progress_bar(task_name, progress):
-    """模拟进度条显示"""
-    bar_length = 30
-    filled = int(bar_length * progress)
-    bar = "█" * filled + "░" * (bar_length - filled)
-    percentage = progress * 100
-    print(f"\r{task_name}: |{bar}| {percentage:5.1f}%", end="", flush=True)
-
-# 模拟进度
-for i in range(0, 101, 5):
-    progress_bar("下载进度", i / 100)
-    time.sleep(0.1)
-print()  # 换行
-
-# 场景3：占比计算
-total = 150
-categories = [45, 60, 30, 15]
-
-print("各分类占比:")
-for i, count in enumerate(categories, 1):
-    ratio = count / total
-    print(f"  分类{i}: {count:3d} ({ratio:5.1%})")
-
-# 输出:
-# 各分类占比:
-#   分类1:  45 ( 30.0%)
-#   分类2:  60 ( 40.0%)
-#   分类3:  30 ( 20.0%)
-#   分类4:  15 ( 10.0%)
-```
-
-### 2.6 科学计数法精度控制
-
-#### 2.6.1 科学计数法格式：`.ne` 和 `.nE`
-
-对于非常大或非常小的数值，科学计数法（scientific notation）可以保持数值的可读性。Python 提供了 `e`（小写）和 `E`（大写）两种科学计数法格式。
-
-```python
-# 科学计数法精度控制
-values = [123456789, 0.000000123456, 3.14159265358979]
-
-# 小写 e 格式
-for v in values:
-    print(f"{v:.2e}")   # 科学计数法，2位小数
-
-# 输出（新格式，保留理解）：
-# 1.23e+08
-# 1.23e-07
-# 3.14e+00
-
-# 大写 E 格式
-for v in values:
-    print(f"{v:.2E}")   # 科学计数法，2位小数
-
-# 输出:
-# 1.23E+08
-# 1.23E-07
-# 3.14E+00
-
-# 不同的精度
-v = 123456.789
-print(f"{v:.1e}")     # 1.2e+05
-print(f"{v:.3e}")     # 1.235e+05
-print(f"{v:.6e}")     # 1.234568e+05
-print(f"{v:.10e}")    # 1.2345678900e+05
-```
-
-**精度说明**：
-
-- 精度 `.n` 控制的是**小数部分的位数**（有效数字）
-- 指数部分固定显示 minimum 2 位（如 `+05`），使用更多位时会自动扩展
-
-```python
-# 精度与有效数字
-v = 0.0000000123456789
-
-print(f"{v:.1e}")    # 1.2e-08
-print(f"{v:.3e}")    # 1.235e-08
-print(f"{v:.5e}")    # 1.23457e-08
-print(f"{v:.10e}")   # 1.2345678900e-08
-```
-
-#### 2.6.2 科学计数法与宽度控制
-
-科学计数法同样可以与宽度、填充、对齐控制结合。
-
-```python
-# 科学计数法的宽度控制
-values = [1.23e-5, 9.87e7, 5.43e0]
-
-for v in values:
-    print(f"{v:15.2e}")    # 右对齐，宽15
-
-# 输出:
-#     1.23e-05
-#     9.87e+07
-#     5.43e+00
-
-# 0 填充
-for v in values:
-    print(f"{v:015.2e}")   # 0填充到宽15
-
-# 输出:
-# 000001.23e-05
-# 0000009.87e+07
-# 0000005.43e+00
-
-# 居中对齐
-for v in values:
-    print(f"{v:^15.2e}")   # 居中，宽15
-
-# 输出:
-#   1.23e-05
-#   9.87e+07
-#   5.43e+00
-```
-
-#### 2.6.3 科学计数法的实际应用
-
-```python
-# 场景1：物理常数展示
-c = 299792458           # 光速 m/s
-h = 6.62607015e-34      # 普朗克常数 J·s
-
-print(f"光速: {c:.2e} m/s")
-print(f"普朗克常数: {h:.3e} J·s")
-
-# 场景2：化学数据
-avogadro = 6.02214076e23
-
-print(f"阿伏伽德罗常数: {avogadro:.3e} mol⁻¹")
-
-# 场景3：金融大额数值（使用逗号分隔）
-national_debt = 3.46e13  # 约34.6万亿美元
-
-print(f"美国国债: ${national_debt:,.2e}")
-```
-
-### 2.7 更精确的数字格式化：`.ng` 格式
-
-#### 2.7.1 g 格式的特点
-
-`g` 格式是一种"智能"格式化方式，它会根据数值的大小自动选择**定点表示法**或**科学计数法**。
-
-```python
-# g 格式智能选择
-values = [0.000012345, 0.12345, 12.345, 1234.5, 123456.78, 12345678.9]
-
-for v in values:
-    print(f"原始: {v:20.4g}  科学: {v:20.4e}  定点: {v:20.4f}")
-
-# g 格式自动选择：
-# - 小数值用科学计数法
-# - 大数值用定点表示法
-```
-
-**g 格式的核心规则**：
-
-- 精度 `.n` 表示**有效数字的总位数**
-- 对于非常小或非常大的数，自动切换到科学计数法
-- 不显示尾随的零
-
-```python
-# g 格式的特性
-v = 123.456
-
-print(f"{v:.1g}")      # 1e+02 (1位有效数字)
-print(f"{v:.2g}")      # 1.2e+02 (2位有效数字)
-print(f"{v:.3g}")      # 123 (3位有效数字)
-print(f"{v:.4g}")      # 123.5 (4位有效数字)
-print(f"{v:.5g}")      # 123.46 (5位有效数字)
-print(f"{v:.6g}")      # 123.456 (6位有效数字)
-
-# 不显示尾随零
-print(f"{v: .4g}")      #  123.5 (不是 123.50)
-print(f"{100:.4g}")     #  100 (不是 100.0)
-```
-
-#### 2.7.2 G 格式（基础科学计数法）
-
-`G` 格式与 `g` 相同，但对指数部分使用大写 `E`：
-
-```python
-v = 1234567.89
-
-print(f"{v:.4g}")    # 1.235e+06
-print(f"{v:.4G}")    # 1.235E+06
-
-v2 = 0.0000123
-print(f"{v2:.2g}")   # 1.2e-05
-print(f"{v2:.2G}")   # 1.2E-05
-```
-
-### 2.8 复数精度控制
-
-#### 2.8.1 复数的格式化
-
-复数在 Python 中表示为 `a + bj`，其中 `a` 是实部，`b` 是虚部。复数的精度控制需要分别指定实部和虚部的格式。
-
-```python
-# 复数的精度控制
-z = 3.14159265358979 + 2.718281828459045j
-
-# 基本精度
-print(f"{z:.2f}")       # (3.14+2.72j) - 两部分都保留2位小数
-print(f"{z:.4f}")       # (3.1416+2.7183j)
-
-# 宽度控制
-print(f"{z:20.2f}")     #           (3.14+2.72j)
-print(f"{z:20.4f}")     #       (3.1416+2.7183j)
-```
-
-#### 2.8.2 复数格式化选项
-
-复数格式化还有一些特殊选项：
-
-```python
-z2 = -12.345 + 67.89j
-
-# 分离实部和虚部
-print(f"{z2.real:.2f}")     # -12.35 (只显示实部)
-print(f"{z2.imag:.2f}")     # 67.89 (只显示虚部)
-
-# 负数处理
-z3 = -5 - 12j
-print(f"{z3:.2f}")          # (-5.00-12.00j) - 虚部负号显示
-
-# 配合格式说明
-print(f"{z.real:>10.2f}")   #     -12.35
-print(f"{z.imag:>10.2f}")   #      67.89
-```
-
-### 2.10 % 格式化（旧式）精度控制
-
-#### 2.10.1 % 格式化概述
-
-虽然 f-string 是 Python 3.6+ 推荐的方式，但 `%` 格式化作为 Python 最古老的字符串格式化语法，至今仍在大量遗留代码中使用。理解 `%m.nf` 这种格式规范，对于维护旧代码和理解 C 语言风格的格式化非常有用。
-
-`%` 格式化的基本语法来源于 C 语言的 `printf` 函数，其格式规范的结构如下：
-
-```
-%[flags][width][.precision]type
-```
-
-与 f-string 的 `{value:format_spec}` 语法不同，`%` 格式化将格式规范放在 `%` 符号之后，类型字符放在最后。
-
-```python
-# % 格式化的基本结构
-value = 123.456789
-
-# %m.nf 格式：m 是最小宽度，n 是小数位数
-print("%.2f" % value)     # 输出: 123.46
-print("%10.2f" % value)   # 输出:    123.46 (宽度10，右对齐)
-print("%-10.2f" % value)  # 输出: 123.46    (宽度10，左对齐)
-```
-
-#### 2.10.2 `%m.nf` 格式详解
-
-`%m.nf` 是 `%` 格式化中最常用的浮点数精度控制格式，其含义如下：
-
-- **`%`**：格式化起始符
-- **`m`**：最小宽度（field width），指定输出字符串的最小字符数
-- **`.`**：精度说明符的分隔符
-- **`n`**：小数精度，指定小数点后保留的位数
-- **`f`**：类型说明符，表示定点数（fixed-point）
-
-```python
-# %m.nf 的 m 和 n 含义
-value = 12.5
-
-# 只有精度 n，没有宽度 m
-print("%.2f" % value)     # 12.50 (省略宽度，只控制精度)
-
-# 同时指定宽度 m 和精度 n
-print("%8.2f" % value)    #    12.50 (宽度8，右对齐)
-print("%10.2f" % value)   #     12.50 (宽度10，右对齐)
-print("%12.2f" % value)   #      12.50 (宽度12，右对齐)
-
-# 精度为0
-print("%.0f" % value)     # 13 (四舍五入到整数，不显示小数点)
-print("%5.0f" % value)    #    13 (宽度5，整数形式)
-```
-
-**m（宽度）和 n（精度）的交互规则**：
-
-1. **当 m > 实际输出宽度时**：用填充字符（默认空格）补齐到宽度 m
-2. **当 m <= 实际输出宽度时**：宽度参数被忽略，输出实际需要的宽度
-3. **当 n > 实际小数位数时**：在末尾补零
-4. **当 n = 0 时**：不显示小数点和小数部分
-
-```python
-# m 和 n 的交互
-value = 7.5
-
-# 宽度足够的情况
-print("%2.2f" % value)    # 7.50 (宽度2不够显示"7.50"，实际输出"7.50")
-
-# 宽度不足的情况
-print("%10.2f" % value)   #       7.50 (宽度10，用空格填充)
-
-# 补零情况
-value2 = 3.1
-print("%8.2f" % value2)   #     3.10 (小数位不足，补零)
-
-# 精度为0
-value3 = 7.89
-print("%.0f" % value3)    # 8 (四舍五入，无小数部分)
-print("%6.0f" % value3)   #      8 (宽度6，无小数部分)
-```
-
-#### 2.10.3 % 格式化的标志位（flags）
-
-`%` 格式化支持多个标志位来改变输出格式，这些标志位放在 `%` 和宽度之间：
-
-- **`-`**：左对齐（默认是右对齐）
-- **`+`**：显示正负号
-- **` ` （空格）**：正数前显示空格，负数显示负号
-- **`0`**：用零填充而不是空格（仅对数值类型）
-- **`#`**：备用形式（alternate form）
-
-```python
-# % 格式化的标志位
-value = 123.45
-
-# 左对齐 - 
-print("%-10.2f" % value)  # 123.45    (左对齐，宽10)
-
-# 显示正号 +
-print("%+10.2f" % value)  #   +123.45 (宽度10，显示+号)
-
-# 空格标志位
-print("% 10.2f" % value)  #   123.45 (正数前有空格)
-
-# 零填充 0
-print("%010.2f" % value)  # 000123.45 (用0填充到宽度10)
-print("%+010.2f" % value) # +00123.45 (正号 + 零填充)
-
-# 负数的处理
-value2 = -123.45
-print("%10.2f" % value2)  #   -123.45
-print("%010.2f" % value2) # -000123.45
-
-# # 备用形式（对f类型，强制显示小数点）
-print("%#.0f" % 10)       # 10. (即使精度为0也显示小数点)
-print("%#.1f" % 10.0)     # 10.0
-```
-
-#### 2.10.4 % 格式化与不同类型
-
-除了 `%m.nf` 之外，`%` 格式化还支持其他类型，这些类型也可以配合宽度和精度使用：
-
-```python
-# 整数格式化 %m.nd（n 实际被忽略，但语法允许）
-value = 42
-
-print("%d" % value)       # 42
-print("%5d" % value)      #    42 (宽度5，右对齐)
-print("%05d" % value)     # 00042 (零填充)
-print("%+5d" % value)     #   +42 (显示正号)
-
-# 字符串格式化 %m.ns（n 是最大字符数）
-text = "Hello, World!"
-
-print("%s" % text)        # Hello, World!
-print("%20s" % text)      #      Hello, World! (宽度20，右对齐)
-print("%-20s" % text)     # Hello, World!       (宽度20，左对齐)
-print("%.5s" % text)      # Hello (截断到5字符)
-print("%20.5s" % text)    #               Hello (截断后右对齐)
-
-# 百分号格式化 %m.n% （精度控制小数位数）
-ratio = 0.8756
-
-print("%.1%%" % ratio)    # 87.6% (1位小数)
-print("%8.2%%" % ratio)   #   87.56% (宽度8，2位小数)
-
-# 科学计数法 %m.ne
-value = 123456.789
-
-print("%.2e" % value)     # 1.23e+05
-print("%12.2e" % value)   #    1.23e+05 (宽度12)
-
-# 十六进制 %m.nx
-value = 255
-
-print("%x" % value)       # ff
-print("%02x" % value)     # ff (2位足够，忽略前导零)
-print("%04x" % value)     # 00ff (补零到4位)
-print("%#06x" % value)    # 0x00ff (带0x前缀)
-```
-
-#### 2.10.5 %m.nf 与 f-string 的对应关系
-
-在实际编码中，我们经常需要在 `%` 格式化和 f-string 之间进行转换。以下是常见场景的对照表：
-
-| 功能 | % 格式化 | f-string |
-|------|----------|----------|
-| 保留2位小数 | `"%.2f" % value` | `f"{value:.2f}"` |
-| 宽度10，2位小数 | `"%10.2f" % value` | `f"{value:10.2f}"` |
-| 左对齐 | `"%-10.2f" % value` | `f"{value:<10.2f}"` |
-| 零填充 | `"%010.2f" % value` | `f"{value:010.2f}"` |
-| 显示正号 | `"%+10.2f" % value` | `f"{value:+10.2f}"` |
-| 字符串截断 | `"%.5s" % text` | `f"{text:.5s}"` |
-| 百分比 | `"%.1f%%" % ratio` | `f"{ratio:.1%}"` |
-| 千分位 | 不支持原生 | `f"{value:,.2f}"` |
-
-```python
-# 实际转换示例
-value = 1234.5678
-text = "Hello World"
-
-# 保留2位小数
-print("%.2f" % value)          # f-string: f"{value:.2f}"
-
-# 宽度10，右对齐
-print("%10.2f" % value)        # f-string: f"{value:10.2f}"
-
-# 零填充
-print("%010.2f" % value)       # f-string: f"{value:010.2f}"
-
-# 字符串截断
-print("%.5s" % text)           # f-string: f"{text:.5s}"
-
-# 多个值
-name = "Alice"
-score = 95.5
-print("Name: %s, Score: %.1f" % (name, score))
-# 等价于
-print(f"Name: {name}, Score: {score:.1f}")
-```
-
-#### 2.10.6 % 格式化的高级用法
-
-**多值格式化**：可以用元组同时格式化多个值：
-
-```python
-# 多值格式化
-name = "Bob"
-age = 30
-score = 95.678
-
-print("Name: %s, Age: %d, Score: %.1f" % (name, age, score))
-# 输出: Name: Bob, Age: 30, Score: 95.7
-
-# 使用关键字参数（使用字典）
-data = {'name': 'Charlie', 'age': 25, 'score': 88.5}
-print("Name: %(name)s, Age: %(age)d, Score: %(score).1f" % data)
-# 输出: Name: Charlie, Age: 25, Score: 88.5
-```
-
-**格式化符号的转义**：需要输出 `%` 本身时，使用 `%%`：
-
-```python
-# 转义 % 符号
-value = 75
-print("完成度: %d%%" % value)  # 输出: 完成度: 75%
-print("%.2f%%" % 0.8765)       # 输出: 87.65%
-```
-
-**动态宽度和精度**：可以通过间接引用实现动态格式：
-
-```python
-# 动态格式
-width = 10
-precision = 2
-value = 123.456
-
-# 方法1：字符串拼接
-fmt = f"%{width}.{precision}f"  # %10.2f
-print(fmt % value)              #     123.46
-
-# 方法2：使用 * 动态指定（format() 方法）
-print("{:*.{}}f".format(value, precision).format(value, width))
-# 输出量少用，这里了解即可
-```
-
-#### 2.10.7 % 格式化的实际应用场景
-
-虽然新代码推荐使用 f-string，但 `%` 格式化在以下场景仍然常见：
-
-```python
-# 场景1：维护遗留代码
-# 很多老项目使用 % 格式化
-def legacy_log_format(level, message):
-    return "[%s] %s: %s" % (level, time.strftime("%H:%M:%S"), message)
-
-# 场景2：与 C 语言库交互
-# 有的场景需要生成类C格式的输出
-import ctypes
-printf_format = "Value: %10.2f\n"  # 类似printf的格式
-
-# 场景3：日志系统兼容
-# 某些日志框架使用 % 格式化
-logging.info("Processing %d records, %.1f%% complete", 150, 67.5)
-# 输出: Processing 150 records, 67.5% complete
-
-# 场景4：字符串模板（简单场景）
-template = "Hello, %s! You have %d messages."
-print(template % ("Alice", 5))
-# 输出: Hello, Alice! You have 5 messages.
-```
-
-#### 2.10.8 % 格式化的常见错误与注意事项
-
-```python
-# 常见错误1：忘记元组封装
-value = 123.45
-# 错误：print("%f" % value)  # 这里OK，但如果多个值必须用元组
-print("%.2f" % value)  # OK
-
-# 常见错误2：元组元素数量不匹配
-name = "Alice"
-age = 30
-# 错误：print("%s, %d, %s" % (name, age))  # 只提供了2个值，3个占位符
-print("%s, %d" % (name, age))  # OK
-
-# 常见错误3：类型不匹配
-# 错误：print("%d" % "123")  # 字符串不能用%d格式化
-# 正确：print("%d" % int("123"))
-
-# 常见错误4：对新式格式化误解
-# % 格式化不支持千分位
-value = 1234567.89
-# print("%,.2f" % value)  # 错误！不支持千分位
-# 正确做法：手动添加千分位或转换f-string
-
-# 正确方式：使用格式化工具函数
-def with_thousands_separator(value):
-    """为数值添加千分位分隔符"""
-    parts = str(value).split('.')
-    integer_part = parts[0]
-    decimal_part = parts[1] if len(parts) > 1 else ''
-    integer_with_sep = '{:,}'.format(int(integer_part))
-    if decimal_part:
-        return f"{integer_with_sep}.{decimal_part}"
-    return integer_with_sep
-
-print(with_thousands_separator(1234567.89))  # 1,234,567.89
-```
-
----
-
-### 2.9 特殊格式化选项
-
-#### 2.9.1 显示正号 `+`
-
-使用 `+` 符号选项可以让正数也显示 `+` 号，这在表格中对齐正负数非常有用。
-
-```python
-# 显示正号 +
-values = [12.34, -56.78, 90.12]
-
-print(f"不加+: {values[0]:.2f}, {values[1]:.2f}, {values[2]:.2f}")
-print(f"加+:   {values[0]:+.2f}, {values[1]:+.2f}, {values[2]:+.2f}")
-
-# 输出:
-# 加+:   +12.34, -56.78, +90.12
-```
-
-#### 2.9.2 空格符号位
-
-使用空格符号位，可以在正数前显示空格，负数前显示 `-`，实现视觉上的对齐。
-
-```python
-# 空格符号位
-values = [12.34, -56.78, 90.12]
-
-print(f"空格: ", end="")
-for v in values:
-    print(f"{v: .2f}", end=" ")
-print()
-
-# 输出:
-# 空格:  12.34 -56.78  90.12
-
-# 对比：正数前有空格，负数前有负号
-# 这样在列对齐时符号位位置一致
-```
-
-#### 2.9.3 备用形式 `#`
-
-`#` 选项会产生"备用形式"（alternate form）的输出，对不同类型有不同效果：
-
-```python
-# # 选项的备用形式效果
-
-# 十六进制
-print(f"{255:#x}")    # 0xff (带0x前缀)
-
-# 二进制
-print(f"{255:#b}")    # 0b11111111 (带0b前缀)
-
-# 八进制
-print(f"{255:#o}")    # 0o377 (带0o前缀)
-
-# 浮点数：始终显示小数点
-print(f"{10:#.0f}")   # 10. (有小数点，即使整数)
-print(f"{10:.0f}")    # 10 (无小数点)
-
-# g/G 格式：显示尾随零
-print(f"{1.5:#.1g}")  # 1.5 (显示)
-print(f"{1.5:.1g}")   # 1.5 (同样显示，差异在于特殊值)
-```
-
-### 2.10 数字格式的实际应用案例
-
-#### 2.10.1 财务报表格式
-
-```python
-# 财务报表格式示例
-class FinancialReport:
-    def __init__(self):
-        self.items = []
-    
-    def add_item(self, name, amount):
-        self.items.append((name, amount))
-    
-    def print_report(self):
-        # 表头
-        print("=" * 60)
-        print(f"{'项目':<20} {'金额':>15}")
-        print("-" * 60)
-        
-        # 数据行
-        for name, amount in self.items:
-            # 金额格式化：千分位、两位小数、右对齐
-            if amount >= 0:
-                amount_str = f"{amount:,.2f}"
-            else:
-                amount_str = f"({abs(amount):,.2f})"
-            print(f"{name:<20} {amount_str:>15}")
-        
-        print("-" * 60)
-        
-        # 汇总
-        total = sum(a for _, a in self.items)
-        if total >= 0:
-            total_str = f"{total:,.2f}"
-        else:
-            total_str = f"({abs(total):,.2f})"
-        print(f"{'合计':<20} {total_str:>15}")
-        print("=" * 60)
-
-# 使用示例
-report = FinancialReport()
-report.add_item("营业收入", 1234567.89)
-report.add_item("营业成本", -456789.01)
-report.add_item("销售费用", -234567.89)
-report.add_item("管理费用", -123456.78)
-report.print_report()
-```
-
-运行结果：
-```
-============================================================
-项目                            金额
-------------------------------------------------------------
-营业收入                   1,234,567.89
-营业成本                  (456,789.01)
-销售费用                  (234,567.89)
-管理费用                  (123,456.78)
-------------------------------------------------------------
-合计                      419,754.21
-============================================================
-```
-
-#### 2.10.2 科学实验数据表格
-
-```python
-# 科学实验数据表格
-def print_scientific_table(data, precision=3):
-    """科学数据格式化表格"""
-    # 找到最大宽度
-    headers = ["实验编号", "测量值", "误差", "相对误差(%)"]
-    
-    # 打印表头
-    print(f"{headers[0]:^8} | {headers[1]:^12} | {headers[2]:^12} | {headers[3]:^15}")
-    print("-" * 55)
-    
-    # 打印数据
-    for i, (value, error) in enumerate(data, 1):
-        rel_error = abs(error / value) * 100 if value != 0 else 0
-        print(f"{i:^8} | {value:12.4e} | {error:12.4e} | {rel_error:15.2f}")
-
-# 实验数据
-measurements = [
-    (1.234567e-4, 1.2e-6),
-    (5.678901e-3, 5.6e-5),
-    (9.876543e2, 9.8e0),
-    (1.111111e1, 1.1e-1),
-]
-
-print_scientific_table(measurements)
-
-# 输出：
-#  实验编号  |    测量值     |     误差     |   相对误差(%)
-# -------------------------------------------------------
-#     1     |  1.2346e-04  |  1.2000e-06  |           0.97
-#     2     |  5.6789e-03  |  5.6000e-05  |           0.99
-#     3     |  9.8765e+02  |  9.8000e+00  |           0.99
-#     4     |  1.1111e+01  |  1.1000e-01  |           0.99
-```
-
-#### 2.10.3 游戏伤害计算器
-
-```python
-# 游戏伤害数字格式化
-def format_damage(base_damage, critical_multiplier=1.5):
-    """游戏伤害格式化显示"""
-    # 基础伤害格式化（整数，无小数）
-    base = int(base_damage)
-    
-    # 暴击伤害
-    crit = int(base_damage * critical_multiplier)
-    
-    print(f"基础伤害: {base:,}")
-    print(f"暴击伤害: {crit:,}")
-    print(f"暴击加成: x{critical_multiplier:.1f}")
-    
-    # DPS 格式（保留一位小数）
-    dps = base_damage * 2.5  # 假设每秒2次攻击
-    print(f"预估DPS: {dps:,.1f}")
-
-# 示例
-format_damage(1573)
-
-# 输出：
-# 基础伤害: 1,573
-# 暴击伤害: 2,359
-# 暴击加成: x1.5
-# 预估DPS: 3,932.5
-```
-
----
-
-## 3. 最佳实践
-
-### 3.1 优先使用 f-string
-
-在 Python 3.6+，**f-string 是首选的字符串格式化方式**。它比 `.format()` 和 `%` 格式化更易读、更简洁。
-
-```python
-# 推荐：f-string
-name = "Alice"
-score = 95.5
-print(f"姓名: {name}, 分数: {score:.1f}")
-
-# 不推荐：format() 方法
-print("姓名: {}, 分数: {:.1f}".format(name, score))
-
-# 不推荐：% 格式化
-print("姓名: %s, 分数: %.1f" % (name, score))
-```
-
-**f-string 的优势**：
-
-1. **可读性更好**：变量直接在字符串内部，不需要位置标记
-2. **性能更高**：在所有格式化方式中执行速度最快
-3. **表达力更强**：可以直接在 `{}` 内 작성任意表达式
-
-```python
-# f-string 可嵌入表达式
-a, b = 10, 3
-print(f"{a} / {b} = {a/b:.2f}")    # 10 / 3 = 3.33
-print(f"{a} ** 2 = {a**2}")        # 10 ** 2 = 100
-
-# 条件表达式
-score = 85
-print(f"成绩等级: {'A' if score >= 90 else 'B' if score >= 80 else 'C'}")
-```
-
-### 3.2 浮点数精度选择的建议
-
-不同场景下精度选择不同，以下是经验建议：
-
-| 场景 | 推荐精度 | 说明 |
-|------|----------|------|
-| 货币/金融 | `.2f` | 精确到分 |
-| 百分比 | `.1%` ~ `.2%` | 通常1-2位小数足够 |
-| 科学计算 | `.6f` ~ `.10f` | 根据精度需求 |
-| 数据展示 | `.2f` | 平衡可读性与精度 |
-| UI 显示 | 根据界面调整 | 可能需要整数 |
-
-```python
-# 金融计算：始终使用 .2f
-price = 99.99
-tax = price * 0.06
-total = price + tax
-print(f"价格: {price:.2f}, 税: {tax:.2f}, 总计: {total:.2f}")
-
-# 百分比显示
-conversion_rate = 0.1567
-print(f"转化率: {conversion_rate:.1%}")  # 15.7%
-
-# 科学计算（需要更高精度）
-scientific_value = 1.234567890123456
-print(f"测量值: {scientific_value:.10f}")  # 保留10位小数
-```
-
-### 3.3 避免精度相关陷阱
-
-#### 3.3.1 浮点数精度问题
-
-浮点数采用 IEEE 754 二进制表示，某些十进制数无法精确表示，这会导致精度问题。
-
-```python
-# 浮点数精度陷阱
-value = 0.1 + 0.2
-print(f"0.1 + 0.2 = {value}")           # 0.30000000000000004
-print(f"0.1 + 0.2 = {value:.1f}")       # 0.3
-print(f"0.1 + 0.2 = {value:.10f}")      # 0.3000000000
-
-# 解决方案：使用 Decimal 进行精确计算
-from decimal import Decimal
-value_decimal = Decimal('0.1') + Decimal('0.2')
-print(f"Decimal: {value_decimal}")      # 0.3
-
-# 或者在格式化时使用 round
-print(f"round: {round(0.1 + 0.2, 1)}")  # 0.3
-```
-
-#### 3.3.2 格式化字符串中的 f-string 前缀
-
-当字符串本身包含大括号 `{}` 时，需要注意与 f-string 的冲突。
-
-```python
-# JSON 格式化（包含大括号）
-data = {"name": "Alice", "age": 30}
-
-# 方法1：双大括号转义
-print(f"Data: {data}")                  # Data: {'name': 'Alice', 'age': 30}
-
-# 方法2：使用字典的 __str__ 之外的格式化
-import json
-print(f"JSON: {json.dumps(data)}")      # JSON: {"name": "Alice", "age": 30}
-
-# 需要字面量显示大括号时
-print(f"Literal: {{ hello }}")          # Literal: { hello }
-print(f"Code: {{x}}".format(x=42))       # Code: 42
-```
-
-#### 3.3.3 整数除法与精度
-
-在 Python 3 中，`/` 是真除法（返回浮点数），`//` 是整除（返回整数）。
-
-```python
-# 整数除法的精度问题
-a, b = 7, 3
-
-print(f"7 / 3 = {a/b:.2f}")    # 2.33 (真除法，返回浮点数)
-print(f"7 // 3 = {a//b}")      # 2 (整除，直接截断)
-
-# 如果需要四舍五入
-print(f"round(7/3) = {round(a/b)}")  # 2 (四舍五入)
-print(f"round(7/3, 2) = {round(a/b, 2)}")  # 2.33
-```
-
-### 3.4 格式化与数据验证
-
-在实际应用中，格式化前应确保数据类型正确。
-
-```python
-# 类型转换后再格式化（推荐）
-def safe_format(value, fmt):
-    """安全的数值格式化"""
+print("常用编码方式对比:")
+text = "A中"
+encodings = ["utf-8", "utf-16", "gbk", "gb2312", "big5", "ascii"]
+for enc in encodings:
     try:
-        return f"{float(value):{fmt}}"
-    except (ValueError, TypeError) as e:
-        return f"Error: {e}"
+        b = text.encode(enc)
+        print(f"  {enc:>10}: {list(b)} ({len(b)} 字节)")
+    except UnicodeEncodeError as e:
+        print(f"  {enc:>10}: 编码失败 - {e}")
 
-# 测试
-print(safe_format(123.456, ".2f"))    # 123.46
-print(safe_format("123.456", ".2f"))  # 123.46 (字符串可转换)
-print(safe_format("abc", ".2f"))      # Error: could not convert string to float
-print(safe_format(None, ".2f"))       # Error: float() argument must be a string or a number, not 'NoneType'
+# 输出:
+#       utf-8: [65, 228, 184, 173] (4 字节)
+#      utf-16: [255, 254, 65, 0, 45, 78] (6 字节)
+#         gbk: [65, 214, 208] (3 字节)
+#      gb2312: [65, 214, 208] (3 字节)
+#        big5: [65, 164, 164] (3 字节)
+#       ascii: 编码失败 (无法编码 '中')
 ```
 
-### 3.5 性能优化建议
+各编码的特点：
 
-在需要大量格式化的场景（如日志、数据处理），注意以下性能和最佳实践：
+| 编码 | 字节序 | 中文编码 | 英文编码 | 支持范围 |
+|------|--------|---------|---------|---------|
+| UTF-8 | 无 | 3 字节 | 1 字节 | 全部 Unicode |
+| UTF-16 | 有 (LE/BE) | 2 字节 | 2 字节 | 全部 Unicode |
+| GBK | 无 | 2 字节 | 1 字节 | 中文 + ASCII |
+| Big5 | 无 | 2 字节 | 1 字节 | 繁体中文 + ASCII |
+| ASCII | 无 | 不支持 | 1 字节 | 仅 128 个 ASCII 字符 |
+
+#### 3.4.4 errors 参数 — 编解码错误处理
+
+`encode()` 和 `decode()` 都支持 `errors` 参数控制遇到错误时的行为：
+
+**encode 的 errors 参数**：
 
 ```python
-# 性能测试示例
-import time
+print("encode errors 参数:")
 
-# 测试不同格式化方式的性能
-iterations = 100000
+# strict (默认): 编码失败抛异常
+try:
+    "中文".encode('ascii')
+except UnicodeEncodeError as e:
+    print(f"  strict: 抛异常 - {e}")
 
-# f-string
-start = time.time()
-for _ in range(iterations):
-    _ = f"{123.456:.2f}"
-fstring_time = time.time() - start
+# ignore: 跳过无法编码的字符
+result = "中文".encode('ascii', errors='ignore')
+print(f"  ignore: {result}")        # b''（空字节）
 
-# format()
-start = time.time()
-for _ in range(iterations):
-    _ = "{:.2f}".format(123.456)
-format_time = time.time() - start
+# replace: 用 ? 替代无法编码的字符
+result = "中文".encode('ascii', errors='replace')
+print(f"  replace: {result}")       # b'??'
 
-# % 格式化
-start = time.time()
-for _ in range(iterations):
-    _ = "%.2f" % 123.456
-percent_time = time.time() - start
+# xmlcharrefreplace: 用 XML 实体 &#NNNN; 替代
+result = "中文".encode('ascii', errors='xmlcharrefreplace')
+print(f"  xmlcharrefreplace: {result}")  # b'&#20013;&#25991;'
 
-print(f"f-string: {fstring_time:.3f}s")
-print(f"format(): {format_time:.3f}s")
-print(f"% 格式化: {percent_time:.3f}s")
+# backslashreplace: 用 \uXXXX 转义替代
+result = "中文".encode('ascii', errors='backslashreplace')
+print(f"  backslashreplace: {result}")   # b'\\u4e2d\\u6587'
 ```
 
-通常 f-string 性能最优，但在绝大多数实际场景下差异可忽略。可读性更重要。
-
-### 3.6 控制台表格对齐
+**decode 的 errors 参数**：
 
 ```python
-# 实用的表格对齐打印
-def print_table(headers, rows, column_widths=None):
-    """格式化表格打印"""
-    # 自动计算列宽
-    if column_widths is None:
-        column_widths = [max(len(str(row[i])) for row in [headers] + rows) 
-                        for i in range(len(headers))]
-    
-    # 打印表头
-    header_line = " | ".join(h.ljust(w) for h, w in zip(headers, column_widths))
-    print(header_line)
-    print("-" * len(header_line))
-    
-    # 打印数据行
-    for row in rows:
-        row_line = " | ".join(str(cell).rjust(w) if isinstance(cell, (int, float)) 
-                              else str(cell).ljust(w) 
-                              for cell, w in zip(row, column_widths))
-        print(row_line)
+print("decode errors 参数:")
 
-# 示例
-headers = ["商品", "单价", "销量", "销售额"]
-data = [
-    ["iPhone 15", 6999, 1234, 8637666],
-    ["MacBook Pro", 15999, 567, 9071433],
-    ["AirPods Pro", 1899, 3456, 6565344],
+# 制造一个包含非法字节的序列
+bad_bytes = b'Hello\xc3(\xe6\x96\x87'  # \xc3 后面应该跟延续字节，但跟了 '('
+
+# strict: 解码失败抛异常
+try:
+    bad_bytes.decode('utf-8')
+except UnicodeDecodeError as e:
+    print(f"  strict: 抛异常 - {e}")
+
+# ignore: 跳过非法字节
+result = bad_bytes.decode('utf-8', errors='ignore')
+print(f"  ignore: '{result}'")      # 'Hello(文'
+
+# replace: 用 替代非法字节
+result = bad_bytes.decode('utf-8', errors='replace')
+print(f"  replace: '{result}'")     # 'Hello(文'（用替换标记）
+
+# backslashreplace: 用转义序列替代
+result = bad_bytes.decode('utf-8', errors='backslashreplace')
+print(f"  backslashreplace: '{result}'")  # 'Hello\xc3(文'
+```
+
+各 `errors` 参数的行为对比：
+
+| errors 值 | encode 行为 | decode 行为 | 适用场景 |
+|-----------|------------|------------|---------|
+| `strict` | 抛异常 | 抛异常 | 默认，要求严格正确 |
+| `ignore` | 跳过字符 | 跳过字节 | 容忍丢失少量数据 |
+| `replace` | `?` 替代 | 替代 | 可视化展示损坏区域 |
+| `xmlcharrefreplace` | XML 实体替代 | 不适用 | HTML/XML 生成 |
+| `backslashreplace` | `\uXXXX` 转义 | `\xXX` 转义 | 调试和日志 |
+
+#### 3.4.5 编码不一致导致乱码
+
+乱码的根本原因：编码用的 A 编码，解码用的 B 编码，两者规则不一致，导致字节被错误解析。
+
+```python
+print("编码不一致导致乱码:")
+
+# 场景1: GBK 编码 + UTF-8 解码 → 解码失败
+text = "你好世界"
+gbk_bytes = text.encode('gbk')
+print(f"原文: '{text}'")
+print(f"GBK 编码: {list(gbk_bytes)}")
+try:
+    wrong = gbk_bytes.decode('utf-8')
+    print(f"UTF-8 解码: '{wrong}'")
+except UnicodeDecodeError:
+    print("UTF-8 解码: 解码失败")
+# UTF-8 严格的字节规则不允许 GBK 的字节模式
+
+# 正确解码
+right = gbk_bytes.decode('gbk')
+print(f"GBK 解码: '{right}'")  # 你好世界
+```
+
+三种最典型的乱码场景：
+
+```python
+# 场景2: UTF-8 编码 + GBK 解码 → 阉字
+original = "你好"
+utf8_encoded = original.encode('utf-8')
+garbled = utf8_encoded.decode('gbk', errors='replace')
+print(f"UTF-8编码 + GBK解码: '{garbled}'")
+# '浣犲ソ' ← 6 个 UTF-8 字节被 GBK 解析为 3 个字符
+
+# 场景3: UTF-8 编码 + Latin-1 解码 → 西欧乱码 (HTTP 常见问题)
+garbled = utf8_encoded.decode('latin-1')
+print(f"UTF-8编码 + Latin-1解码: '{garbled}'")
+# 'ä½ å¥½' ← 每个字节被当作一个 Latin-1 字符
+```
+
+场景 3 的修复方法——先按错误编码回到字节，再按正确编码解码：
+
+```python
+# 修复: 把错误解码的字符串按错误编码重新变回字节，再正确解码
+fixed = garbled.encode('latin-1').decode('utf-8')
+print(f"修复: '{fixed}'")
+# '你好' ← 恢复原文
+```
+
+#### 3.4.6 安全解码策略
+
+当不知道字节的编码方式时，可以采用"逐个尝试"策略——UTF-8 最严格，先试它；失败试 GBK；再失败用 Latin-1 兜底：
+
+```python
+def safe_decode(raw_bytes):
+    """安全解码: 逐个尝试常用编码"""
+    for encoding in ['utf-8', 'gbk', 'latin-1']:
+        try:
+            return raw_bytes.decode(encoding), encoding
+        except UnicodeDecodeError:
+            continue
+    # 最终兜底: Latin-1 不会失败
+    return raw_bytes.decode('utf-8', errors='replace'), 'utf-8(replace)'
+
+test_samples = [
+    '你好'.encode('utf-8'),
+    '你好'.encode('gbk'),
+    b'Hello\xc3\xc3',  # 纯 Latin-1 字节
 ]
 
-print_table(headers, data)
+for b in test_samples:
+    result, enc = safe_decode(b)
+    print(f"  {list(b)} → '{result}' (用 {enc} 解码)")
+# [228, 189, 160, 229, 165, 189] → '你好' (用 utf-8 解码)
+# [196, 227, 186, 195]            → '你好' (用 gbk 解码)
+# [72, 101, 108, 108, 111, 195, 195] → 'Hello妹' (用 gbk 解码)
 ```
 
----
+UTF-8 是最严格的编码——它的字节前缀规则使得随机字节串恰好是合法 UTF-8 的概率很低。因此，如果 UTF-8 解码成功，几乎可以确定就是 UTF-8 编码。这是 UTF-8 的自同步特性。
 
-## 4. 原理
+### 3.5 bytes 与 str 的区别
 
-### 4.1 格式化规范的内部机制
+Python 3 中 `str` 和 `bytes` 是两个完全不同的类型，不能直接混用。理解它们的区别是处理编码问题的基础。
 
-Python 的字符串格式化背后是一套统一的**格式化协议**（Format Protocol）。当你对某个对象使用 `format()` 方法或 f-string 时，Python 会尝试调用对象的 `__format__` 方法。
+#### 3.5.1 类型的本质差异
 
 ```python
-# 格式化协议的核心
-class Number:
-    def __init__(self, value):
-        self.value = value
-    
-    def __format__(self, format_spec):
-        # format_spec 就是冒号后面的部分，如 ".2f"
-        # 你可以自定义解析逻辑
-        if format_spec == "":
-            return str(self.value)
-        elif format_spec.endswith("f"):
-            precision = int(format_spec[:-1]) if format_spec[:-1] else 6
-            return f"{self.value:.{precision}f}"
-        else:
-            return str(self.value)
+s = "Hello中文"           # str: Unicode 字符序列
+b = s.encode('utf-8')     # bytes: 字节序列
 
-n = Number(3.14159)
-print(f"{n:.2f}")   # 调用 n.__format__(".2f") -> "3.14"
+print(f"str: {s!r}")
+print(f"  类型: {type(s)}")
+print(f"  长度: {len(s)} (字符数)")
+print(f"  每个元素是字符: {[c for c in s]}")
+
+print(f"\nbytes: {b!r}")
+print(f"  类型: {type(b)}")
+print(f"  长度: {len(b)} (字节数)")
+print(f"  每个元素是整数(0-255): {[x for x in b]}")
+
+# 输出:
+# str: 'Hello中文'
+#   类型: <class 'str'>
+#   长度: 7 (字符数)
+#   每个元素是字符: ['H', 'e', 'l', 'l', 'o', '中', '文']
+#
+# bytes: b'Hello\xe4\xb8\xad\xe6\x96\x87'
+#   类型: <class 'bytes'>
+#   长度: 11 (字节数)
+#   每个元素是整数(0-255): [72, 101, 108, 108, 111, 228, 184, 173, 230, 150, 135]
 ```
 
-这个协议让自定义类型也能享受与内置类型相同的格式化语法。
+核心差异：
 
-### 4.2 精度控制的内部逻辑
+| 维度 | str | bytes |
+|------|-----|-------|
+| 内部表示 | Unicode 码点 | 原始字节 (0~255) |
+| 元素类型 | 字符 (str) | 整数 (int) |
+| `len()` | 字符数 | 字节数 |
+| 字面量 | `'...'` / `"..."` | `b'...'` / `b"..."` |
+| 可变性 | 不可变 | 不可变（`bytearray` 可变） |
 
-精度控制的实现涉及以下步骤：
+#### 3.5.2 bytes 字面量
 
-1. **解析格式规范**：从格式字符串中提取精度值 `.n`
-2. **类型特定处理**：
-   - 浮点数：使用 round() 进行四舍五入，格式化时处理小数位数
-   - 字符串：使用切片截断到指定长度
-   - 整数：精度被忽略或特殊处理
-3. **结果生成**：按指定格式生成最终的字符串
+`bytes` 字面量用 `b'...'` 前缀表示，有三种创建方式：
 
 ```python
-# 简化版的精度处理逻辑（Python 内部逻辑类似）
-def format_float(value, precision):
-    # 1. 四舍五入到指定精度
-    rounded = round(value, precision)
-    
-    # 2. 格式化为字符串
-    format_str = f"{{:.{precision}f}}"
-    return format_str.format(rounded)
+# 方式1: ASCII 字符直接写
+b1 = b'Hello'
+print(f"  b'Hello' = {b1}, 类型={type(b1)}")
 
-# 例如 .2f 的处理
-print(format_float(3.14159, 2))  # "3.14"
-print(format_float(2.675, 2))    # "2.68" (银行家舍入)
+# 方式2: 十六进制转义（用于非 ASCII 字节）
+b2 = b'\xe4\xb8\xad'  # '中' 的 UTF-8 编码
+print(f"  b'\\xe4\\xb8\\xad' = {b2}")
+
+# 方式3: bytes() 构造（从整数列表创建）
+b3 = bytes([0x48, 0x65, 0x6c, 0x6c, 0x6f])  # 'Hello'
+print(f"  bytes([0x48,...]) = {b3}")
+
+# 方式4: 从 str 编码创建
+b4 = "中文".encode('utf-8')
+print(f"  '中文'.encode('utf-8') = {b4}")
 ```
 
-### 4.3 银行家舍入详解
+#### 3.5.3 bytearray — 可变的 bytes
 
-Python 的 `round()` 函数和格式化使用**银行家舍入**（Banker's Rounding，也叫 Round Half To Even）：
-
-- 当要舍入的值正好在两个数的中间时，向最近的**偶数**舍入
-- 这不是传统的"四舍五入"
+`bytearray` 是 `bytes` 的可变版本，可以修改元素和追加字节：
 
 ```python
-# 银行家舍入 vs 传统四舍五入
-test_values = [0.5, 1.5, 2.5, 3.5, 4.5]
+ba = bytearray(b'Hello')
+print(f"  创建: {ba}")
+print(f"  类型: {type(ba)}")  # bytearray
 
-print("Python 银行家舍入:")
-for v in test_values:
-    print(f"  round({v}) = {round(v)}")
+# 可修改单个字节
+ba[0] = ord('h')     # 把 'H' 改成 'h'
+print(f"  修改后: {ba}")     # bytearray(b'hello')
 
-print("\n传统四舍五入（需要自定义）:")
-def traditional_round(x):
-    import math
-    return math.floor(x + 0.5)
+# 可追加字节
+ba.append(ord('!'))
+print(f"  追加后: {ba}")     # bytearray(b'hello!')
 
-for v in test_values:
-    print(f"  traditional_round({v}) = {traditional_round(v)}")
-
-# 输出：
-# Python 银行家舍入:
-#   round(0.5) = 0
-#   round(1.5) = 2
-#   round(2.5) = 2
-#   round(3.5) = 4
-#   round(4.5) = 4
-
-# 传统四舍五入:
-#   traditional_round(0.5) = 1
-#   traditional_round(1.5) = 2
-#   traditional_round(2.5) = 3
-#   traditional_round(3.5) = 4
-#   traditional_round(4.5) = 5
+# bytes 不可变
+b = b'Hello'
+# b[0] = ord('h')  # TypeError: 'bytes' 对象不支持赋值
+print("  bytes 不可变: b'Hello' 的 b[0] 不能赋值")
 ```
 
-这种设计是为了在大量数值计算中减少累积误差。例如金融机构在处理大量交易时，银行家舍入可以更公平。
-
-### 4.4 浮点数二进制表示与精度损失
-
-浮点数的精度问题源自其二进制表示方式。许多十进制小数无法用二进制精确表示。
+#### 3.5.4 索引与切片差异
 
 ```python
-# 二进制表示精度问题
-0.1 in binary = 0.000110011001100... (无限循环)
-0.2 in binary = 0.001100110011001... (无限循环)
+s = "Hello"
+b = b'Hello'
 
-# 这导致计算结果略有偏差
-result = 0.1 + 0.2
-print(f"精确值: 0.3")
-print(f"实际值: {result}")
-print(f"差值: {result - 0.3}")  # 很小的误差
+print("索引差异:")
+# str 索引返回字符
+print(f"  s[0] = '{s[0]}' (str 返回字符)")
 
-# 格式化时这个误差会显现
-print(f"格式化: {result:.1f}")   # 0.3
-print(f"格式化: {result:.17f}")  # 0.30000000000000004
+# bytes 索引返回整数
+print(f"  b[0] = {b[0]} (bytes 返回整数)")
+
+print("切片差异:")
+# str 切片返回 str
+print(f"  s[1:3] = '{s[1:3]}' (str 切片)")
+
+# bytes 切片返回 bytes
+print(f"  b[1:3] = {b[1:3]} (bytes 切片)")
 ```
 
-这就是为什么金融计算建议使用 `decimal.Decimal` 类型：
+这个差异在实际使用中非常重要——`bytes[0]` 返回的是整数（0~255），而不是字符。要获取字符需要用 `chr(b[0])` 或 `b[0:1].decode('ascii')`。
+
+#### 3.5.5 拼接限制
+
+`str` 和 `bytes` 不能直接拼接——必须先通过 `encode()` / `decode()` 统一类型：
 
 ```python
-from decimal import Decimal, getcontext
+print("拼接限制:")
 
-# 设置精度
-getcontext().prec = 10
+# bytes + bytes: 允许
+result = b'Hello' + b' ' + b'World'
+print(f"  bytes + bytes: {result}")  # b'Hello World'
 
-# 精确计算
-d1 = Decimal('0.1')
-d2 = Decimal('0.2')
-d3 = d1 + d2
-print(f"Decimal: {d3}")              # 0.3 (精确)
-print(f"格式化: {d3.quantize(Decimal('0.00'))}")  # 0.30
+# str + str: 允许
+result = 'Hello' + ' ' + 'World'
+print(f"  str + str: {result}")      # Hello World
+
+# bytes + str: 不允许
+# b'Hello' + 'World'  # TypeError
+print("  bytes + str: TypeError (不兼容)")
+
+# 如果需要拼接，先统一类型
+fixed = b'Hello' + 'World'.encode('utf-8')
+print(f"  统一后: {fixed}")  # b'HelloWorld'
 ```
 
-### 4.5 内存与性能考量
-
-格式化操作涉及字符串构建，对性能有一定影响：
-
-1. **f-string 在编译时解析**：Python 在编译 f-string 时会解析格式规范，运行更快
-2. **format() 需要运行时解析**：格式规范在运行时解析，相对稍慢
-3. **% 格式化有历史包袱**：虽然语法老旧，但性能与 f-string 接近
-
-大量格式化时的优化：
+#### 3.5.6 比较与查找
 
 ```python
-# 避免在循环中重复解析格式规范
-# 不好：每次循环都解析格式字符串
-for value in values:
-    print(f"{value:.2f}")
+print("比较与查找:")
 
-# 好：预定义格式规范（如果值类型统一）
-format_spec = "{:.2f}".format
-for value in values:
-    print(format_spec(value))
+# bytes 之间的比较
+print(f"  b'Hello' == b'Hello': {b'Hello' == b'Hello'}")  # True
+print(f"  b'Hello' > b'World': {b'Hello' > b'World'}")    # False
 
-# 更好：列表推导式一次生成
-result = [f"{v:.2f}" for v in values]
+# in 检查: bytes 中查的是字节子序列
+b = "Hello中文".encode('utf-8')
+
+# str 中用字符查找
+print(f"  '中' in 'Hello中文': {'中' in 'Hello中文'}")    # True
+
+# bytes 中不能用 str 查找
+# '中' in b  # TypeError: a bytes-like object is required
+
+# 必须用字节序列查找
+print(f"  '中'.encode() in bytes: {'中'.encode('utf-8') in b}")  # True
 ```
 
----
+#### 3.5.7 文件读写模式
+
+Python 文件读写有两种模式，分别对应 `str` 和 `bytes`：
+
+```python
+import io
+
+print("文件读写模式:")
+
+# 文本模式 (r/w): 返回/接收 str
+print("  文本模式 (r/w):")
+with io.StringIO() as f:
+    f.write("Hello中文\n")
+    f.seek(0)
+    content = f.read()
+    print(f"    读出: '{content.strip()}' (类型: {type(content).__name__})")
+# 读出: 'Hello中文' (类型: str)
+
+# 二进制模式 (rb/wb): 返回/接收 bytes
+print("  二进制模式 (rb/wb):")
+with io.BytesIO() as f:
+    f.write("Hello中文".encode('utf-8'))
+    f.seek(0)
+    raw = f.read()
+    print(f"    读出: {raw} (类型: {type(raw).__name__})")
+    # 二进制模式需要手动 decode
+    decoded = raw.decode('utf-8')
+    print(f"    解码: '{decoded}'")
+# 读出: b'Hello\xe4\xb8\xad\xe6\x96\x87' (类型: bytes)
+# 解码: 'Hello中文'
+```
+
+实际使用 `open()` 时，文本模式会自动按系统默认编码（或指定编码）处理 decode/encode。但二进制模式不做任何编码处理，你完全自己控制。
+
+### 3.6 BOM — 字节序标记
+
+BOM（Byte Order Mark）是 Unicode 字符 `U+FEFF`，用在字节流的开头来标识编码方式和字节序。
+
+#### 3.6.1 BOM 的几种形式
+
+```python
+print("BOM 的几种形式:")
+
+# UTF-8 BOM: 3 字节 EF BB BF
+print(f"  UTF-8 BOM:    {list(b'\xef\xbb\xbf')} → EF BB BF")
+
+# UTF-16 LE BOM: 2 字节 FF FE (小端序)
+print(f"  UTF-16 LE BOM: {list(b'\xff\xfe')} → FF FE")
+
+# UTF-16 BE BOM: 2 字节 FE FF (大端序)
+print(f"  UTF-16 BE BOM: {list(b'\xfe\xff')} → FE FF")
+```
+
+BOM 的核心作用是标识**字节序**——多字节编码（如 UTF-16）需要知道高位字节在前还是低位字节在前。
+
+#### 3.6.2 UTF-16 的字节序问题
+
+UTF-16 用 2 字节表示 BMP 字符，但"高位在前还是低位在前"在不同 CPU 架构上不同：
+
+```python
+print("UTF-16 字节序:")
+text = "AB"
+
+# UTF-16-LE: 小端序，低字节在前
+le_bytes = text.encode('utf-16-le')
+print(f"  UTF-16-LE: {list(le_bytes)} (A→41 00, B→42 00)")
+
+# UTF-16-BE: 大端序，高字节在前
+be_bytes = text.encode('utf-16-be')
+print(f"  UTF-16-BE: {list(be_bytes)} (A→00 41, B→00 42)")
+
+# 不指定字节序时，UTF-16 会自动加 BOM
+u16_bytes = text.encode('utf-16')
+print(f"  UTF-16 (含BOM): {list(u16_bytes)} (FF FE 是LE的BOM)")
+```
+
+Python 的 `utf-16` 默认使用小端序（LE），并在开头添加 BOM。接收方看到 `FF FE` 就知道这是小端序。UTF-8 没有字节序问题——它是按字节顺序处理的，所以 UTF-8 的 BOM 没有字节序标识的意义，仅用于标识"这是一份 UTF-8 文件"。
+
+#### 3.6.3 UTF-8 的 BOM 处理
+
+UTF-8 的 BOM 是 `EF BB BF`，不代表字节序，只是一个标记。有些编辑器（如 Windows Notepad）会在 UTF-8 文件开头自动加 BOM，可能导致读取时出现多余字符：
+
+```python
+print("UTF-8 BOM 检测与处理:")
+
+# 制造一个带 BOM 的 UTF-8 字节序列
+text_with_bom = "Hello中文"
+bom_bytes = b'\xef\xbb\xbf'  # UTF-8 BOM
+utf8_with_bom = bom_bytes + text_with_bom.encode('utf-8')
+
+print(f"  带BOM的UTF-8字节: {list(utf8_with_bom[:6])}...")
+print(f"  前三字节 = BOM? {utf8_with_bom[:3] == b'\\xef\\xbb\\xbf'}")
+
+# 方法1: 手动去除 BOM 后解码
+if utf8_with_bom[:3] == b'\xef\xbb\xbf':
+    clean = utf8_with_bom[3:].decode('utf-8')
+    print(f"  去除BOM解码: '{clean}'")  # 'Hello中文'
+```
+
+Python 提供了 `utf-8-sig` 编码——编码时自动加 BOM，解码时自动去 BOM，省去手动处理：
+
+```python
+print("\nutf-8-sig 自动处理 BOM:")
+
+# encode: utf-8-sig 会在开头添加 BOM
+encoded_sig = "Hello中文".encode('utf-8-sig')
+print(f"  encode('utf-8-sig'): {list(encoded_sig[:6])}... (含BOM)")
+
+# 对比普通 utf-8 (无BOM)
+encoded_plain = "Hello中文".encode('utf-8')
+print(f"  encode('utf-8'):    {list(encoded_plain[:6])}... (无BOM)")
+
+# decode: utf-8-sig 自动去 BOM
+print(f"  utf-8-sig 解码: '{encoded_sig.decode('utf-8-sig')}'")   # Hello中文
+
+# 普通 utf-8 也能处理带 BOM 的数据（Python 自动跳过 BOM）
+print(f"  utf-8 解码BOM版: '{encoded_sig.decode('utf-8')}'")      # Hello中文
+```
+
+#### 3.6.4 中文乱码场景分析
+
+将三种最典型的中文乱码场景汇总：
+
+```text
+场景                       编码  解码    现象
+──────────────────────────────────────────────────
+GBK 编码 + UTF-8 解码       GBK   UTF-8  解码失败 (GBK 字节不符合 UTF-8 规则)
+UTF-8 编码 + GBK 解码       UTF-8 GBK    乱码 '浣犲ソ' (6 字节解析为 3 个 GBK 字符)
+UTF-8 编码 + Latin-1 解码   UTF-8 Latin-1 乱码 'ä½ å¥½' (每字节当一个 Latin-1 字符)
+```
+
+```python
+# 场景1: GBK编码 + UTF-8解码 → 解码失败
+original = "你好"
+gbk_encoded = original.encode('gbk')
+print(f"  场景1: GBK编码 + UTF-8解码")
+print(f"    原文: '{original}'")
+print(f"    GBK字节: {list(gbk_encoded)}")
+try:
+    garbled = gbk_encoded.decode('utf-8')
+    print(f"    乱码: '{garbled}'")
+except UnicodeDecodeError:
+    print(f"    解码失败")
+
+# 场景2: UTF-8编码 + GBK解码 → 阉字乱码
+utf8_encoded = original.encode('utf-8')
+print(f"  场景2: UTF-8编码 + GBK解码")
+print(f"    原文: '{original}'")
+print(f"    UTF-8字节: {list(utf8_encoded)}")
+garbled = utf8_encoded.decode('gbk', errors='replace')
+print(f"    乱码: '{garbled}'")
+
+# 场景3: UTF-8编码 + Latin-1解码 → 西欧乱码
+print(f"  场景3: UTF-8编码 + Latin-1解码 (HTTP常见问题)")
+garbled = utf8_encoded.decode('latin-1')
+print(f"    原文: '{original}'")
+print(f"    乱码: '{garbled}'")
+# 修复: 重新编码再正确解码
+fixed = garbled.encode('latin-1').decode('utf-8')
+print(f"    修复: '{fixed}'")
+```
+
+#### 3.6.5 综合编码检测与修复工具
+
+结合 BOM 检测、逐个尝试和兜底策略，实现一个实用的编码检测工具：
+
+```python
+def detect_and_decode(raw_bytes):
+    """检测编码并安全解码字节序列"""
+    # 1. 检查 BOM
+    if raw_bytes[:3] == b'\xef\xbb\xbf':
+        return raw_bytes[3:].decode('utf-8'), 'UTF-8 (BOM)'
+    if raw_bytes[:2] == b'\xff\xfe':
+        return raw_bytes[2:].decode('utf-16-le'), 'UTF-16 LE'
+    if raw_bytes[:2] == b'\xfe\xff':
+        return raw_bytes[2:].decode('utf-16-be'), 'UTF-16 BE'
+
+    # 2. 尝试 UTF-8 (最严格, 能成功基本就是 UTF-8)
+    try:
+        return raw_bytes.decode('utf-8'), 'UTF-8'
+    except UnicodeDecodeError:
+        pass
+
+    # 3. 尝试 GBK
+    try:
+        return raw_bytes.decode('gbk'), 'GBK'
+    except UnicodeDecodeError:
+        pass
+
+    # 4. 尝试 Big5
+    try:
+        return raw_bytes.decode('big5'), 'Big5'
+    except UnicodeDecodeError:
+        pass
+
+    # 5. 退化: Latin-1 不会失败
+    return raw_bytes.decode('latin-1'), 'Latin-1 (fallback)'
+```
+
+测试检测工具：
+
+```python
+test_data = [
+    (b'\xef\xbb\xbf' + "Hello".encode('utf-8'), "UTF-8 with BOM"),
+    ("你好".encode('utf-8'), "Pure UTF-8"),
+    ("你好".encode('gbk'), "GBK"),
+    ("你好".encode('big5'), "Big5"),
+    (b'\xff\xfe' + "你好".encode('utf-16-le'), "UTF-16 LE with BOM"),
+]
+
+print("编码检测测试:")
+for raw, expected in test_data:
+    result, detected = detect_and_decode(raw)
+    print(f"  期望:{expected:<20} → 检测:{detected:<20} → '{result}'")
+
+# 输出:
+#   期望:UTF-8 with BOM        → 检测:UTF-8 (BOM)           → 'Hello'
+#   期望:Pure UTF-8            → 检测:UTF-8                 → '你好'
+#   期望:GBK                   → 检测:GBK                   → '你好'
+#   期望:Big5                  → 检测:Big5                  → '你好'
+#   期望:UTF-16 LE with BOM   → 检测:UTF-16 LE            → '你好'
+```
+
+#### 3.6.6 安全读写中文文件
+
+```python
+import io
+
+print("安全读写中文文件:")
+content = "这是一段中文内容\n包含多行文本\n第三行"
+
+# 写入: 始终使用 UTF-8
+with io.StringIO() as f:
+    f.write(content)
+    f.seek(0)
+    raw = f.read().encode('utf-8')
+    print(f"  写入内容: '{content}'")
+    print(f"  UTF-8字节: {list(raw[:20])}...")
+
+# 读取: 自动检测编码
+result, encoding = detect_and_decode(raw)
+print(f"  读取结果: '{result}' (用 {encoding} 解码)")
+```
+
+#### 3.6.7 Python 源文件编码声明
+
+Python 3 默认使用 UTF-8 编码源文件，不需要在文件顶部声明编码。但在某些特殊场景（如旧系统兼容）中需要显式声明：
+
+```python
+# 以下声明方式都是合法的:
+#   # -*- coding: utf-8 -*-    (Emacs 风格)
+#   # coding: utf-8           (简洁风格)
+#   # coding=utf-8            (等号风格)
+
+# Python 3 默认源文件编码: UTF-8
+# 不需要显式声明编码
+# 中文可以作为变量名 (不推荐)
+```
+
+Python 2 默认使用 ASCII 编码源文件，所以 Python 2 的 `.py` 文件中如果有中文，必须在顶部加 `# -*- coding: utf-8 -*-`。Python 3 改为默认 UTF-8，基本不需要再声明。
+
+## 4. 设计决策与权衡
+
+### 4.1 为什么 Python 3 用 str + bytes 而不是 Python 2 的 str + unicode
+
+| 维度 | Python 2 (str + unicode) | Python 3 (str + bytes) |
+|------|--------------------------|------------------------|
+| 默认字符串类型 | `str`（字节串） | `str`（Unicode） |
+| Unicode 类型 | `unicode`（独立类型） | `str`（就是 Unicode） |
+| 字节串 | `str` | `bytes`（独立类型） |
+| 自动转换 | `str` 与 `unicode` 自动转换 | `str` 与 `bytes` 严格隔离 |
+| 隐式拼接 | `str + unicode` 会隐式 encode | 抛出 `TypeError` |
+
+Python 2 的设计问题：`str` 本质是字节序列，但在很多 API 中被当作字符串使用。当字符串只有 ASCII 字符时一切正常；一旦出现非 ASCII 字符，自动隐式转换就会触发 `UnicodeDecodeError`。
+
+Python 3 的改进：明确分离"文本"（`str`，Unicode）和"数据"（`bytes`，字节序列）。`str` 就是 Unicode 文本，`bytes` 就是原始字节，两者不能隐式转换，必须显式 `encode()` / `decode()`。这使得编码问题在开发阶段就暴露出来，而不是在生产环境随机出现。
+
+### 4.2 为什么 UTF-8 是最佳默认选择
+
+| 维度 | UTF-8 | UTF-16 | UTF-32 |
+|------|-------|--------|--------|
+| ASCII 兼容 | 完全兼容 | 不兼容 | 不兼容 |
+| 英文存储 | 1 字节 | 2 字节 | 4 字节 |
+| 中文存储 | 3 字节 | 2 字节 | 4 字节 |
+| Emoji 存储 | 4 字节 | 4 字节 | 4 字节 |
+| 字节序问题 | 无 | 有 (LE/BE) | 有 (LE/BE) |
+| 自同步性 | 有 | 无 | 无 |
+| Web 使用率 | ~98% | ~少量 | 几乎不用 |
+
+UTF-8 的核心优势：
+
+- **ASCII 兼容性**：纯英文的 ASCII 文件就是合法的 UTF-8 文件，保证了向后兼容
+- **无字节序问题**：按字节顺序处理，不需要 BOM，跨平台无忧
+- **自同步性**：从字节流的任意位置开始扫描，只要遇到非延续字节（不以 `10` 开头），就能找到下一个字符的起始位置。这使得 UTF-8 在截断、拼接、搜索时具有天然优势
+- **节省空间**：对于以英文为主的文本，UTF-8 比 UTF-16 节省一半空间
+
+UTF-16 对中文存储略优（2 字节 vs 3 字节），但多出的字节序复杂性和 ASCII 不兼容问题使得它在 Web 上的收益远不抵成本。
+
+### 4.3 GBK 等区域编码的局限性
+
+GBK、Big5、Shift-JIS 等区域编码各自定义了本语言的字符编码，但它们彼此不兼容：
+
+| 问题 | 说明 |
+|------|------|
+| 互不兼容 | GBK 编码的文件在 Big5 环境下会乱码，反之亦然 |
+| 覆盖范围有限 | GBK 只支持中文 + ASCII，不支持日文、韩文等 |
+| 不支持 Emoji | GBK 编码空间没有 Emoji 的位置 |
+| 自定义扩展混乱 | 各厂商对 GBK 有不同扩展（微软 GBK vs 标准 GBK） |
+| 国际化困难 | 日文系统读取中文文件会乱码 |
+
+Unicode 和 UTF-8 的出现解构了这些问题——统一码点空间 + 可变字节编码，一套编码覆盖全世界。现代系统应该一律使用 UTF-8，GBK 等区域编码仅用于兼容遗留数据。
+
+### 4.4 errors 参数的设计权衡
+
+`errors` 参数体现了 Python 的一个设计理念——**让开发者选择失败策略**，而不是强制一种方式：
+
+| 策略 | 适合场景 | 代价 |
+|------|---------|------|
+| `strict`（默认） | 需要严格保证数据完整性的场景 | 遇到错误就终止 |
+| `ignore` | 可以接受少量数据丢失 | 数据静默丢失，开发者可能不自知 |
+| `replace` | 可视化展示（如日志显示） | 替换字符有歧义 |
+| `xmlcharrefreplace` | 生成 HTML/XML | 增加文件体积 |
+| `backslashreplace` | 调试和日志 | 转义序列不易阅读 |
+| `surrogateescape` | 处理操作系统路径名 | 保持原始字节，可无损往返 |
+
+默认 `strict` 的选择：编码错误通常是 bug 的信号（如文件编码不一致、网络数据处理不当），默认抛异常能让问题在开发阶段暴露。但在特定场景（如 OS 路径名解码）中，`strict` 会导致正常文件读取失败，此时 `surrogateescape` 可以无损处理未知字节。
+
+### 4.5 UTF-8 自同步特性的价值
+
+UTF-8 的字节前缀规则带来了一个关键特性——**自同步性**（self-synchronization）。从字节流的任意位置开始，遇到以 `0` 或 `11` 开头的字节就是一个字符的起始字节；遇到以 `10` 开头的字节就是延续字节。
+
+```text
+字节流: [E4 B8 AD] 41 [C3 A9] ...
+
+从位置 0 开始:
+  E4 (1110xxxx) → 3 字节字符的起始 → 读取 E4 B8 AD → '中'
+  41 (0xxxxxxx) → 1 字节字符的起始 → 读取 41 → 'A'
+  C3 (110xxxxx) → 2 字节字符的起始 → 读取 C3 A9 → 'é'
+
+从位置 1 开始 (误入 '中' 的中间):
+  B8 (10xxxxxx) → 续字节，跳过一个 → 下一个 10xxxxxx → 继续跳过
+  AD (10xxxxxx) → 续字节，跳过
+  41 (0xxxxxxx) → 1 字节字符起始 → 正确恢复同步
+```
+
+这个特性的实际价值：
+- **随机访问**：从文件中间开始读取，几个字节内就能找到字符边界
+- **截断安全**：截断字节流不会产生半个字符的乱码
+- **错误隔离**：一个字节损坏只会影响当前字符，不会波及后续
+
+UTF-16 没有这个特性——截断 2 字节序列可能产生半个字符，后续解析可能全部出错。
 
 ## 5. 总结
 
-### 5.1 本文要点回顾
+本文深入讲解了 Python 字符串与字符编码的底层原理，主要介绍了以下内容：
 
-本篇笔记系统讲解了 Python 中占位符精度控制的方方面面：
-
-1. **精度控制基础**
-   - 精度说明符 `.n` 的基本语法
-   - 浮点数、整数、字符串的不同处理方式
-   - f-string、format()、% 格式化三种方式的对比
-
-2. **浮点数精度控制**
-   - `.nf` 定点格式：固定小数位数
-   - 千分位分隔（`,` 或 `_`）与精度结合
-   - 宽度控制、对齐方式、填充字符的综合使用
-
-3. **其他类型的精度控制**
-   - 整数精度：宽度控制，`.nd` 实际上处理宽度而非精度
-   - 字符串精度：`.ns` 截断功能，最大字符数控制
-   - 百分号格式：`.n%` 自动乘以100并添加%符号
-   - 科学计数法：`.ne`/`.nE` 用于非常大或小的数值
-
-4. **高级特性**
-   - 正负号显示（`+` 和空格）
-   - 备用形式（`#` 选项）
-   - 复数的精度控制
-
-5. **最佳实践与原理**
-   - 优先使用 f-string
-   - 根据场景选择精度
-   - 浮点数精度陷阱与解决方案
-   - 格式化协议与银行家舍入原理
-
-### 5.2 读完应能掌握
-
-- 能够说出精度说明符 `.n` 对不同数据类型的含义
-- 能够使用 f-string 完成常见的格式化任务（金额、百分比、科学计数法）
-- 能够解释银行家舍入与传统四舍五入的区别
-- 能够识别并处理浮点数精度问题
-- 能够根据具体场景选择合适的精度值
-- 能够理解 Python 格式化协议的基本工作原理
-
-### 5.3 常用格式对照表
-
-| 格式 | 说明 | 示例 |
-|------|------|------|
-| `.2f` | 浮点数，2位小数 | `3.14` |
-| `,.2f` | 千分位分隔，2位小数 | `1,234.56` |
-| `.1%` | 百分比格式 | `87.5%` |
-| `.2e` | 科学计数法 | `3.14e+00` |
-| `.5s` | 字符串最大5字符 | `Hello` |
-| `08.2f` | 宽8字符，0填充，2位小数 | `00003.14` |
-| `+.2f` | 显示正负号 | `+3.14` |
-| `,.2%` | 千分位+百分比 | `87,562.50%` |
-
----
-
-*本文档基于 Python 3.10+ 编写，不同版本间格式化行为基本一致。*
+- **ASCII 编码**：7 位编码标准，128 个字符覆盖英文；通过 `ord()` 和 `chr()` 可以查看字符与码点的对应关系
+- **Unicode 码点空间**：统一的世界字符集，码点范围 U+0000 ~ U+10FFFF，Python 3 的 `str` 直接存储 Unicode 码点，每个字符是 `str` 的独立元素
+- **UTF-8 编码原理**：UTF-8 是变长编码方案（1~4 字节），向下兼容 ASCII，无字节序问题，有自同步特性；通过字节前缀规则（`0` / `110` / `1110` / `11110`）区分字符边界
+- **encode() / decode()**：`encode()` 将 `str` 编码为 `bytes`，`decode()` 将 `bytes` 解码为 `str`；`errors` 参数控制编解码错误行为（`strict` / `ignore` / `replace` 等）
+- **bytes 与 str 的区别**：`str` 是 Unicode 字符序列（`len()` 返回字符数），`bytes` 是字节序列（`len()` 返回字节数）；两者不能直接拼接，必须通过 `encode()` / `decode()` 转换
+- **BOM 与字节序**：UTF-16 有字节序问题（LE/BE），需要 BOM 标识；UTF-8 无字节序问题；`utf-8-sig` 编码自动处理 BOM
+- **中文乱码**：乱码的根源是编码不一致（编码用 A、解码用 B）；UTF-8 编码 + GBK 解码产生阉字乱码，UTF-8 编码 + Latin-1 解码产生西欧乱码；通过"逐个尝试"策略可以安全解码未知编码的数据
+- **设计决策**：Python 3 明确分离 `str`（文本）和 `bytes`（数据），避免了 Python 2 的隐式转换问题；UTF-8 是最佳默认编码（ASCII 兼容、无字节序问题、自同步性）；GBK 等区域编码应仅用于兼容遗留数据
