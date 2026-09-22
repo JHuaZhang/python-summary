@@ -170,21 +170,7 @@ print("[%10.2f]" % 3.14159)
 # [      3.14]
 ```
 
-格式结构的完整语法是 `%[flags][width][.precision]type`：
-
-```text
-%d       → 整数
-%10d     → 宽度 10，右对齐
-%-10d    → 宽度 10，左对齐
-%010d    → 宽度 10，用 0 填充
-%.2f     → 保留 2 位小数
-%10.2f   → 宽度 10，保留 2 位小数
-
-flags:  - 左对齐    0 用零填充    + 显示正负号    (空格) 正数前加空格
-width:  最小宽度
-precision: 对于浮点数是小数位数，对于字符串是最大字符数
-type:   s/d/f/x/o/e 等
-```
+![示例图片](../images/base/202609222240.svg)
 
 #### 2.1.4 字典键名引用
 
@@ -428,11 +414,7 @@ print(f"{num: d}")   #  42（正数前加空格）
 
 f-string 和 `str.format()` 共享同一套格式说明符语法，完整结构是：
 
-```text
-{[变量或表达式]:[fill][align][sign][#][0][width][grouping][.precision][type]}
-  ↑               ↑     ↑      ↑    ↑   ↑    ↑      ↑         ↑         ↑
-  表达式         填充  对齐   符号  前缀 零   宽度   分组      精度      类型
-```
+![示例图片](../images/base/202609222241.svg)
 
 逐位说明：
 
@@ -812,20 +794,7 @@ f-string:   0.0010s
 
 #### 2.5.3 功能对比一览
 
-```text
-能力                         % 格式化    str.format()    f-string
---------------------------------------------------------------------
-表达式内嵌                   ✗          ✗              ✓
-变量名直接引用               ✗          ✓(关键字)      ✓
-字典键引用                   ✓(%(k)s)   ✓([key])       ✓(['k'])
-对象属性访问                 ✗          ✓(.attr)       ✓(.attr)
-嵌套字段宽/精度               ✗          ✓              ✓
-日期格式化                   ✗          ✓(:strfmt)     ✓(:strfmt)
-自定义 __format__            ✓          ✓              ✓
-调试输出 (=)                 ✗          ✗              ✓
-行内调用函数                 ✗          ✗              ✓
-Python 3.6 及以下兼容        ✓          ✓              ✗
-```
+![示例图片](../images/base/202609222242.svg)
 
 #### 2.5.4 三种方式选择指南
 
@@ -1144,28 +1113,11 @@ print(f"{1234567:,}")  # 1,234,567
 
 f-string 在 Python 编译时被解析为具体的字符串拼接操作和格式调用。当解释器遇到 `f"..."` 前缀时，会将花括号中的表达式和格式说明符转换为等价的 Python 字节码：
 
-```text
-f"姓名: {name}, 年龄: {age}" 的编译过程：
-
-  1. 解析器识别 f 前缀，进入 f-string 解析模式
-  2. 分割: "姓名: " + 表达式 name + ", 年龄: " + 表达式 age
-  3. 编译表达式: name → LOAD_NAME name
-  4. 编译表达式: age → LOAD_NAME age
-  5. 生成拼接字节码: BUILD_STRING
-  6. 最终等价于: "姓名: " + str(name) + ", 年龄: " + str(age)
-```
+![示例图片](../images/base/202609222243.svg)
 
 带格式说明符时的编译：
 
-```text
-f"价格: {price:.2f}" 的编译过程：
-
-  1. 分割: "价格: " + 表达式 price with format ".2f"
-  2. 编译表达式: LOAD_NAME price
-  3. 编译格式化: FORMAT_VALUE (format_spec=".2f")
-  4. 生成拼接字节码
-  5. 等价于: "价格: " + format(price, ".2f")
-```
+![示例图片](../images/base/202609222244.svg)
 
 这就是 f-string 在性能上优于 `%` 格式化和 `str.format()` 的原因——前者在编译时就完成了大部分检测和优化，而后者在运行时才解析格式字符串和执行查找。
 
@@ -1173,21 +1125,7 @@ f"价格: {price:.2f}" 的编译过程：
 
 f-string 和 `str.format()` 底层都依赖 `__format__` 协议——内置函数 `format(value, format_spec)` 会调用 `value.__format__(format_spec)`，返回格式化后的字符串。
 
-```text
-format(obj, "spec") 的调用链：
-
-  1. 检查 obj 是否有 __format__ 方法
-  2. 调用 obj.__format__(format_spec="spec")
-  3. __format__ 返回字符串结果
-
-  对于内置类型：
-    format(42, "05d")     → int.__format__(42, "05d")
-    format("hi", ">10")   → str.__format__("hi", ">10")
-
-  对于自定义类型：
-    format(temp, "f")     → Temperature.__format__(temp, "f")
-    → 返回自定义的格式化字符串
-```
+![示例图片](../images/base/202609222245.svg)
 
 内置类型的 `__format__` 实现了解析格式说明符的全部逻辑——填充字符、对齐方式、宽度、精度、类型码。自定义类型可以重写 `__format__` 来支持自定义格式说明符。
 
