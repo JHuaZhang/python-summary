@@ -756,6 +756,66 @@ export default defineConfig({
                     "link": "/Base/10-loopStructure-14"
                 }
             ]
+        },
+        {
+            "text": "【11】函数基础",
+            "collapsible": true,
+            "items": [
+                {
+                    "text": "函数概述与基本概念",
+                    "link": "/Base/11-functionBasics-01"
+                },
+                {
+                    "text": "函数定义与调用",
+                    "link": "/Base/11-functionBasics-02"
+                }
+            ]
+        },
+        {
+            "text": "【12】函数参数介绍",
+            "collapsible": true,
+            "items": [
+                {
+                    "text": "形参与实参：参数传递的本质",
+                    "link": "/Base/12-functionParameters-01"
+                },
+                {
+                    "text": "位置参数",
+                    "link": "/Base/12-functionParameters-02"
+                },
+                {
+                    "text": "关键字参数与混合传参",
+                    "link": "/Base/12-functionParameters-03"
+                },
+                {
+                    "text": "默认参数值",
+                    "link": "/Base/12-functionParameters-04"
+                },
+                {
+                    "text": "可变默认参数陷阱",
+                    "link": "/Base/12-functionParameters-05"
+                },
+                {
+                    "text": "可变位置参数 *args",
+                    "link": "/Base/12-functionParameters-06"
+                },
+                {
+                    "text": "可变关键字参数 **kwargs",
+                    "link": "/Base/12-functionParameters-07"
+                },
+                {
+                    "text": "调用侧参数解包",
+                    "link": "/Base/12-functionParameters-08"
+                },
+                {
+                    "text": "仅位置参数与仅关键字参数",
+                    "link": "/Base/12-functionParameters-09"
+                },
+                {
+                    "text": "参数签名全景与顺序规则",
+                    "link": "/Base/12-functionParameters-10"
+                }
+            ]
         }
     ]
 },
