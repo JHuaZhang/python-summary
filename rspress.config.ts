@@ -32,6 +32,7 @@ export default defineConfig({
         {
             "text": "【01】初识python",
             "collapsible": true,
+            "collapsed": true,
             "items": [
                 {
                     "text": "Python介绍及安装",
@@ -82,6 +83,7 @@ export default defineConfig({
         {
             "text": "【02】基础数据类型和类型系统",
             "collapsible": true,
+            "collapsed": true,
             "items": [
                 {
                     "text": "基础数据类型汇总",
@@ -120,6 +122,7 @@ export default defineConfig({
         {
             "text": "【03】字符串介绍",
             "collapsible": true,
+            "collapsed": true,
             "items": [
                 {
                     "text": "字符串创建与驻留机制",
@@ -230,6 +233,7 @@ export default defineConfig({
         {
             "text": "【04】列表介绍",
             "collapsible": true,
+            "collapsed": true,
             "items": [
                 {
                     "text": "列表概述与内存模型",
@@ -324,6 +328,7 @@ export default defineConfig({
         {
             "text": "【05】元组介绍",
             "collapsible": true,
+            "collapsed": true,
             "items": [
                 {
                     "text": "元组概述与基本概念",
@@ -386,6 +391,7 @@ export default defineConfig({
         {
             "text": "【06】字典介绍",
             "collapsible": true,
+            "collapsed": true,
             "items": [
                 {
                     "text": "字典概述与基本概念",
@@ -488,6 +494,7 @@ export default defineConfig({
         {
             "text": "【07】集合介绍",
             "collapsible": true,
+            "collapsed": true,
             "items": [
                 {
                     "text": "集合概述与基本概念",
@@ -574,6 +581,7 @@ export default defineConfig({
         {
             "text": "【08】运算符和表达式",
             "collapsible": true,
+            "collapsed": true,
             "items": [
                 {
                     "text": "运算符与表达式概述与基本概念",
@@ -632,6 +640,7 @@ export default defineConfig({
         {
             "text": "【09】条件分支",
             "collapsible": true,
+            "collapsed": true,
             "items": [
                 {
                     "text": "条件分支概述与基本概念",
@@ -698,6 +707,7 @@ export default defineConfig({
         {
             "text": "【10】循环结构",
             "collapsible": true,
+            "collapsed": true,
             "items": [
                 {
                     "text": "循环结构概述与基本概念",
@@ -760,6 +770,7 @@ export default defineConfig({
         {
             "text": "【11】函数基础",
             "collapsible": true,
+            "collapsed": true,
             "items": [
                 {
                     "text": "函数概述与基本概念",
@@ -774,6 +785,7 @@ export default defineConfig({
         {
             "text": "【12】函数参数介绍",
             "collapsible": true,
+            "collapsed": true,
             "items": [
                 {
                     "text": "形参与实参：参数传递的本质",

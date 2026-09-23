@@ -236,11 +236,13 @@ function generateConfig() {
     .replace(/"activeMatch":/g, '"activeMatch":');
 
   // 序列化 sidebar（对齐 ai-summary 格式：collapsible: true，key 用 /Base/ 格式）
+  // collapsed: true — 分组默认折叠，点击展开；当前文章所在分组会自动展开
   const sidebarObj = {};
   for (const [key, groups] of Object.entries(sidebarMap)) {
     sidebarObj[key + '/'] = groups.map((g) => ({
       text: g.text,
       collapsible: true,
+      collapsed: true,
       items: g.items,
     }));
   }
