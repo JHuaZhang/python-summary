@@ -85,6 +85,7 @@ print(f"总数: {len(items)}, 合计: {sum(items)}, 平均: {sum(items)/len(item
 | `%o` | 八进制 | `"%o" % 255` |
 | `%c` | 字符（Unicode 码点转字符） | `"%c" % 65` |
 | `%r` | 原始表示（调用 `repr()`） | `"%r" % "hi"` |
+| `%a` | ASCII 表示（调用 `ascii()`，非 ASCII 转义） | `"%a" % "中文"` |
 | `%%` | 百分号本身 | `"%d%%" % 50` |
 
 ```python
@@ -172,7 +173,76 @@ print("[%10.2f]" % 3.14159)
 
 ![示例图片](../images/base/202609222240.svg)
 
-#### 2.1.4 字典键名引用
+#### 2.1.4 格式说明符的字段边界
+
+printf 风格的完整语法（上图省略了 `(key)` 字典键名部分）：
+
+```
+%[(key)][flags][width][.precision]type
+```
+
+解析器按 `flags → width → .precision → type` 的顺序**逐字符消费**，每个位置只认自己的合法字符——越界字符不会报错，而是被"推入"下一个字段继续解析，这是占位符写错时结果悄悄跑偏的根本原因。各字段的合法取值（边界）：
+
+| 字段 | 合法取值（边界） | 说明 |
+|------|------------------|------|
+| `(key)` | 字典键名 | 可选，见下节 2.1.5 |
+| `flags` | 仅 5 个字符：`-`、`+`、`空格`、`#`、`0` | 可组合、顺序任意；**没有其他字符，不支持自定义填充** |
+| `width` | 十进制非负整数，或 `*` | `*` 表示从参数元组动态读取 |
+| `.precision` | `.` + 非负整数，或 `.*` | 对 `eE/fF` 是小数位数，对 `gG` 是有效数字位数；对字符串是截断长度 |
+| `type` | `d i u o x X e E f F g G c r s a` 之一 | 其余字符直接报 `ValueError` |
+
+flags 5 个字符的精确行为：
+
+```python
+print("%+d, %+d" % (42, -42))        # +42, -42  ← + 强制显示正号
+print("% d" % 42)                    # ' 42'     ← 空格：正数前预留符号位
+print("%#o %#x %#X" % (8, 255, 255)) # 0o10 0xff 0XFF  ← # 添加进制前缀
+print("%#e, %.0e" % (1.0, 1.0))      # 1.000000e+00, 1e+00  ← # 强制保留小数点
+print("[%10s]" % "hi")               # [        hi]  ← 默认空格右对齐
+print("[%010s]" % "hi")              # [        hi]  ← 0 只对数字有效，字符串仍用空格
+print("[%-010d]" % 42)               # [42        ]  ← - 与 0 同用时 0 被忽略
+```
+
+width / precision 支持用 `*` 从参数动态读取——这也是合法取值的一部分：
+
+```python
+print("%*d" % (6, 42))       # '    42'  ← 宽度从元组第一个元素读取
+print("%.*f" % (2, 3.14159)) # '3.14'    ← 精度从元组第一个元素读取
+print("%.3s" % "abcdefg")    # 'abc'     ← 精度对字符串是截断长度
+```
+
+**type 边界陷阱**——为什么 `"%a10s" % 12345` 输出 `1234510s`：
+
+```python
+print("%a10s" % 12345)
+# 1234510s
+```
+
+`a` 不在 flags 的 5 个字符里、也不是数字（width 位置只认数字），于是被解析为 **type**——而 `%a` 恰好是合法类型（Python 3.6+，等价于 `ascii()`）。占位符在 `a` 处提前闭合，剩下的 `10s` 变成**普通字面量**：
+
+```python
+print("%a" % "中文")  # '\u4e2d\u6587'  ← %a 调用 ascii()，转义非 ASCII 字符
+print("%a" % 12345)   # 12345           ← 整数原样输出
+# 因此 "%a10s" % 12345 = ascii(12345) + "10s" = "1234510s"
+```
+
+若 type 位置是不认识的字符，则直接报错：
+
+```python
+print("%z" % 1)   # ValueError: unsupported format character 'z' (0x7a) at index 1
+print("%10" % 1)  # ValueError: incomplete format  ← 只有 width 却没写 type
+```
+
+**核心结论**：printf 风格的填充字符只有两种可能——默认空格，或 `0`（且仅数字类型）。想用 `a`、`*` 等任意字符填充，必须改用 `str.format()` / f-string 的格式规格 `[[fill]align][width]`：
+
+```python
+print("{:a<10}".format(12345))  # 12345aaaaa ← a 填充左对齐
+print("{:a>10}".format(12345))  # aaaaa12345 ← a 填充右对齐
+print("{:a^11}".format(12345))  # aaa12345aaa ← a 填充居中
+print(f"{12345:*^10}")          # **12345***  ← f-string 同理
+```
+
+#### 2.1.5 字典键名引用
 
 `%` 格式化支持通过 `%(key)type` 语法用字典键名引用值，避免位置参数的顺序混乱：
 
@@ -186,7 +256,7 @@ print("%(name)s 来自 %(city)s，%(name)s 很喜欢 %(city)s" % data)
 # Bob 来自 Beijing，Bob 很喜欢 Beijing
 ```
 
-#### 2.1.5 `%` 格式化的常见陷阱
+#### 2.1.6 `%` 格式化的常见陷阱
 
 ```python
 # 陷阱 1: 百分号本身需要用 %% 转义
@@ -206,6 +276,39 @@ print("repr: %r" % text)  # repr: 'Hello\nWorld'  ← 显示转义符
 ### 2.2 `str.format()` 方法
 
 `str.format()` 是 Python 2.6 引入的格式化方法，用花括号 `{}` 作为占位符，通过 `format()` 方法传入参数。它解决了 `%` 格式化的参数顺序混乱问题，并提供了更灵活的引用方式。
+
+`format()` 的完整参数签名是 `str.format(*args, **kwargs)`——两种可变参数各对应一种占位符引用方式，也解释了下文 2.2.1 中各写法的来源：
+
+| Python 参数 | 收集结果 | 对应占位符 | JS 类比 |
+|------------|---------|-----------|---------|
+| `*args` 位置可变参数 | 多余的位置实参收集为**元组** | `{}` 按顺序、`{0}` `{1}` 按索引引用 | rest 参数 `(...args) => ...` 收集为数组 |
+| `**kwargs` 关键字可变参数 | 多余的 `key=value` 实参收集为**字典** | `{name}` 按名字引用 | 对象入参 + 形参解构 `({ name }) => ...` |
+
+参数已经在列表/字典中时还支持调用侧解包——形参一侧"收集"、调用一侧"摊开"，与 JS 的 rest/spread 机制完全同构：
+
+```python
+args = ["Alice", 30]
+data = {"name": "Bob", "city": "Beijing"}
+print("{0} 今年 {1} 岁".format(*args))     # Alice 今年 30 岁 ← 列表摊开成位置参数
+print("{name} 来自 {city}".format(**data))  # Bob 来自 Beijing ← 字典摊开成关键字参数
+```
+
+```javascript
+// JS 对照：数组 spread 摊开位置参数；对象只能整体传入、形参处解构
+const args = ["Alice", 30];
+const data = { name: "Bob", city: "Beijing" };
+const positional = (name, age) => `${name} 今年 ${age} 岁`;
+const named = ({ name, city }) => `${name} 来自 ${city}`;
+console.log(positional(...args));  // Alice 今年 30 岁
+console.log(named(data));          // Bob 来自 Beijing
+```
+
+注意上面 JS 对照中的**关键不对称**：Python 能用 `**data` 把字典摊平成多个关键字实参，JS 却不能写 `named(...data)`——调用位置的 spread 只接受可迭代对象，普通对象无法展开成多个具名实参，强行展开会抛 `TypeError: Spread syntax requires ...iterable[Symbol.iterator] to be a function`。所以 JS 的惯用对应是"传对象整体 + 形参解构"，它并没有真正的关键字参数机制。
+
+给前端的两个辨别提示（防止类比出偏差）：
+
+- JS 模板字面量 `` `${name}` `` 在**定义处**内联数据，真正的对应物是 f-string（见 2.3 节）；`format()` 则是"模板先行、数据后传"，同一个模板字符串可以复用填充多次；
+- Node.js 的 `util.format("%s", x)` 走的是 `%` 占位风格，对应本文 2.1 节的 printf 风格，与 `str.format()` 同名不同物。
 
 #### 2.2.1 基本用法
 
@@ -258,6 +361,31 @@ print("[{:*^10}]".format("hello"))
 # 用 0 填充右对齐
 print("[{:0>10}]".format(42))
 # [0000000042]
+```
+
+拆解 `{:*^10}` 为什么输出 `[**hello***]`——三段格式规格各司其职：
+
+| 部分 | 含义 | 边界 |
+|------|------|------|
+| `*` | fill 填充字符 | 任意单个字符，必须写在 align 前面、由 align"认领" |
+| `^` | align 对齐方式 | `<` 左对齐、`>` 右对齐、`^` 居中 |
+| `10` | width 最小总宽度 | 不足时由 fill 补齐，超出则原样输出 |
+
+`hello` 自身占 5 格，凑满宽度 10 还差 5 个填充位。居中的分摊规则是**左侧取整除结果，剩余全归右侧**：`5 // 2 = 2`，于是左 2 个 `*`、右 3 个 `*`：
+
+```python
+print("[{:*^10}]".format("hello"))  # [**hello***]  ← 补 5 位：左 2 右 3
+print("[{:*^11}]".format("hello"))  # [***hello***] ← 补 6 位：均匀 3+3
+print("hello".center(10, "*"))     # **hello***    ← str.center 同一分摊规则
+```
+
+回看上面代码块中的 `[  hello   ]`——默认空格居中走的是同一分摊：左 2 空格、右 3 空格。
+
+fill 的边界：填充字符不能脱离对齐符单独存在。`{:*10}` 缺少 `^`，解析器无法"认领" `*`，直接报错——printf 风格的 flags 只认 5 个固定字符，而 format 规格的 fill 是任意字符、靠紧跟的 align 识别，这是两种风格的本质区别：
+
+```python
+print("{:*10}".format("hello"))
+# ValueError: Invalid format specifier '*10' for object of type 'str'
 ```
 
 #### 2.2.3 精度与类型
@@ -318,6 +446,47 @@ print("姓名: {name}, 年龄: {age}".format(**data))
 print("姓名: {0[name]}, 年龄: {0[age]}".format(data))
 ```
 
+拆解上面代码里三种占位符的取值路径——`{0.name}` 中的 `0` 和 `.name` 各有分工：
+
+| 占位符写法 | `0` 的含义 | 取值路径 | JS 类比 |
+|-----------|-----------|---------|--------|
+| `{0.name}` | format() 第 0 个位置参数 | 点号取**属性**（走 `getattr`） | `args[0].name` |
+| `{0[name]}` | 同上 | 方括号取**字典键**或**列表索引** | `args[0]["name"]` |
+| `{name}`（配 `**data`） | 不是索引，是关键字参数名 | `**data` 摊平出的具名参数 | `const { name } = data` 解构后插值变量 |
+
+两种字典方式的本质区别在于**字典是否被"摊开"**：
+
+- 方式 1（`**data`）：字典先摊平成 `name="Bob", age=25` 两个独立的关键字参数，字典本身"不存在了"，占位符直接写参数名——对应 JS 先解构再进模板字面量的直觉：`const { name, age } = data`；
+- 方式 2（`{0[name]}`）：字典作为第 0 个位置参数**原封不动**传入，占位符用 `[键名]` 自己进字典取值——对应 JS 的 `data["name"]`。
+
+方括号 `[]` 的行为边界（以下输出均实测）：
+
+```python
+data = {"name": "Bob", "first name": "Tom"}
+lst = ["a", "b", "c"]
+
+print("{0[name]}".format(data))        # Bob   ← 键名不加引号
+print("{0[first name]}".format(data))  # Tom   ← [] 内容原样当作键字符串，连空格都行
+print("{0[1]}".format(lst))            # b     ← 纯正整数会被转成列表索引
+
+print("{0['name']}".format(data))      # KeyError: "'name'" ← 引号也算键的一部分！查的是带引号的键
+print("{0[-1]}".format(lst))           # TypeError: list indices must be integers or slices, not str ← 负数不被识别为整数索引
+print("{0.name}".format(data))         # AttributeError: 'dict' object has no attribute 'name' ← 点号走属性访问，字典没有这个属性
+```
+
+两条补充规则：
+
+```python
+# 链式取值支持——可一路找到嵌套结构
+nested = {"a": {"b": "deep"}}
+print("{0[a][b]}".format(nested))  # deep
+
+# 方法调用不支持——占位符内不是任意表达式求值
+print("{0.upper()}".format("hi"))  # AttributeError: 'str' object has no attribute 'upper()'
+```
+
+这条规则对前端尤其要留意：JS 模板字面量 `${obj.name.toUpperCase()}` 内是**任意表达式**，而 `str.format()` 的 `{...}` 内只支持"参数索引/键名 + 属性/下标"这种受限访问语法——调用、运算、三元都不行，需要计算的场景应该先算好变量再传入（这正是 f-string 的主场，见 2.3 节）。
+
 #### 2.2.5 嵌套字段引用
 
 `str.format()` 支持"嵌套字段"——在格式说明符中引用其他参数的值：
@@ -325,12 +494,61 @@ print("姓名: {0[name]}, 年龄: {0[age]}".format(data))
 ```python
 # 宽度由第二个参数决定
 print("{0:{1}}".format("hello", 10))
-# hello      （宽度 10）
+# hello + 右侧 5 个空格（宽度 10；print 时尾随空格不可见）
 
 # 宽度和精度由参数决定
 print("{0:{1}.{2}}".format("Hello World", 15, 5))
-# Hello（宽度 15，截断 5 个字符）
+# Hello + 右侧 10 个空格（先截断再补宽）
 ```
+
+嵌套字段的**执行顺序是"先内后外"**：解析器先把说明符里的 `{1}`、`{2}` 替换成参数值、拼出一条普通说明符，再对目标值应用——两步走完才产生输出：
+
+```python
+# 第一步（内层替换）——拿参数值填进说明符：
+#   {0:{1}} 拿参数 1(=10) 填宽度位        → {0:10}
+#   {0:{1}.{2}} 拿 15 填宽度、5 填精度   → {0:15.5}
+# 第二步（外层应用）——对目标值做普通格式化：
+#   "hello" 按 10 应用        → 左对齐，右侧补空格   → 'hello     '
+#   "Hello World" 按 15.5 应用 → 先按 .5 截前 5 字符 → "Hello"，再补到 15 宽 → 'Hello          '
+```
+
+用 `repr()` 和 `[]` 卡出边界，验证上面两个示例的真实输出：
+
+```python
+s1 = "{0:{1}}".format("hello", 10)
+s2 = "{0:{1}.{2}}".format("Hello World", 15, 5)
+print(repr(s1))         # 'hello     '      ← hello + 5 个尾随空格
+print(repr(s2))         # 'Hello          '  ← Hello + 10 个尾随空格
+print(f"[{s1}][{s2}]")  # [hello     ][Hello          ]
+```
+
+注意字符串的两条默认规则在起作用：**默认左对齐**（所以空格补在右侧）、精度对字符串是**截断**。print 时尾随空格肉眼不可见，看起来"输出只有一个 Hello"，容易误以为格式没生效。
+
+内层字段同样支持关键字参数，并且可以嵌在说明符的**任意位置**：
+
+```python
+print(repr("{0:{width}}".format("hi", width=10)))   # 'hi        '  ← 关键字参数做宽度
+print(repr("[{0:>{1}}]".format("hi", 8)))           # '[      hi]'  ← 与右对齐符组合
+print(repr("{0:{1}.{2}f}".format(3.14159, 10, 2)))  # '      3.14'  ← 宽度、精度全动态（数字）
+```
+
+三条边界（均实测）：
+
+```python
+# 1. 多传参数不报错——没被引用的参数直接忽略
+print(repr("{0:{1}}".format("Hello", 8, 10)))  # 'Hello   '
+
+# 2. 引用越界的参数索引——报 IndexError
+print("{0:{2}}".format("Hello", 8))
+# IndexError: Replacement index 2 out of range for positional args tuple
+
+# 3. 内层取到的值不是合法说明符——先替换后解析，报错发生在"外层应用"阶段
+print("{0:{1}}".format("Hello", "abc"))
+# ValueError: Invalid format specifier 'abc' for object of type 'str'
+# ↑ "abc" 已被填入宽度位、拼出 {0:abc}，整条说明符才解析失败——反向印证了"先内后外"
+```
+
+给前端的对照：JS 模板字面量 `` `${"hello".padEnd(10)}` `` 花括号内本来就是任意表达式，动态宽度直接写方法调用即可；`str.format()` 把模板做成**静态字符串**、数据运行时才传入，格式参数要动态化就必须靠嵌套字段这种间接引用——printf 风格的 `*` 只覆盖宽度/精度（见 2.1.4 节），嵌套字段是它的泛化。同一件事 f-string 一行就能做到：`w, p = 15, 5` 后写 `f"{'Hello':{w}.{p}}"`，输出同样是 `'Hello          '`，见 2.3 节。
 
 ### 2.3 f-string 基本用法
 
@@ -446,6 +664,54 @@ val = 3.14159
 print(f"科学计数: {val:.2e}")   # 科学计数: 3.14e+00
 print(f"百分比: {0.8525:.1%}")  # 百分比: 85.2%
 ```
+
+先回答一个关键认知：**冒号后面写的不是"传参"，而是一套固定顺序的槽位语法**。解析器从左到右扫过 `:` 后的每个字符，字符落在哪个槽位就执行哪条规则——`{big:,}` 中的 `,` 落在 grouping（分组）槽上，而这个槽位只认两个字符：`,`（千分位）和 `_`（下划线分组）。所以一个逗号就"自带千分位语义"，不需要任何额外声明——正如 `.2` 天生是精度、`0` 天生是零填充标志。
+
+逐行拆解上面的组合示例——每行都只是"几个槽位落位、其他全省略"：
+
+```python
+# 说明符        → 落位解读
+# {num:d}       → type=d，十进制整数
+# {num:08d}     → 0(零填充标志) + 8(宽度) + d(类型)
+# {num:,}       → ,(千分位)；255 不足三位，所以看不出效果
+# {big:,}       → 同上；1,234,567 分组生效
+# {num:b}       → type=b，二进制
+# {num:#x}      → #(前缀标志) + x(十六进制) → 0xff
+# {val:.2e}     → .2(精度) + e(科学计数类型)
+# {0.8525:.1%}  → .1(精度) + %(百分比类型：值 ×100 后再加 %)
+```
+
+**`08d` 的正确拆法**：`0` 是独立的标志槽位（不是宽度"08"！），等价于 `fill=0` + 右对齐，实测完全一致：
+
+```python
+print(f"{num:08d}")              # 00000255
+print(f"{num:0>8d}")             # 00000255 ← 08 就是它的简写
+print(f"{num:8d}")               #      255 ← 去掉 0 标志则退回空格右对齐
+```
+
+槽位顺序固定，串错位置会被拒；但各槽独立，组合与省略都自由（以下输出均实测）：
+
+```python
+# 宽度在分组前是合法顺序（宽度小于内容长度时直接忽略）
+print(f"{big:5,d}")             # 1,234,567
+
+# 分组符后不能再落数字——",5" 中的 5 被挤进 type 槽，与 , 冲突
+print(f"{big:,5}")              # ValueError: Cannot specify ',' with '5'.
+
+# 千分位不能与进制类型组合
+print(f"{big:#,x}")             # ValueError: Cannot specify ',' with 'x'.
+
+# 字符串不支持分组
+print(f"{'abc':,}")             # ValueError: Cannot specify ',' with 's'.
+
+# 自由组合：千分位 + 精度 + 类型
+print(f"{1234.5678:,.2f}")      # 1,234.57
+print(f"{12345.678:,.1%}")      # 1,234,567.8% ← % 类型先 ×100，再对结果应用千分位
+print(repr(f"{big:10,}"))       # ' 1,234,567'  ← 宽度 10（默认右对齐空格补位）+ 千分位
+print(f"{big:_}")               # 1_234_567     ← 分组槽的另一个字符 _
+```
+
+给前端的对照：JS 的千分位靠**方法调用**——`big.toLocaleString('en-US')` 或 `Intl.NumberFormat('en-US').format(big)` 都输出 `1,234,567`；Python 把它做成了模板语法里的一个**槽位符号**。`f"千分位: {big:,}"` 最贴近的 JS 写法就是 `` `千分位: ${big.toLocaleString('en-US')}` ``——前者在模板里声明格式，后者在表达式里调用变换方法。
 
 #### 2.3.5 对齐符详解
 
