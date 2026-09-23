@@ -440,6 +440,40 @@ print(f"往返一致: {restored == csv_line}")
 # 往返一致: True
 ```
 
+不过这里需要注意，下面这种写法是会报错的：
+
+```python
+test = '123456'
+print(test.split(''))
+# Traceback (most recent call last):
+#   File "/Users/mac/PyCharmMiscProject/test.py", line 2, in <module>
+#     print(test.split(''))
+#           ^^^^^^^^^^^^^^
+# ValueError: empty separator
+
+# 进程已结束，退出代码为 1
+```
+
+原因是：split() 的参数是“分隔符”，不能是空字符串 ''。因为空字符串没法定义“从哪里切开”。如果想把每个字符拆开，应该用下面这些方式：
+
+```python
+test = '123456'
+
+# 方式1：直接转成 list
+print(list(test))
+# ['1', '2', '3', '4', '5', '6']
+
+# 方式2：解包
+print([*test])
+# ['1', '2', '3', '4', '5', '6']
+
+# 方式3：列表推导式
+print([c for c in test])
+# ['1', '2', '3', '4', '5', '6']
+```
+
+如果只是想按某个字符分割，就可以直接使用split。
+
 #### 2.3.6 `join()` 的性能优势
 
 `join()` 在拼接大量字符串时性能远优于 `+` 拼接——`join()` 一次性分配所需内存并填充，而 `+` 每次拼接都创建新的字符串对象：
