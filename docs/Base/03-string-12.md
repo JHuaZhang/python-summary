@@ -682,19 +682,7 @@ s.endswith(suffix[, start[, end]])
 
 **选择决策**：
 
-```text
-你需要判断什么？
-    ├── 只关心开头
-    │       → startswith()
-    ├── 只关心结尾
-    │       → endswith()
-    ├── 子串在任意位置
-    │       → in
-    ├── 需要知道具体位置
-    │       → find() / index()
-    └── 需要完全匹配
-            → ==
-```
+![示例图片](../images/base/202609242330.svg)
 
 **`startswith` vs `in` 的关键区别**——`in` 只判断"是否包含"，不关心出现位置：
 
@@ -858,53 +846,17 @@ True
 
 `startswith` 的核心流程：
 
-```text
-s.startswith(prefix)
-    ↓
-1. 检查 prefix 类型（str 或 tuple of str）
-2. 如果是 str：
-     比较 s 的前 len(prefix) 个字符与 prefix
-     → memcmp(s_data, prefix_data, len(prefix))
-3. 如果是 tuple：
-     遍历元组中每个候选 prefix
-     → 对每个候选执行步骤 2
-     → 任一匹配则返回 True
-4. 处理 start/end 参数：
-     → 等价于先切片 s[start:end] 再比较
-```
+![示例图片](../images/base/202609242331.svg)
 
 `endswith` 的流程完全对称，只是从字符串末尾比较：
 
-```text
-s.endswith(suffix)
-    ↓
-1. 检查 suffix 类型
-2. 如果是 str：
-     比较 s 的末尾 len(suffix) 个字符与 suffix
-     → memcmp(s_data + len(s) - len(suffix), suffix_data, len(suffix))
-3. 如果是 tuple：
-     遍历元组中每个候选 suffix
-     → 任一匹配则返回 True
-4. 处理 start/end 参数：
-     → 等价于先切片 s[start:end] 再比较
-```
+![示例图片](../images/base/202609242332.svg)
 
 ### 4.2 为什么元组比多次 or 更高效
 
 当传入元组时，`startswith` 在 C 层面遍历候选列表，一次调用完成所有比较。而 `or` 连接的多次调用每次都要经历 Python 函数调用开销：
 
-```text
-元组方式（一次 C 调用）:
-    startswith(("a", "b", "c"))
-    → C 层面遍历 3 个候选
-    → 每个候选做一次 memcmp
-    → 总共 1 次方法调用
-
-or 方式（3 次方法调用）:
-    startswith("a") or startswith("b") or startswith("c")
-    → 3 次方法调用（每次有 Python/C 边界开销）
-    → 短路求值可能减少比较次数
-```
+![示例图片](../images/base/202609242333.svg)
 
 当候选数量较少时（2-3 个），差异不大。但候选数量多时（如 10+ 种文件扩展名），元组方式明显更快。
 
@@ -912,17 +864,7 @@ or 方式（3 次方法调用）:
 
 `startswith(prefix, start, end)` 虽然等价于 `s[start:end].startswith(prefix)`，但它在底层**不会真的创建切片副本**——而是直接在原字符串的内存上偏移计算：
 
-```text
-直接调用（高效，无副本）:
-    s.startswith("abc", 5, 20)
-    → 在 s 的内存上，从偏移 5 开始，比较到偏移 20
-    → 不创建新字符串
-
-先切片再调用（低效，创建副本）:
-    s[5:20].startswith("abc")
-    → 先创建一个长度 15 的新字符串对象
-    → 再在新字符串上调用 startswith
-```
+![示例图片](../images/base/202609242335.svg)
 
 所以，如果需要在字符串的某个范围内判断前缀，**直接用范围参数**比先切片更高效：
 
@@ -940,14 +882,7 @@ text[7:].startswith("World")  # 多创建了一个字符串对象
 
 `"".startswith("")` 和 `"hello".startswith("")` 都返回 True。这是因为 `startswith` 的底层逻辑是——比较字符串的前 `len(prefix)` 个字符与 `prefix`：
 
-```text
-s = "hello", prefix = ""
-len(prefix) = 0
-→ 比较前 0 个字符
-→ memcmp(s_data, "", 0)
-→ 长度为 0 的内存比较，永远相等
-→ 返回 True
-```
+![示例图片](../images/base/202609242334.svg)
 
 同样的逻辑适用于 `endswith`——比较末尾 0 个字符，永远相等。
 
