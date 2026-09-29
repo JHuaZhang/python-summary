@@ -3,944 +3,964 @@ group:
   title: 【01】初识python
   order: 1
 order: 10
-title: 变量赋值机制
+title: 标识符命名规范
 nav:
   title: Python基础
   order: 1
 ---
 
+# 标识符命名规范
+
 ## 1. 介绍
 
-### 1.1 什么是变量赋值
+### 1.1 什么是标识符
 
-变量赋值是编程里最基础的操作——把一个值"赋"给一个名字,之后用这个名字就能取到这个值。在 Python 里,赋值用 `=` 完成,如 `x = 10` 把 10 赋给名字 `x`。看似简单,但 Python 的赋值机制与 C/Java 等语言有本质差异,理解这套机制是理解 Python 一切行为的基础。
+标识符（Identifier）是 Python 中用来给变量、函数、类、模块等程序元素起名字的符号序列。简单来说，你写的每一行代码中出现的 `count`、`calculate_total`、`Order`、`MAX_SIZE`，都是标识符。
 
-要理解 Python 赋值,先打破一个来自 C/Java 的直觉:**变量不是"装值的盒子"**。在 C 里,`int x;` 声明一个装 int 的盒子,`x = 10` 把 10 放进这个盒子,变量与一块内存绑定、有固定类型。而在 Python 里,**变量是一个"名字标签"(name)**,贴在对象上;对象才有值、类型、内存地址。`x = 10` 的真实过程是:Python 创建一个 int 对象 `10`,然后把名字 `x` 贴到这个对象上(让 `x` 指向 `10`)。`x` 本身不"装"10,它只是引用 10 这个对象的标签。
+Python 对标识符有一套明确的语法规则：哪些字符可以用、哪些不能用、哪些名字是保留给语言自身的。同时，Python 社区还有一套约定俗成的命名风格（PEP 8），规定了不同类型的程序元素应该用什么"样子"的名字——变量用小写下划线、类名用驼峰、常量用全大写等等。
 
-这个"名字标签"模型,是本节(乃至整个 Python)的核心心智模型。它解释了 Python 的诸多行为:为何变量能随时改贴到不同类型对象、为何 `a = b` 后改 `b` 可能影响 `a`、为何函数参数传递是"传对象引用"、为何可变对象共享会出问题。理解赋值机制,本质上就是理解"名字 → 对象"的引用关系。
+掌握标识符命名规范，有两个层面的意义：
 
-赋值机制在实际开发中的影响无处不在:
+- **语法层面**：不违反规则，代码能跑起来，不会遇到 `SyntaxError` 或遮蔽内置函数的坑。
+- **协作层面**：写出别人一看就懂的名字，降低阅码成本。好的命名是自文档化代码的基石。
 
-- **共享可变对象**:`a = [1,2]; b = a; b.append(3)` 后 `a` 也变了——根因是赋值是贴标签而非拷贝。
-- **函数参数副作用**:函数内修改传入的可变对象,影响调用处。
-- **默认参数陷阱**:可变对象做默认参数在多次调用间共享,经典 bug。
-- **拷贝选择**:何时用 `=`、`copy`、`deepcopy`,取决于是否要独立副本。
-- **性能**:大对象赋值是贴引用(几乎零成本),而非拷贝(昂贵)。
+### 1.2 最简示例
 
-### 1.2 Python 对象模型概览
-
-理解赋值机制,要先建立 Python 的对象模型。在 Python 里**一切都是对象**(everything is an object)——数字、字符串、列表、函数、类、模块,全是对象。每个对象有三个根本属性:
-
-- **身份(identity)**:对象的唯一标识,可用 `id(obj)` 获取,本质是对象在内存中的地址(在 CPython 里就是内存指针)。每个对象有唯一 id,生命周期内不变。
-- **类型(type)**:对象是什么类型,可用 `type(obj)` 获取。类型决定对象能做什么操作。对象的类型在创建时确定,一般不可变(少数情况可变,如自定义 `__class__`)。
-- **值(value)**:对象承载的数据。如 int 对象 10 的值是 10。
-
-用 `id`、`type`、`value` 三件套观察对象:
+先看一组最简单的标识符使用：
 
 ```python
-x = 10
-print(id(x))      # 对象身份(地址,如 4305234992)
-print(type(x))    # <class 'int'>
-print(x)          # 10(值)
+count = 1            # 变量：snake_case 风格
+Count = 2            # 类名风格（仅演示，不推荐变量这样用）
+MAX_COUNT = 3        # 常量：全大写 + 下划线
+
+def calculate_total(items):
+    return sum(item["price"] * item["quantity"] for item in items)
+
+class Order:
+    def __init__(self, order_id):
+        self.order_id = order_id
 ```
 
-而**变量(名字)不是对象**,它只是指向对象的引用。一个对象可以被多个名字引用(贴多个标签),一个名字也可改贴到别的对象。赋值 `=` 做的事,就是在名字空间里建立或更新"名字 → 对象"的映射。
+运行结果：
 
-**名字空间(namespace)**:名字与对象的映射表,存在字典里。模块的全局名字空间、函数的局部名字空间都是 dict。`x = 10` 就是在当前名字空间的 dict 里写入 `'x' → <int 10 对象>`。可通过 `globals()`/`locals()` 查看当前名字空间。
-
-建立"对象有 id/type/value、变量是名字空间里的引用"这个模型后,赋值、传参、拷贝等机制都能用统一视角理解,这正是本节第 4 章原理要详述的核心。
-
-### 1.3 基本赋值语法
-
-Python 赋值有多种形式,先看基础:
-
-**简单赋值**:
-
-```python
-x = 10
-name = "alice"
+```text
+count = 1, Count = 2, MAX_COUNT = 3
 ```
 
-**链式赋值**(多个名字贴同一对象):
-
-```python
-a = b = c = 0       # a, b, c 都指向 int 0
-print(a is b)       # True,同一对象
-```
-
-**多重赋值/元组解包**(右侧先求值成元组,再解包给左侧各名字):
-
-```python
-a, b = 1, 2          # a=1, b=2
-a, b = b, a          # 交换!右侧 (2,1) 解包给 a,b
-x, y, z = [10, 20, 30]  # 列表也可解包
-```
-
-**增量赋值**(`+=` `*=` 等):
-
-```python
-n = 5
-n += 3              # 等价 n = n + 3
-n *= 2              # n = n * 2
-```
-
-注意增量赋值对可变对象(如列表)是**就地修改**而非创建新对象,这点 2.5 详述,是赋值机制的经典差异点。
-
-**星号解包**:
-
-```python
-a, *rest = [1, 2, 3, 4]   # a=1, rest=[2,3,4]
-*init, last = [1, 2, 3, 4] # init=[1,2,3], last=4
-```
-
-**海象运算符 `:=`(3.8+)**:赋值并返回值,可在表达式内部赋值:
-
-```python
-if (n := len(data)) > 10:
-    print(f"数据较长,长度 {n}")   # n 在条件里赋值,块内复用
-```
-
-这些是赋值的语法形式。但**所有形式的赋值,本质都是"建立/更新名字到对象的引用"**——理解这本质比记语法更重要,第 4 章详述。
-
-### 1.4 可变与不可变对象
-
-赋值机制的行为高度依赖对象是否**可变(mutable)**,这是必须先掌握的分类:
-
-- **不可变(immutable)**:对象创建后值不可改变。如 `int`、`float`、`str`、`tuple`、`frozenset`、`bool`。"改变"一个不可变对象,实际是创建新对象并让名字指向新对象。
-- **可变(mutable)**:对象创建后值可就地改变。如 `list`、`dict`、`set`、自定义类实例。可变对象可在不更换对象身份(id 不变)的前提下修改内容。
-
-观察差异:
-
-```python
-# 不可变:int "修改"是换对象
-x = 10
-print(id(x))     # 某地址 A
-x = x + 1        # 不是改 10 成 11,是创建 11,x 改指新对象
-print(id(x))     # 不同地址 B
-print(id(10))    # 地址 A(原 10 对象还在,被缓存,见 4.5)
-
-# 可变:list 就地改,id 不变
-lst = [1, 2]
-print(id(lst))   # 地址 C
-lst.append(3)    # 就地修改,不换对象
-print(id(lst))   # 仍是地址 C
-```
-
-可变/不可变对赋值机制的影响:
-
-- **赋值给两个名字后修改**:
-  - 不可变对象:`a = 10; b = a; b = 20` → `a` 仍 10,因 `b = 20` 是 `b` 改指新对象,不动 `a` 指向的 10。
-  - 可变对象:`a = [1]; b = a; b.append(2)` → `a` 也变 `[1,2]`,因 `b` 与 `a` 指同一 list,append 就地改了它。
-
-这就是"可变对象共享"问题的根源——赋值共享引用,可变对象就地修改会影响所有引用者。不可变对象因不能就地改,天然规避此问题(要"改"只能换对象,引用者不受影响)。这条区别贯穿 Python 的赋值、传参、拷贝,务必牢记。
-
----
+这段代码涉及了变量名、函数名、类名、方法名、参数名，每种都有各自约定。后面会逐一拆解每种命名场景的规则和风格。
 
 ## 2. 核心内容
 
-本章详解赋值的各种行为、共享引用现象、可变对象共享陷阱、传参机制、增量赋值差异、拷贝(浅/深)、值比较与身份比较,辅以大量可运行示例。
+### 2.1 标识符语法规则
 
-### 2.1 赋值是贴标签,不是拷贝
+Python 标识符的合法字符有一套严格的规定，不是所有字符都能用在名字里。
 
-最重要的一课:`=` 让左侧名字指向右侧对象,**不复制对象**。
+**合法字符集**：
 
-```python
-a = [1, 2, 3]
-b = a              # b 与 a 指向同一个 list 对象,不是拷贝!
-print(a is b)      # True,同一对象(id 相同)
-b.append(4)
-print(a)           # [1, 2, 3, 4] —— a 也变了!
-```
+- 字母（a-z, A-Z）
+- 数字（0-9）
+- 下划线（_）
+- Unicode 字符（如中文、日文等）
 
-`b = a` 后,`a`、`b` 是同一 list 的两个名字。`b.append(4)` 就地改了这个共享 list,`a` 看到的也是改后的。这与 C"值拷贝"的直觉相反,是 Python 新手最常踩的坑。
+**规则**：
 
-**验证同一对象**:`a is b`(身份比较)返回 `True` 表示二者是同一对象。`id(a) == id(b)` 同效。
+- 标识符**不能以数字开头**，但可以以字母或下划线开头。
+- 标识符**不能包含**空格、连字符（`-`）、`@`、`$`、`%` 等特殊字符。
+- 标识符**不能是 Python 关键字**（如 `class`、`for`、`if` 等）。
+- Python 3 允许 Unicode 字符（如中文）作为标识符，但不推荐在实际项目中使用。
 
-**对比不可变对象**:
+Python 提供了两个内置工具来帮助你验证标识符的合法性：
 
-```python
-a = 10
-b = a             # b 也指向 10
-b = 20            # b 改指新对象 20
-print(a)          # 10 —— a 不受影响
-```
+- `str.isidentifier()`：判断一个字符串是否是合法标识符（但不排除关键字）。
+- `keyword.kwlist`：列出所有 Python 关键字。
 
-不可变对象因"改"是换对象,`b = 20` 不影响 `a`。看似与可变对象行为不同,但本质相同(都是贴标签、共享引用),只是不可变性让"修改"无法体现共享影响。
-
-**结论**:赋值永远是贴引用,不拷贝。是否出问题取决于对象可变性+是否就地修改。
-
-### 2.2 多重赋值与解包机制
-
-**多重赋值的求值顺序**:`a, b = b, a` 交换为何成立?因右侧 `b, a` 先求值成一个元组 `(原b, 原a)`,然后左侧 `a, b` 按位置解包赋值。两步分离,故能交换。
+**示例**：
 
 ```python
-a, b = 1, 2
-a, b = b, a       # 右侧先求值 (2,1),再解包:a=2,b=1
-print(a, b)       # 2 1
+import keyword
+
+candidates = {
+    "count": "合法（普通变量名）",
+    "_user": "合法（单下划线开头）",
+    "user2": "合法（含数字但非数字开头）",
+    "__init__": "合法（前后双下划线，魔法名）",
+    "总人数": "合法（Unicode，但不推荐）",
+    "2count": "非法（数字开头，SyntaxError）",
+    "my-var": "非法（含连字符，被当减号）",
+    "my var": "非法（含空格）",
+    "class": "非法（关键字，SyntaxError）",
+    "for": "非法（关键字，SyntaxError）",
+}
+
+keywords = set(keyword.kwlist)
+print(f"Python 关键字数量：{len(keywords)} 个")
+print("标识符合法性检查：")
+for name, reason in candidates.items():
+    is_kw = name in keywords
+    is_valid = name.isidentifier() and not is_kw
+    tag = "合法" if is_valid else "非法"
+    print(f"  {name!r:12s} -> {tag} ({reason})")
 ```
 
-注意是"先全部求值右侧,再赋左侧",故 `a, b = b, a + b`(斐波那契)可行:右侧用旧的 a、b 求值,再赋。
+运行结果：
 
-**解包元素数须匹配**:
+```text
+Python 关键字数量：35 个
+标识符合法性检查：
+  'count'      -> 合法 (合法（普通变量名）)
+  '_user'      -> 合法 (合法（单下划线开头）)
+  'user2'      -> 合法 (合法（含数字但非数字开头）)
+  '__init__'   -> 合法 (合法（前后双下划线，魔法名））
+  '总人数'     -> 合法 (合法（Unicode，但不推荐）)
+  '2count'     -> 非法 (非法（数字开头，SyntaxError）)
+  'my-var'     -> 非法 (非法（含连字符，被当减号））
+  'my var'     -> 非法 (非法（含空格））
+  'class'      -> 非法 (非法（关键字，SyntaxError））
+  'for'        -> 非法 (非法（关键字，SyntaxError））
+```
+
+**关键点**：
+
+- `str.isidentifier()` 只检查语法合法性，**不排除关键字**。所以 `class.isidentifier()` 返回 `True`，但 `class` 不能用作标识符。必须同时用 `keyword.kwlist` 排除关键字。
+- `my-var` 中的 `-` 会被 Python 解析为减号运算符，所以 `my-var = 1` 实际上是 `my - var = 1`，会报 `SyntaxError`。
+- 虽然中文标识符合法，但在实际项目中不推荐使用——不利于跨团队协作和国际化。
+
+### 2.2 大小写敏感
+
+Python 是**大小写敏感**的语言。`count`、`Count`、`COUNT` 是三个完全不同的标识符。
+
+**示例**：
 
 ```python
-a, b = [1, 2, 3]   # ValueError: too many values to unpack
-a, b, c = [1, 2]   # ValueError: not enough values
+count = 1       # 变量：snake_case
+Count = 2       # 类名风格（仅演示同名不同义，不推荐变量这样用）
+MAX_COUNT = 3   # 常量：全大写
+
+print(f"count = {count}, Count = {Count}, MAX_COUNT = {MAX_COUNT}")
+print("三者是完全不同的标识符，体现了变量/类/常量的命名区分")
 ```
 
-数量不符报错。用星号收集多余:
+运行结果：
+
+```text
+count = 1, Count = 2, MAX_COUNT = 3
+三者是完全不同的标识符，体现了变量/类/常量的命名区分
+```
+
+大小写敏感的实际影响体现在两个层面：
+
+1. **避免意外碰撞**：你在代码中定义了 `count`，不会意外覆盖另一个叫 `Count` 的变量。Python 把它们当作两个独立的名称。
+2. **利用大小写区分用途**：PEP 8 建议用不同的命名风格区分变量、类和常量，大小写敏感是实现这一约定的基础。
+
+**容易踩的坑**：
 
 ```python
-a, *b = [1, 2, 3, 4]   # a=1, b=[2,3,4]
-a, b, *c = [1, 2]      # a=1, b=2, c=[]
-*a, b = [1, 2, 3]      # a=[1,2], b=3
+name = "Alice"
+# 过了几十行代码后
+Name = "Bob"    # 拼错了，本意是更新 name，实际创建了新变量 Name
+print(name)     # 仍然是 "Alice"，不是 "Bob"
 ```
 
-星号变量收集为列表,且只能有一个星号变量。这是处理"不定长序列"的利器。
+Python 不会像某些语言那样给你警告。保持命名一致性需要靠自己和团队规范。
 
-**嵌套解包**:
+### 2.3 命名风格约定（PEP 8）
+
+PEP 8 是 Python 社区公认的代码风格指南，对命名风格有明确的约定。不同类型的程序元素使用不同的命名风格，这让你一眼就能从名字判断出它是变量、函数、类还是常量。
+
+| 元素类型 | 命名风格 | 示例 | 说明 |
+|----------|---------|------|------|
+| 变量 | snake_case | `user_name`、`order_id` | 全小写，单词用下划线分隔 |
+| 函数 | snake_case | `calculate_total()`、`get_user_info()` | 全小写，单词用下划线分隔 |
+| 方法 | snake_case | `is_empty()`、`process_order()` | 同函数风格 |
+| 类 | PascalCase（CamelCase） | `Order`、`InvalidOrderError` | 每个单词首字母大写，无下划线 |
+| 常量 | UPPER_SNAKE_CASE | `MAX_ORDER_ITEMS`、`DISCOUNT_RATE` | 全大写，单词用下划线分隔 |
+| 模块 | snake_case | `user_service.py`、`order_models.py` | 全小写，简短 |
+| 包 | snake_case | `utils`、`models` | 全小写，简短，不含下划线最好 |
+| 私有成员 | _leading_underscore | `_status`、`_has_discount()` | 单下划线前缀，约定为内部使用 |
+| 魔法方法 | \_\_double_underscore\_\_ | `__init__`、`__str__` | 前后双下划线，Python 内部约定 |
+| 异常类 | CamelCase + Error | `InvalidOrderError`、`ConnectionError` | 类名以 Error 或 Exception 结尾 |
+
+**命名风格对比示例**：
 
 ```python
-(a, b), c = (1, 2), 3   # a=1, b=2, c=3
-point = (10, 20)
-x, y = point            # x=10, y=20
+# === 常量：全大写、单词下划线分隔 ===
+MAX_SIZE = 100
+DEFAULT_TIMEOUT = 30
+
+# === 类名：CamelCase ===
+class UserAccount:
+    def __init__(self, user_id: int, user_name: str):
+        self.user_id = user_id          # 实例属性：snake_case
+        self.user_name = user_name
+        self._is_active = True          # 私有属性：单下划线前缀
+
+    # 方法名：snake_case
+    def get_display_name(self) -> str:
+        return self.user_name
+
+    # 布尔返回方法：is_ 或 has_ 前缀
+    def is_active(self) -> bool:
+        return self._is_active
+
+# === 异常类：CamelCase + Error 结尾 ===
+class InvalidUserError(Exception):
+    pass
+
+# === 函数名：snake_case，动词开头 ===
+def calculate_discount(price: float, rate: float) -> float:
+    return price * (1 - rate)
 ```
 
-解包匹配嵌套结构,优雅地从结构化数据取值。
+**关键约定**：
 
-**迭代解包**:任何可迭代对象都能解包:
+- **函数/方法名用动词开头**：因为函数是"做事情"的，名字应该描述"做什么"。如 `get_user`、`calculate_total`、`fetch_data`、`send_email`。
+- **布尔返回的函数/方法用 `is_` 或 `has_` 前缀**：如 `is_empty()`、`has_permission()`，让调用者一眼就知道返回的是布尔值。
+- **避免缩写**：`calculate_total` 比 `calc_tot` 好，`user_name` 比 `usr_nm` 好。拆开几个字母换来可读性是值得的。除非缩写是行业通用术语（如 `url`、`id`、`db`）。
+- **类名用名词**：因为类是"东西"，不是"动作"。如 `Order`、`UserAccount`，而不是 `CreateOrder`（`CreateOrder` 听起来像函数名）。
+
+### 2.4 下划线的特殊含义
+
+下划线在 Python 中有特殊的语义，不同位置和数量的下划线代表不同含义。这是一个 Python 独有的命名约定体系，值得单独梳理。
+
+| 写法 | 含义 | 示例 |
+|------|------|------|
+| `_` | 临时忽略的占位符 | `for _ in range(3):` 或 `a, _ = (1, 2)` |
+| `_name` | 约定私有（单下划线前缀） | `self._status = "pending"` |
+| `__name` | 名称重整（双下划线前缀，无后缀） | `self.__secret = 0.05` |
+| `__name__` | 魔法方法（前后双下划线） | `def __init__(self):` |
+| `name_` | 避免与关键字冲突（尾下划线） | `class_ = "高级班"` |
+
+**单下划线 `_`：忽略占位符**
 
 ```python
-a, b, c = "xyz"      # a='x', b='y', c='z'
-a, b, c = range(3)   # a=0, b=1, c=2
+# 循环中不使用的变量
+for _ in range(3):
+    print("重复输出")
+
+# 解包时忽略某些值
+a, _ = (100, 200)
+print(f"只取 a = {a}，忽略第二个值")
+
+# 忽略多个值
+a, *_, b = (1, 2, 3, 4, 5)
+print(f"取首尾：a = {a}, b = {b}")
 ```
 
-解包是 Python 处理序列数据的惯用法,比按下标取值清晰。
+运行结果：
 
-### 2.3 共享引用与可变对象陷阱
+```text
+重复输出
+重复输出
+重复输出
+只取 a = 100，忽略第二个值
+取首尾：a = 1, b = 5
+```
 
-2.1 已展示 list 共享陷阱。这里系统看可变对象共享的各种表现:
+**单下划线前缀 `_name`：约定私有**
 
-**列表共享**:
+单下划线前缀是一种**约定**，不是强制。它告诉其他开发者"这是内部使用的，不应该在外部直接访问"。但 Python 不会阻止你从外部访问它。
 
 ```python
-a = [[0, 0], [0, 0]]
-b = a
-b[0][0] = 9
-print(a)             # [[9, 0], [0, 0]] —— a 受影响
+class Order:
+    def __init__(self):
+        self._status = "pending"     # 约定私有属性
+
+    def _has_discount(self) -> bool:  # 约定私有方法
+        return True
+
+order = Order()
+print(order._status)     # 技术上可以访问，但不推荐
 ```
 
-**字典共享**:
+**双下划线前缀 `__name`：名称重整**
+
+双下划线前缀（无后缀）会触发 Python 的**名称重整（Name Mangling）**机制，将属性名在编译时自动改为 `_ClassName__name` 的形式。这是一种更强的私有化手段，但不完全等同于其他语言的 `private`。详细机制在 2.6 节展开。
+
+**前后双下划线 `__name__`：魔法方法**
+
+前后双下划线是 Python 预留的"魔法方法"（dunder methods）命名空间，如 `__init__`、`__str__`、`__len__`。不要自己发明 `__xxx__` 格式的名字，以免与未来版本的 Python 内置方法冲突。
 
 ```python
-d1 = {"x": [1]}
-d2 = d1
-d2["x"].append(2)
-print(d1)            # {'x': [1, 2]} —— d1 受影响
+class Order:
+    def __init__(self, order_id: int):
+        self.order_id = order_id
+
+    def __str__(self) -> str:
+        return f"Order(#{self.order_id})"
+
+    def __len__(self) -> int:
+        return 0
+
+order = Order(order_id=1001)
+print(order)        # 自动调用 __str__
+print(len(order))   # 自动调用 __len__
 ```
 
-**函数内修改传入可变对象**(2.6 详述):调用处受影响。
+运行结果：
 
-**默认参数陷阱**(经典):可变对象做函数默认参数,多次调用共享同一对象:
+```text
+Order(#1001)
+0
+```
+
+**尾下划线 `name_`：避免与关键字冲突**
+
+当你需要一个名字恰好是 Python 关键字时，加尾下划线：
 
 ```python
-def add_item(item, target=[]):   # 默认 target 是同一个 list!
-    target.append(item)
-    return target
+# class 是关键字，不能直接用
+class_ = "高级班"      # 没问题
+type_ = "student"      # type 不是关键字但冲突内置函数，加尾下划线也合理
 
-print(add_item(1))   # [1]
-print(add_item(2))   # [1, 2] —— 不是 [2]!默认 list 被复用累积
-print(add_item(3))   # [1, 2, 3]
+# 常见于匹配 Python 关键字的场景
+def filter_records(type_="all", class_="default"):
+    print(f"类型：{type_}，班级：{class_}")
 ```
 
-函数默认参数在**函数定义时求值一次**,之后所有调用共享同一个默认 list。这是 Python 最经典的 bug 之一。修复:用 `None` 哨兵,函数内创建:
+### 2.5 避免遮蔽内置名
+
+Python 有大量内置函数和类型，如 `list`、`dict`、`str`、`int`、`id`、`sum`、`type`、`len`、`map`、`filter` 等。如果你用这些名字作为变量名，就会**遮蔽（shadow）**内置函数，导致后续代码无法正常使用该内置函数。
+
+**错误示例**：
 
 ```python
-def add_item(item, target=None):
-    if target is None:
-        target = []
-    target.append(item)
-    return target
-
-print(add_item(1))   # [1]
-print(add_item(2))   # [2] —— 每次 None 则新建,正确
+# 反例：用 list 作变量名
+list = [1, 2, 3]
+new_list = list(range(5))    # TypeError: 'list' object is not callable
+                              # 因为 list 现在指向 [1, 2, 3]，不是内置函数了
 ```
 
-这条规则要刻进 DNA:**可变对象绝不做函数默认参数,用 None 哨兵替代**。
+运行结果：
 
-### 2.4 函数参数传递:传对象引用
+```text
+TypeError: 'list' object is not callable
+```
 
-Python 函数参数传递叫"传对象引用"(pass by object reference)或"传共享"(pass by sharing):传的是对象的引用,函数内的形参与实参指向同一对象。
+**正确做法**：在有语义的名称上加后缀或前缀。
 
 ```python
-def modify(lst):
-    lst.append(99)       # 就地修改传入的 list
-
-data = [1, 2]
-modify(data)
-print(data)             # [1, 2, 99] —— 实参被改了
+# 好的做法：不用 list 作变量名
+product_list = ["键盘", "鼠标", "显示器"]
+# 内置 list() 仍可正常使用
+new_list = list(range(3))
+print(f"正确命名：product_list = {product_list}，内置 list() 仍可用：list(range(3)) = {new_list}")
 ```
 
-`data` 与 `lst` 指向同一 list,函数内 append 影响外部 data。
+运行结果：
 
-**重新赋值不影响外部**:
+```text
+正确命名：product_list = ['键盘', '鼠标', '显示器']，内置 list() 仍可用：list(range(3)) = [0, 1, 2]
+```
+
+**常见容易遮蔽的内置名一览**：
+
+| 内置名 | 容易误用场景 | 推荐替代 |
+|-------|-------------|---------|
+| `list` | 存储列表数据 | `item_list`、`records`、`items` |
+| `dict` | 存储字典数据 | `info_dict`、`config`、`mapping` |
+| `str` | 存储字符串 | `text`、`name_str`、`content` |
+| `id` | 存储 ID 值 | `user_id`、`order_id`、`record_id` |
+| `sum` | 求和结果变量 | `total`、`subtotal`、`amount` |
+| `type` | 类型标识 | `record_type`、`item_type` |
+| `input` | 用户输入 | `user_input`、`raw_input` |
+| `max` / `min` | 最大/最小值 | `max_value` / `min_value` |
+| `map` / `filter` | 集合操作 | `plan` / `filtered_items` |
+
+**关键点**：
+
+- 遮蔽 builtin 不像遮蔽关键字那样会立即报 `SyntaxError`，Python 允许你这么做，但会在后续使用内置函数时悄然崩溃。这种 bug 非常隐蔽，调试成本高。
+- 在小型脚本中你可能恰好没再用到那个内置函数，不会出问题；但在大型项目中，遮蔽内置名的代码迟早会坑到别人。
+- 很多人误以为 `id` 不是内置函数（它是 `id()`，返回对象的内存地址），实际上它是。用 `user_id` 而不是 `id` 来存储 ID 值。
+
+### 2.6 名称重整机制
+
+名称重整（Name Mangling）是 Python 类中双下划线前缀属性的一种特殊机制。当你在类中定义 `self.__secret_discount = 0.05` 时，Python 会在编译时将属性名改为 `_Order__secret_discount` 的形式——即在原名前加上 `_ClassName` 前缀。
+
+这个机制的核心目的是**避免子类与父类之间的属性名冲突**。当父类和子类都定义了 `__secret_discount` 属性时，它们会被分别重整为 `_Order__secret_discount` 和 `_VipOrder__secret_discount`，互不覆盖。
+
+**示例**：
 
 ```python
-def reassign(lst):
-    lst = [10, 20]       # lst 改指新对象,不动外部 data
-    print("内:", lst)
+class Order:
+    def __init__(self, order_id, items):
+        self.order_id = order_id
+        self.items = items
+        self.__secret_discount = 0.05    # 重整为 _Order__secret_discount
 
-data = [1, 2]
-reassign(data)
-print(data)             # [1, 2] —— 外部不变
+class VipOrder(Order):
+    def __init__(self, order_id, items):
+        super().__init__(order_id, items)
+        self.__secret_discount = 0.2    # 重整为 _VipOrder__secret_discount
+
+order = Order(order_id=1, items=[{"price": 10, "quantity": 2}])
+vip = VipOrder(order_id=2, items=[{"price": 100, "quantity": 1}])
+
+# 外部用 __secret_discount 无法访问（AttributeError）
+# 但用重整全名可以访问
+print(f"通过重整名访问：order._Order__secret_discount = {order._Order__secret_discount}")
+
+# 展示实例属性中实际存储的重整名
+mangled_order = [attr for attr in vars(order) if attr.startswith("_Order__")]
+print(f"实际存储的重整属性：{mangled_order}")
+
+# 子类同名 __ 属性不覆盖父类
+print(f"父类重整属性：{[a for a in vars(vip) if a.startswith('_Order__')]}")
+print(f"子类重整属性：{[a for a in vars(vip) if a.startswith('_VipOrder__')]}")
+print(f"父类折扣 {vip._Order__secret_discount} 与子类折扣 {vip._VipOrder__secret_discount} 互不覆盖")
 ```
 
-`lst = [10,20]` 是让形参 `lst` 改指新对象,与外部 `data` 的引用关系断了,故 `data` 不受影响。这与 append(就地改共享对象)截然不同——**就地修改影响外部,重新赋值不影响**。
+运行结果：
 
-**不可变对象"修改"也不影响外部**:
+```text
+通过重整名访问：order._Order__secret_discount = 0.05
+实际存储的重整属性：['_Order__secret_discount']
+父类重整属性：['_Order__secret_discount']
+子类重整属性：['_VipOrder__secret_discount']
+父类折扣 0.05 与子类折扣 0.2 互不覆盖
+```
+
+**关键点**：
+
+- 名称重整只在**类定义体内**对以双下划线开头且不以双下划线结尾的标识符生效。`__init__` 不会重整，`__secret_discount` 会重整。
+- 重整后的名字格式固定为 `_ClassName__attrname`。注意 `ClassName` 是当前类的名字，不是父类的名字。
+- 从外部直接用 `__secret_discount` 访问会报 `AttributeError`，必须用重整后的全名 `_Order__secret_discount` 才能访问。这意味着名称重整并不是真正的私有——它只是"增加了一层间接"。
+
+**名称重整 vs 单下划线约定对比**：
+
+| 维度 | `_name`（单下划线） | `__name`（双下划线） |
+|------|-------------------|---------------------|
+| 外部能否直接访问 | 能（约定不推荐，但不阻止） | 不能（需用重整名） |
+| 触发名称重整 | 否 | 是（改为 `_ClassName__name`） |
+| 子类同名是否覆盖 | 是（普通属性继承） | 否（各自重整为不同名字） |
+| 使用场景 | 内部约定用 | 防止子类属性名冲突 |
+| Python 推荐度 | 更常用 | 有特定场景才用 |
+
+### 2.7 作用域与命名长度原则
+
+命名长度应该与作用域的宽窄相匹配：作用域越宽（如全局变量、模块级常量），名字应该越具体、越完整；作用域越窄（如函数内局部变量、循环变量），名字可以越简短。
+
+**原则**：
+
+| 作用域宽度     | 命名长度   | 示例                          |
+| -------------- | ---------- | ----------------------------- |
+| 全局/模块级    | 长而具体   | `user_session_timeout = 1800` |
+| 类属性         | 长而具体   | `self.order_id`               |
+| 参数           | 中等       | `calculate_total(items)`      |
+| 函数内局部     | 短         | `total = sum(...)`            |
+| 循环变量/临时  | 极短或 `_` | `for _ in range(3)`           |
+
+**示例**：
 
 ```python
-def try_change(n):
-    n = n + 1           # n 改指新 int,外部 x 不变
+# 全局/模块级：作用域宽，名字具体完整
+user_session_timeout = 1800
+DATABASE_CONNECTION_POOL_SIZE = 10
 
-x = 10
-try_change(x)
-print(x)               # 10
+def process_order(order):
+    # 局部：上下文是 order，不必 order_xxx 冗余前缀
+    total = sum(item["price"] * item["quantity"] for item in order["items"])
+    return total
+
+# 函数内局部变量可以在上下文中缩短
+# 在 process_order 内部，total 就够了，不需要写 order_total_amount
 ```
 
-int 不可变,`n = n+1` 是换对象,外部 x 不变。看似"传值",实为传引用+不可变性的组合效果。
+运行结果（假设调用）：
 
-**理解口诀**:函数内对参数**就地修改**(可变对象的 append/update 等)波及外部;**重新赋值**(= 或不可变对象的"改")不影响外部。这条口诀解释所有传参行为。
+```text
+全局变量 user_session_timeout = 1800（名字完整具体）
+局部变量 total = 80.0（上下文即 order，无需冗余前缀）
+```
 
-### 2.5 增量赋值:就地 vs 新对象
+**关键点**：
 
-`+=` 等增量赋值,对可变与不可变对象行为不同:
+- 全局变量可能被项目中任何地方引用，名字必须自解释——读者看到 `user_session_timeout` 就知道是什么，不需要去找定义。
+- 局部变量只在一个小范围内使用，上下文已经提供了足够的信息。在 `process_order` 函数内，`total` 比 `order_total_amount` 更好——作用域只有一个函数体，读者不会搞混。
+- `_` 作为忽略占位符是最极端的"短"——表示"这个值我不关心"。
 
-**不可变对象(创建新对象)**:
+### 2.8 函数命名规范
+
+函数名遵循 PEP 8 的 snake_case 风格，此外还有一些函数特有的命名约定。
+
+**规则**：
+
+- 动词开头：函数是"做事情"的，名字应该描述"做什么"。
+- snake_case：全小写，单词用下划线分隔。
+- 布尔返回函数：用 `is_` 或 `has_` 前缀。
+- 私有函数：单下划线前缀。
+
+**函数命名的动词推荐**：
+
+| 动词 | 适用场景 | 示例 |
+|------|---------|------|
+| `get_` | 获取数据（通常有返回值） | `get_user_name()` |
+| `set_` | 设置数据（通常无返回值或返回 None） | `set_timeout(30)` |
+| `fetch_` | 从远程获取数据（隐含网络/IO 操作） | `fetch_user_profile()` |
+| `load_` | 从文件/存储加载数据 | `load_config()` |
+| `save_` | 保存数据到文件/存储 | `save_report()` |
+| `calculate_` | 计算并返回结果 | `calculate_total()` |
+| `process_` | 处理数据（可能有副作用） | `process_order()` |
+| `validate_` | 验证数据，返回布尔或抛异常 | `validate_email()` |
+| `is_` | 判断状态，返回布尔值 | `is_active()` |
+| `has_` | 判断是否拥有，返回布尔值 | `has_permission()` |
+| `parse_` | 解析输入数据 | `parse_json()` |
+| `format_` | 格式化输出 | `format_date()` |
+
+**示例**：
 
 ```python
-n = 5
-print(id(n))      # A
-n += 3            # 等价 n = n + 3,创建新 int 8,n 改指
-print(id(n))      # B(不同),新对象
+from typing import Final
+
+MAX_ORDER_ITEMS: Final[int] = 100
+
+def get_user_summary(user_id: int, is_active: bool) -> str:
+    """演示布尔参数 is_ 前缀、变量 snake_case、避免缩写。"""
+    status_text = "活跃" if is_active else "停用"
+    return f"用户 {user_id} 当前状态：{status_text}"
+
+print(get_user_summary(user_id=5001, is_active=True))
+print(get_user_summary(user_id=5002, is_active=False))
 ```
 
-int 不可变,`n += 3` 必然创建新对象。
+运行结果：
 
-**可变对象(就地修改,不换对象)**:
+```text
+用户 5001 当前状态：活跃
+用户 5002 当前状态：停用
+```
+
+**关键点**：
+
+- 参数名也用 snake_case：`user_id` 比 `userId` 更符合 Python 风格（`userId` 是 Java/JS 风格）。
+- 布尔参数用 `is_` 前缀：`is_active=True` 比 `active=True` 语义更明确——读者一看就知道传的是布尔值。
+- 函数名避免缩写：`get_user_summary` 比 `get_usr_sum` 好。
+
+### 2.9 综合命名示例
+
+将命名规范串联起来，看一个完整的订单处理系统示例。这个示例覆盖了常量命名、类名命名、方法命名、私有属性约定、名称重整、异常类命名、魔法方法等知识点。
+
+**常量定义（全大写 + 下划线）**：
 
 ```python
-lst = [1, 2]
-print(id(lst))    # C
-lst += [3]        # 等价 lst.extend([3]),就地修改!
-print(id(lst))    # C(相同),仍是原对象
-print(lst)        # [1, 2, 3]
+from typing import Final
+
+# 常量命名：全大写、单词下划线分隔，放模块顶部
+MAX_ORDER_ITEMS: Final[int] = 100
+DISCOUNT_RATE: Final[float] = 0.1
+STATUS_PENDING: Final[str] = "pending"
+STATUS_PAID: Final[str] = "paid"
 ```
 
-`lst += [3]` 对 list 是**就地 extend**,id 不变。这与 `lst = lst + [3]`(创建新 list 再赋值,id 变)不同!
+**异常类定义（CamelCase + Error 结尾）**：
 
 ```python
-lst = [1, 2]
-print(id(lst))    # C
-lst = lst + [3]   # 创建新 list [1,2,3],lst 改指
-print(id(lst))    # D(不同),新对象
+# 异常类命名：CamelCase + Error 结尾，继承 Exception
+class InvalidOrderError(Exception):
+    """无效订单异常。"""
 ```
 
-**`+=` vs `+` 对 list 的差异**:`+=` 就地改原对象,`+` 创建新对象。虽结果值相同,但对象身份与对其他引用者的影响不同:
+**业务类定义（展示私有约定与名称重整）**：
 
 ```python
-a = [1, 2]
-b = a
-a += [3]          # 就地改,a 与 b 共享的 list 变 [1,2,3]
-print(b)          # [1, 2, 3] —— b 受影响
+class Order:
+    """订单实体。演示 CamelCase 类名、snake_case 方法、_ 与 __ 私有约定。"""
 
-a = [1, 2]
-b = a
-a = a + [3]       # a 改指新 list,b 仍指原 [1,2]
-print(b)          # [1, 2] —— b 不受影响
+    def __init__(self, order_id: int, items: list[dict]) -> None:
+        self.order_id = order_id
+        self.items = items
+        self._status = STATUS_PENDING               # 约定私有：单下划线
+        self.__secret_discount = 0.05                 # 名称重整：双下划线
+
+    def is_empty(self) -> bool:
+        return len(self.items) == 0
+
+    def item_count(self) -> int:
+        return len(self.items)
+
+    def __str__(self) -> str:
+        return f"Order(#{self.order_id}, items={self.item_count()}, status={self._status})"
+
+    def __len__(self) -> int:
+        return self.item_count()
+
+    def _has_discount(self) -> bool:
+        """约定私有方法：单下划线，模块内部使用。"""
+        return self.item_count() >= 5
+
+    def process(self) -> float:
+        """处理订单，返回折扣后金额。"""
+        if self.is_empty():
+            raise InvalidOrderError(f"订单 #{self.order_id} 没有商品，无法处理")
+
+        total = sum(item["price"] * item["quantity"] for item in self.items)
+        discounted = total * (1 - DISCOUNT_RATE)
+        if self._has_discount() and self.__secret_discount > 0:
+            discounted *= (1 - self.__secret_discount)
+        self._status = STATUS_PAID
+        return round(discounted, 2)
 ```
 
-这条差异是赋值机制的深刻体现:`+=` 调 `__iadd__`(就地),`+` 调 `__add__`(新建)。可变对象的 `__iadd__` 通常就地改以省拷贝。理解这点,能解释"为何 `+=` 有时改了外部共享对象"的诡异现象。
-
-### 2.6 浅拷贝:copy 与切片
-
-当需要独立副本避免共享,用拷贝。**浅拷贝**(shallow copy)复制外层容器,但内部元素仍共享引用。
-
-**list 浅拷贝的几种方式**:
+**运行订单处理流程**：
 
 ```python
-a = [1, 2, [3, 4]]
+orders = [
+    Order(order_id=1001, items=[
+        {"price": 35.0, "quantity": 2},
+        {"price": 12.5, "quantity": 4},
+    ]),
+    Order(order_id=1002, items=[
+        {"price": 199.0, "quantity": 1},
+        {"price": 29.9, "quantity": 5},
+        {"price": 9.9, "quantity": 3},
+    ]),
+    Order(order_id=1003, items=[]),  # 空订单，触发异常
+]
 
-# 三种等价的浅拷贝
-b = a.copy()           # 方法一:list.copy()
-c = a[:]               # 方法二:切片
-d = list(a)            # 方法三:list() 构造
-import copy
-e = copy.copy(a)       # 方法四:copy.copy
-
-# 外层独立
-b.append(99)
-print(a)               # [1, 2, [3, 4]] —— a 不受影响(外层独立)
-print(b)               # [1, 2, [3, 4], 99]
-
-# 但内层共享!
-b[2].append(5)
-print(a)               # [1, 2, [3, 4, 5]] —— a 的内层 list 也变了!
-print(b)               # [1, 2, [3, 4, 5]]
+for order in orders:
+    try:
+        print(f"处理前：{order}（len()={len(order)}）")
+        if order.item_count() > MAX_ORDER_ITEMS:
+            raise InvalidOrderError(f"订单 #{order.order_id} 商品数超过上限 {MAX_ORDER_ITEMS}")
+        amount = order.process()
+        print(f"处理后：{order} -> 实付金额：{amount}")
+    except InvalidOrderError as exc:
+        print(f"处理失败：{exc}")
+    print()
 ```
 
-浅拷贝复制了外层 list(新的 list 对象),但里面的元素(包括 `[3,4]` 子 list)是同一对象引用。故改外层(append)互不影响,改内层(子 list append)互相影响。
+运行结果：
 
-**dict 浅拷贝**:`d.copy()` 或 `copy.copy(d)`,键值对新 dict,但值对象共享。
+```text
+处理前：Order(#1001, items=2, status=pending)（len()=2）
+处理后：Order(#1001, items=2, status=paid) -> 实付金额：108.0
 
-**浅拷贝适用场景**:当内部元素都是不可变对象(int/str/tuple 等)时,浅拷贝就够"独立"——因不可变对象不会被就地改,共享引用无副作用。当内部含可变对象且可能被修改时,浅拷贝不够,需深拷贝。
+处理前：Order(#1002, items=3, status=pending)（len()=3）
+处理后：Order(#1002, items=3, status=paid) -> 实付金额：340.38
 
-```python
-# 内部全不可变,浅拷贝即独立
-a = [1, 2, 3]
-b = a.copy()
-b[0] = 99          # b[0] 改指新 int,a 不受影响(int 不可变)
-print(a)           # [1, 2, 3]
+处理前：Order(#1003, items=0, status=pending)（len()=0）
+处理失败：订单 #1003 没有商品，无法处理
 ```
 
-### 2.7 深拷贝:copy.deepcopy
+**代码解读**：
 
-**深拷贝**(deep copy)递归复制所有层级,内外全独立。用 `copy.deepcopy`:
-
-```python
-import copy
-a = [1, 2, [3, 4]]
-b = copy.deepcopy(a)    # 深拷贝,内外全独立
-
-b[2].append(5)
-print(a)                # [1, 2, [3, 4]] —— a 完全不受影响
-print(b)                # [1, 2, [3, 4], 5]
-```
-
-深拷贝递归复制,连内层 `[3,4]` 也创建新对象,故改 `b` 的任何层级都不影响 `a`。
-
-**深拷贝的代价**:深拷贝递归复制整棵对象树,对大对象/循环引用对象耗时耗内存,且可能因循环引用需要特殊处理(`deepcopy` 内部用 memo 字典处理循环)。非必要不深拷贝。
-
-**何时用深拷贝**:
-
-- 需要**完全独立**的副本,任何层级修改互不影响。
-- 对象含多层可变嵌套(如 list 套 dict 套 list)。
-- 撤销/历史快照:存一份深拷贝作回滚点。
-
-**何时浅拷贝够**:
-
-- 内部全不可变(int/str/tuple/数字),浅拷贝即独立。
-- 只关心外层独立,内层不会就地改。
-
-**自定义类的拷贝**:类可定义 `__copy__` 和 `__deepcopy__` 方法自定义拷贝行为,控制深拷贝时哪些属性复制、哪些共享。默认 `deepcopy` 用反射递归复制所有属性。
-
-### 2.8 值比较 == 与身份比较 is
-
-理解赋值与引用后,`==` 与 `is` 的区别格外重要:
-
-- **`==`(值相等)**:比较两个对象的**值**是否相等,调用 `__eq__`。
-- **`is`(身份相同)**:比较两个对象是否**同一对象**(id 相同)。
-
-```python
-a = [1, 2]
-b = [1, 2]
-print(a == b)     # True,值相等
-print(a is b)     # False,不同对象(两个独立 list)
-
-c = a
-print(a is c)     # True,同一对象
-```
-
-**小整数与字符串缓存的陷阱**(见 4.5):CPython 缓存小整数(-5~256)和某些字符串,导致:
-
-```python
-a = 256
-b = 256
-print(a is b)     # True,小整数缓存,同一对象
-
-a = 1000000
-b = 1000000
-print(a is b)     # 不保证 True(可能 False),大整数未必缓存
-```
-
-这造成"`is` 有时对 int/str 返回 True"的假象,但这是实现优化,不可依赖。
-
-**正确的使用准则**:
-
-- **判断值相等,永远用 `==`**。
-- **`is` 只用于判断"是否同一对象"或与单例比较**(如 `x is None`、`x is True`)。
-
-`x is None` 是 `is` 最正当的用法——`None` 是单例,判断"是否为 None"用 `is` 比 `==` 更规范(且 `==` 可能被自定义 `__eq__` 改写,`is None` 永远可靠)。记住"`==` 比值,`is None` 比单例",其余场景基本用 `==`。
-
-### 2.9 del 与引用解除
-
-`del` 删除名字(解除名字到对象的引用),而非"删除对象":
-
-```python
-x = [1, 2]
-del x         # 删除名字 x,不再能访问 x
-# print(x)    # NameError
-
-# 对象 [1,2] 是否被回收取决于有无其他引用
-```
-
-`del x` 从名字空间移除 `x`,但 `[1,2]` 对象是否被回收取决于引用计数(见 4.4)。若无其他引用,引用计数归零,对象被回收;若还有引用,对象仍存活。
-
-**del 容器元素**:
-
-```python
-lst = [1, 2, 3]
-del lst[1]       # 删除索引 1 的元素,lst=[1,3]
-d = {"a": 1}
-del d["a"]       # 删除键 "a"
-```
-
-`del lst[1]` 调 list 的 `__delitem__`,就地删除元素。这是修改容器而非删名字。
-
-理解 `del` 删的是"引用/名字/元素",不是"对象本身",能解释"del 后对象未必立即消失"的现象。对象回收由引用计数与垃圾回收负责,不是 `del` 直接做的。
-
-### 2.10 作用域与赋值
-
-赋值作用于哪个名字空间,由作用域决定。Python 作用域规则 LEGB:
-
-- **L(Local)**:函数内局部。
-- **E(Enclosing)**:外层嵌套函数。
-- **G(Global)**:模块全局。
-- **B(Built-in)**:内置。
-
-**赋值默认创建局部变量**:
-
-```python
-x = 10                 # 全局
-def f():
-    x = 20             # 局部!不修改全局 x,而是创建局部 x
-    print(x)
-f()                    # 20
-print(x)               # 10 —— 全局 x 未变
-```
-
-函数内 `x = 20` 默认是局部赋值,不动全局。要改全局用 `global`:
-
-```python
-x = 10
-def f():
-    global x           # 声明 x 指全局
-    x = 20
-f()
-print(x)              # 20 —— 全局被改
-```
-
-**读取不需 global**:函数内可读全局(LEGB 查找),但赋值默认局部。这是"读穿透、写默认局部"的不对称,新手易惑。
-
-**`nonlocal`**(改外层嵌套函数变量):
-
-```python
-def outer():
-    count = 0
-    def inner():
-        nonlocal count   # 改 outer 的 count,不是新建局部
-        count += 1
-    inner()
-    print(count)         # 1
-```
-
-理解作用域对赋值的影响:赋值默认进局部名字空间,`global`/`nonlocal` 显式改变目标。这与"赋值是名字空间写入"的本质一致——只是写哪个名字空间由作用域规则决定。
-
-### 2.11 海象运算符 := 的赋值
-
-海象运算符(Walrus,`:=`,Python 3.8+)在**表达式内部**赋值并返回值,弥补"赋值是语句、不能用在表达式里"的限制:
-
-```python
-# 传统:读两次 input
-line = input()
-if line:
-    process(line)
-
-# 海象:在条件里赋值并判断
-if (line := input()):
-    process(line)       # line 已赋值,块内复用
-```
-
-**典型场景**:
-
-```python
-# while 循环读取,避免重复调用
-while (chunk := f.read(8192)):
-    process(chunk)
-
-# 列表推导里复用计算结果
-results = [(y := f(x), y*2) for x in data]   # 仅供示意,推导内海象慎用
-
-# 条件里赋值,减少重复表达式
-if (n := len(data)) > 10:
-    print(f"长 {n}")
-```
-
-海象的价值是"赋值+使用合一",减少重复计算与变量声明,在条件/循环场景提效。但可读性见仁见智,不必强行用。理解它是"表达式内的赋值",与普通 `=`(语句)区别即可。
-
-### 2.12 完整示例:演示赋值机制各现象
-
-一个综合示例,串起本节概念:
-
-```python
-import copy
-
-# 1. 赋值贴标签、可变共享
-a = [1, 2, [3, 4]]
-b = a                     # 贴标签,共享
-b.append(99)
-b[2].append(5)
-print("a:", a)            # a: [1, 2, [3, 4, 5], 99] —— 受影响
-
-# 2. 浅拷贝:外层独立、内层共享
-a = [1, 2, [3, 4]]
-b = a.copy()
-b.append(99)
-b[2].append(5)
-print("a:", a)            # a: [1, 2, [3, 4, 5]] —— 内层仍受影响,外层独立
-
-# 3. 深拷贝:全独立
-a = [1, 2, [3, 4]]
-b = copy.deepcopy(a)
-b.append(99)
-b[2].append(5)
-print("a:", a)            # a: [1, 2, [3, 4]] —— 完全不影响
-
-# 4. == vs is
-print([1,2] == [1,2])     # True,值相等
-print([1,2] is [1,2])     # False,不同对象
-
-# 5. 函数传参:就地改影响外部
-def f(lst):
-    lst.append("changed")
-data = [1]
-f(data)
-print("data:", data)      # data: [1, 'changed']
-```
-
-跑一遍这个示例,对照输出理解每条现象的机制,赋值机制就基本打通。
-
----
+- `MAX_ORDER_ITEMS`、`DISCOUNT_RATE`：常量全大写，放在模块顶部，用 `Final` 标注表示不应被重新赋值。
+- `InvalidOrderError`：异常类用 CamelCase，以 `Error` 结尾，继承 `Exception`。
+- `Order`：类名用 PascalCase，单数形式（不是 `Orders`）。
+- `order_id`、`items`：公有属性用 snake_case，语义清晰。
+- `_status`：单下划线前缀，约定私有——外部不应直接修改状态，应通过 `process()` 方法改变。
+- `__secret_discount`：双下划线前缀触发名称重整，子类不会意外覆盖。
+- `is_empty()`、`item_count()`：方法名用 snake_case，`is_empty` 用 `is_` 前缀返回布尔值。
+- `_has_discount()`：单下划线私有方法，表示仅供类内部使用。
+- `__str__`、`__len__`：前后双下划线的魔法方法，被 `print()` 和 `len()` 自动调用。
+- `process()`：动词开头，表示"处理订单"这个动作。
 
 ## 3. 最佳实践
 
-### 3.1 记住赋值是贴引用,警惕可变对象共享
+### 3.1 推荐 vs 不推荐写法对比
 
-`a = b` 共享引用,可变对象就地改互相影响。涉及可变对象赋值/传参时,自问"是否需要独立副本",需要则显式拷贝。这是避免隐蔽 bug 的第一防线。
+好的命名和坏的命名之间的差异，往往不是"对错"问题，而是"可读性"问题。但在团队协作中，可读性就是生产力。
 
-### 3.2 可变对象绝不做函数默认参数
+| 场景 | 不推荐写法 | 推荐写法 | 原因 |
+|------|----------|---------|------|
+| 变量命名 | `d = {"name": "Alice"}` | `user_info = {"name": "Alice"}` | 单字母无语义 |
+| 变量命名 | `lst = [1, 2, 3]` | `numbers = [1, 2, 3]` | 遮蔽内置 `list` |
+| 变量命名 | `a = 1800` | `session_timeout = 1800` | 无上下文，不知含义 |
+| 函数命名 | `def calc(x, y): ` | `def calculate_total(price, quantity):` | 缩写 + 无参数语义 |
+| 布尔函数 | `def empty(items):` | `def is_empty(items):` | 缺少 `is_` 前缀 |
+| 布尔变量 | `active = True` | `is_active = True` | 缺少 `is_` 前缀 |
+| 类命名 | `class order:` | `class Order:` | 类名应为 CamelCase |
+| 常量命名 | `maxSize = 100` | `MAX_SIZE = 100` | 常量应全大写 |
+| 缩写滥用 | `def get_usr_sum(usr_id):` | `def get_user_summary(user_id):` | 缩写降低可读性 |
+| 魔法数字 | `if len(items) > 100:` | `if len(items) > MAX_ORDER_ITEMS:` | 魔法数字不可维护 |
+| 私有属性 | `self.secret = 0.1` | `self._secret = 0.1` | 缺少私有约定 |
+
+### 3.2 常见错误模式及修正
+
+**错误模式一：遮蔽内置名**
 
 ```python
-# 坏
-def f(items=[]):
-    ...
+# 错误
+list = [1, 2, 3]
+print(list(range(5)))  # TypeError: 'list' object is not callable
 
-# 好
-def f(items=None):
-    if items is None:
-        items = []
+# 修正
+numbers = [1, 2, 3]
+print(list(range(5)))  # [0, 1, 2, 3, 4]
 ```
 
-默认参数定义时求值一次,可变默认会被多次调用共享累积。用 None 哨兵,函数内创建。这条刻进 DNA。
-
-### 3.3 按需选浅拷贝/深拷贝
-
-内部全不可变 → 浅拷贝(`.copy()`/`[:]`/`copy.copy`)足够且高效;含可变嵌套且需全独立 → `copy.deepcopy`。非必要不深拷贝(性能代价)。明确语义再选。
-
-### 3.4 值相等用 ==,单例判断用 is None
-
-`==` 比值,`is` 比身份。判断值相等永远 `==`;判断是否为 None/True/False 用 `is`(单例可靠)。不要用 `is` 比整数/字符串的值(缓存导致不可靠)。
-
-### 3.5 函数内:就地改影响外部,重新赋值不影响
-
-设计函数时明确:要修改传入可变对象(就地)就接受副作用;要返回新对象就创建并返回,不改入参。混用易让调用者困惑。文档化函数是否修改入参。
-
-### 3.6 增量赋值注意就地 vs 新建
-
-可变对象 `+=`(`__iadd__`)就地改,可能影响共享者;`x = x + y`(`__add__`)新建。改可变对象且有共享引用时,清楚用哪种,避免意外副作用。
-
-### 3.7 多重赋值利用解包,少用临时变量
+**错误模式二：大小写不一致导致的"幽灵变量"**
 
 ```python
-a, b = b, a              # 交换,无需 temp
-x, y = get_point()       # 直接接返回的元组
+# 错误
+user_name = "Alice"
+# ... 几十行代码后
+UserName = "Bob"    # 本意是更新 user_name，实际创建了新变量
+print(user_name)    # 仍然是 "Alice"
+
+# 修正
+user_name = "Alice"
+user_name = "Bob"   # 保持一致
+print(user_name)     # "Bob"
 ```
 
-解包比临时变量清晰,是 Python 惯用法。返回多值用元组+解包,而非多处赋值。
-
-### 3.8 全局/非局部变量慎用 global/nonlocal
-
-`global`/`nonlocal` 破坏封装、难追踪,优先通过参数返回值传递数据。确需修改外层才用,且尽量小范围。过度用 global 是坏味道。
-
-### 3.9 del 删引用,对象回收交给 GC
-
-`del` 删名字/元素,不保证对象立即回收。别指望 `del` 立即释放内存(引用计数归零才回收)。需要确定性释放大资源用 `with` 上下文管理器或显式 close。
-
-### 3.10 大对象赋值是贴引用,几乎零成本
+**错误模式三：数字开头**
 
 ```python
-big = [0] * 10**6
-ref = big           # 贴引用,O(1),不拷贝
+# 错误
+2nd_value = 10      # SyntaxError
+
+# 修正
+second_value = 10
 ```
 
-赋值大对象是贴引用,不是拷贝,几乎零成本。要传递大对象给函数,直接传(贴引用)即可,无需担心拷贝开销。需要独立副本才显式 copy。
-
-### 3.11 海象运算符适度用,优先可读性
-
-`:=` 在条件/循环里赋值复用提效,但可读性见仁见智。简单场景用它减重复,复杂表达式用它反而难读。优先可读性,不强行用。
-
-### 3.12 理解对象模型,id/type/value 三件套排查
-
-遇赋值/引用相关诡异问题,用 `id()` 看是否同一对象、`type()` 看类型、`is` 判身份。这三件套是排查引用问题的利器,养成调试用它验证假设的习惯。
-
----
-
-## 4. 原理
-
-### 4.1 名字标签模型与 C 盒子模型的对比(需理解,详述)
-
-赋值机制的核心是"变量是名字标签"模型,与 C 的"盒子"模型对比能彻底厘清。
-
-**C 盒子模型**:C 里 `int x;` 声明一个装 int 的盒子(分配内存),`x = 10` 把 10 放进盒子。变量名 `x` 绑定那块内存,有固定类型(int)、固定地址。`x = 20` 把盒子里的 10 换成 20,盒子(地址)不变。两个变量 `int y = x;` 是**值拷贝**:新盒子 y,拷贝 x 的值 10 进去,二者独立。改 y 不影响 x。
-
-**Python 名字标签模型**:Python 里 `x = 10` 不声明盒子,而是:
-
-1. Python 创建(或复用,见 4.5)一个 int 对象 10,它有 id(地址)、type(int)、value(10)。
-2. 在当前名字空间(一个 dict)里建立映射 `'x' → <int 10 对象>`。`x` 是名字空间里的一个键,值是对 int 10 对象的引用(指针)。
-
-`x` 不绑定固定内存块,它只是名字空间 dict 里的一个条目,指向某对象。`x = 20` 是更新这个条目,让它指向新对象 20(int 10 对象若无人引用则被回收)。`y = x` 是**引用拷贝**:名字空间新增 `'y' → <int 10 对象>`,与 `x` 指同一对象,**不复制对象**。改 y 的指向(如 `y = 30`)不影响 x(因 y 改指新对象,x 仍指 10);但若对象可变且就地改(虽 int 不可变,假设是 list),则影响 x(因共享同一对象)。
-
-**关键差异**:
-
-| 维度 | C 盒子模型 | Python 名字标签模型 |
-|------|-----------|---------------------|
-| 变量本质 | 内存块(有地址类型) | 名字空间的引用条目 |
-| 赋值 `y=x` | 值拷贝(新盒子) | 引用拷贝(共享对象) |
-| 变量类型 | 固定(声明时) | 无,可改贴不同类型对象 |
-| `x=20` | 改盒子内容 | 改名字指向新对象 |
-| 改可变对象影响他人 | 不影响(独立盒子) | 影响(共享对象) |
-
-**验证名字空间是 dict**:
+**错误模式四：使用连字符**
 
 ```python
-x = 10
-print(globals())          # 含 'x': 10 的 dict
-print(globals()['x'])     # 10,直接按名字取值
+# 错误
+user-name = "Alice"  # SyntaxError: '-' 被当减号
+
+# 修正
+user_name = "Alice"
 ```
 
-`globals()` 显示全局名字空间就是个 dict,`x = 10` 就是 `globals()['x'] = <int 10>`。这一点最直观地证明"变量是名字空间里的引用",而非盒子。
-
-理解名字标签模型,Python 的赋值、传参、拷贝、共享、作用域都用统一视角解释——它们都是"名字空间里名字到对象引用的建立/更新/查找"。这是本节(及 Python 数据模型)的根基。
-
-### 4.2 引用计数与对象生命周期(需理解,详述)
-
-对象何时创建、何时销毁?Python 用**引用计数**(reference counting)为主要垃圾回收机制,理解它就理解对象生命周期。
-
-**引用计数原理**:每个对象维护一个计数器,记录有多少引用指向它。引用增加(赋值、传参、加入容器等)计数+1,引用减少(del、离开作用域、容器移除等)计数-1。**计数归零时,对象立即被回收**(调用 `__del__`、释放内存)。
+**错误模式五：名称重整理解错误**
 
 ```python
-import sys
-a = [1, 2]              # list 对象计数=1(a 引用)
-print(sys.getrefcount(a))  # 2(传给 getrefcount 的临时引用也算,故显示 2)
-b = a                   # 计数+1 → 2(实际)
-print(sys.getrefcount(a))  # 3
-del b                   # 计数-1 → 2
+class Order:
+    def __init__(self):
+        self.__discount = 0.05    # 重整为 _Order__discount
+
+order = Order()
+# 错误：以为 __discount 是真正私有的，无法访问
+# 实际上可以用重整名访问
+print(order._Order__discount)  # 0.05，能正常访问
+
+# 不要依赖名称重整做安全控制
 ```
 
-(注意 `sys.getrefcount` 本身传参会+1,显示值比预期多1。)
-
-**引用计数的增减场景**:
+**错误模式六：在遍历时随意起名**
 
 ```python
-a = [1,2]           # 计数1
-b = a               # 计数2(新引用)
-c = [a]             # 计数3(放入容器)
-del b               # 计数2
-c.pop()             # 计数1(从容器移除)
-del a               # 计数0 → 立即回收
+# 不推荐
+for i in users:
+    print(i.name)    # i 通常用于索引，用于对象遍历容易混淆
+
+# 推荐
+for user in users:
+    print(user.name)
 ```
 
-**为什么 del 不立即释放对象**:若 `del x` 后对象还有其他引用,计数>0,对象不回收。只有所有引用都解除,计数归零才回收。
+### 3.3 命名可读性技巧
 
-**引用计数的局限——循环引用**:
+**技巧一：用描述性质的名称替代泛名称**
 
 ```python
-a = []
-b = [a]
-a.append(b)         # a 引用 b,b 引用 a,循环引用
-del a
-del b               # 删除名字,但两对象互相引用,计数各为1,不归零!
+# 不推荐
+def process(data):
+    return data
+
+# 推荐
+def validate_email(email_address):
+    return email_address
 ```
 
-循环引用下,即使外部名字删除,对象互相引用使计数不为零,引用计数无法回收它们。Python 用**分代垃圾回收器**(generational GC)补充处理循环引用:定期扫描可疑对象,检测并打破循环引用回收。分代 GC 是引用计数的补充,处理其搞不定的循环引用。
+`data` 是万能词，什么都能装，也就什么都不表达。`email_address` 一眼就知道是什么。
 
-**理解引用计数的实用价值**:
-
-- 解释"`del x` 后对象为何可能还在"(有其他引用)。
-- 解释"函数返回大对象后,函数内局部引用解除,对象若被返回值引用则存活、否则回收"。
-- 大对象循环引用(如双向链表、缓存)需留意,必要时用 `weakref` 弱引用避免阻止回收。
-- `__del__` 析构在计数归零时调用,但循环引用下时机不确定,别依赖 `__del__` 做关键清理(用 `with`/`close`)。
-
-引用计数是 Python 内存管理的底层基石,理解它,内存与对象生命周期不再神秘。
-
-### 4.3 可变/不可变与对象身份的本质(需理解,详述)
-
-可变/不可变的本质区别在于"修改对象时身份(id)是否改变",这由类型的实现决定。
-
-**不可变对象**:类型的所有"修改"操作都返回**新对象**,原对象不变。`int` 的 `+` 返回新 int、`str` 的 `upper` 返回新 str、`tuple` 不能改。故不可变对象"修改"是"换对象"(名字改指新对象),原对象的 id/值永不变化。
+**技巧二：布尔变量用 `is_`/`has_`/`can_`/`should_` 前缀**
 
 ```python
-s = "abc"
-print(id(s))       # A
-s = s.upper()      # upper 返回新 str "ABC",s 改指
-print(id(s))       # B(不同),原 s 指向的 "abc" 不变
+# 不推荐
+user = True          # 是什么意思？
+admin = False        # 是管理员？还是不是？
+
+# 推荐
+is_user = True
+is_admin = False
+has_permission = True
+can_delete = True
+should_retry = False
 ```
 
-不可变性是"值不变"的保证:一个 int 10 永远是 10,一个 str "abc" 永远是 "abc",不会偷偷变。这让不可变对象可哈希(hashable,能做 dict 键/集合元素)、可安全共享(多名字指向不必担心被改)。
-
-**可变对象**:类型提供就地修改操作( list 的 append/extend/`__iadd__`、dict 的 update、set 的 add),**不换对象**,原地改内容,id 不变。
+**技巧三：集合用复数名**
 
 ```python
-lst = [1, 2]
-print(id(lst))     # A
-lst.append(3)      # 就地改,id 不变
-print(id(lst))     # A(同)
+# 不推荐
+user = ["Alice", "Bob", "Charlie"]    # 看名字以为是单个 user
+item = [1, 2, 3]
+
+# 推荐
+users = ["Alice", "Bob", "Charlie"]
+items = [1, 2, 3]
+
+# 遍历时就自然了
+for user in users:
+    print(user)
 ```
 
-可变性带来灵活(可原地增删改、省拷贝),但代价是不可哈希(内容可变,hash 不稳定,不能做 dict 键)、共享需谨慎(就地改影响所有引用者)。
-
-**tuple 的特殊情况**:tuple 本身不可变(不能增删元素),但若元素是可变对象,元素内容可变:
+**技巧四：避免否定式命名**
 
 ```python
-t = ([1, 2],)
-t[0].append(3)     # 合法!改的是 tuple 内 list 元素,不是 tuple 结构
-print(t)           # ([1, 2, 3],)
-# t[0] = [9]       # 非法!不能重新赋值 tuple 元素
+# 不推荐
+is_not_empty = True
+if not is_not_empty:    # 双重否定，需要转一个弯才能理解
+    print("空")
+
+# 推荐
+is_empty = False
+if not is_empty:
+    print("非空")
 ```
 
-tuple 不可变指"结构不可变"(元素引用不变),但元素若是可变对象,其内容仍可变。这是不可变性的微妙边界。
-
-**可哈希性**:不可变对象通常可哈希(hash 不变),可做 dict 键/set 元素;可变对象不可哈希(若内容变了 hash 不稳定)。
+**技巧五：常量集中管理，放在模块顶部**
 
 ```python
-d = {[1,2]: "v"}   # TypeError: unhashable type: 'list'
-d = {(1,2): "v"}   # OK,tuple 不可变可哈希
-```
-
-理解可变/不可变的本质(修改是否换身份)、对哈希与共享的影响,是掌握 Python 数据模型的关键。
-
-### 4.4 浅拷贝与深拷贝的实现机制(需理解,详述)
-
-拷贝机制的本质是"如何复制对象图的引用关系"。
-
-**浅拷贝实现**:浅拷贝创建一个新的外层容器对象,然后**把原容器的元素引用逐个复制**到新容器。即新容器的元素与原容器的元素指向同一对象。以 list 为例,`a.copy()` 大致等价:
-
-```python
-# 浅拷贝的伪实现
-def shallow_copy(a):
-    new = []                # 新 list 对象
-    for item in a:
-        new.append(item)    # 复制的是引用,不是对象本身
-    return new
-```
-
-故浅拷贝后,`new[i] is a[i]`(元素同一对象),只是外层 `new is not a`(外层不同对象)。改外层(append)独立,改内层(若元素可变)互相影响。
-
-**深拷贝实现**:深拷贝递归复制——遇到可变对象就复制它,其内部元素再递归复制,直到不可变对象(可直接共享引用,因其不会被改)。`copy.deepcopy` 大致:
-
-```python
-# 深拷贝的伪实现(简化,省略 memo)
-def deepcopy(obj):
-    if isinstance(obj, list):
-        return [deepcopy(item) for item in obj]  # 递归复制每个元素
-    elif isinstance(obj, dict):
-        return {deepcopy(k): deepcopy(v) for k, v in obj.items()}
-    elif isinstance(obj, (int, str, tuple, ...)):  # 不可变,直接返回(共享安全)
-        return obj
-    else:
-        # 自定义对象:复制实例,递归复制属性
+# 不推荐：常量散落在代码各处
+def process_order(order):
+    if len(order["items"]) > 100:    # 魔法数字
         ...
+    total = order["total"] * 0.9    # 魔法数字（折扣率 0.1）
+
+# 推荐：常量集中定义
+MAX_ORDER_ITEMS = 100
+DISCOUNT_RATE = 0.1
+
+def process_order(order):
+    if len(order["items"]) > MAX_ORDER_ITEMS:
+        ...
+    total = order["total"] * (1 - DISCOUNT_RATE)
 ```
 
-深拷贝的关键是**递归**和**对不可变对象的优化**(不可变对象可直接共享,因不会被就地改,复制纯属浪费)。故深拷贝后,所有可变层级都是新对象,不可变层级共享(安全)。
-
-**循环引用处理**:深拷贝遇循环引用会无限递归,`copy.deepcopy` 用 **memo 字典**记录已拷贝对象(原对象 → 拷贝),遇已拷贝对象直接返回 memo 里的拷贝,打破递归:
+**技巧六：上下文相关的简短命名**
 
 ```python
-a = []
-a.append(a)        # 自引用循环
-b = copy.deepcopy(a)   # 靠 memo 处理,正常返回(不无限递归)
+# 在类方法内部，self 已提供了上下文
+class User:
+    def __init__(self, name, email):
+        self.name = name        # 不需要 self.user_name
+        self.email = email
+
+# 在函数内部，参数名提供了上下文
+def calculate_total(price, quantity):
+    return price * quantity     # 不需要 item_price * item_quantity
 ```
 
-**自定义拷贝行为**:类定义 `__copy__`(浅拷贝)和 `__deepcopy__(memo)`(深拷贝)方法,控制拷贝时复制哪些属性、哪些共享。如含文件句柄、连接等不可拷贝资源时,需自定义避免深拷贝复制它们。
+## 4. 原理：名称重整的内部机制
 
-**拷贝协议**:`copy.copy` 调对象 `__copy__`,`copy.deepcopy` 调 `__deepcopy__`,默认(无自定义)用反射递归。理解这套协议,能精确控制自定义类的拷贝语义。
+### 4.1 名称重整的触发条件
 
-### 4.5 小整数与字符串缓存(底层支持,简略)
+名称重整（Name Mangling）是 Python 编译器在编译类定义体时，对符合条件的标识符进行自动改名的行为。改名的规则是：将 `__name` 改为 `_ClassName__name`。
 
-CPython 为性能缓存常用对象:
+**触发条件**（同时满足以下三点才触发）：
 
-- **小整数缓存**:-5 到 256 的 int 对象预先创建并缓存,所有引用这些值的变量指向同一对象。故 `a=256; b=256; a is b` 为 True。
-- **字符串驻留(interning)**:某些字符串(标识符-like、字面量)被驻留共享,`a="abc"; b="abc"; a is b` 常为 True。
+1. 标识符以**两个或更多**下划线开头。
+2. 标识符以**至多一个**下划线结尾（即不以 `__` 结尾，`__name__` 不触发，`__name` 触发，`__name_` 触发）。
+3. 标识符出现在**类定义体内部**（模块级别不触发）。
 
-这是实现优化,不应依赖其行为判断值相等(始终用 `==`)。缓存的存在解释了"`is` 对小整数/短字符串常返回 True"的假象,但只要遵守"`is` 只用于 None 等单例、值比较用 `==`",缓存就不会造成问题。底层细节(哪些字符串驻留、缓存范围随版本变)无需深究。
+**触发条件一览**：
 
-### 4.6 赋值与字节码简述(底层,简略)
+| 写法         | 是否触发名称重整 | 重整后的名字                   |
+| ------------ | ---------------- | ----------------------------- |
+| `__secret`   | 是               | `_ClassName__secret`          |
+| `__secret_`  | 是               | `_ClassName__secret_`         |
+| `__init__`   | 否               | 保持不变（前后双下划线）       |
+| `___secret__`| 否               | 保持不变（以双下划线结尾）     |
+| `__`         | 否               | 保持不变（只有下划线）         |
+| `_secret`    | 否               | 保持不变（单下划线前缀）       |
 
-从字节码看 `x = 10`:
+**验证性代码**：
 
 ```python
-import dis
-dis.dis(compile("x = 10", "", "exec"))
-# LOAD_CONST  0 (10)     # 把常量 10 压栈
-# STORE_NAME  0 (x)      # 存到名字 x(名字空间写入)
+class Test:
+    def __init__(self):
+        self.__data = 1        # 触发 → _Test__data
+        self.__data2_ = 2      # 触发 → _Test__data2_
+        self.__init__ = 3      # 不触发 → __init__
+        self._data = 4         # 不触发 → _data
+        self.data = 5          # 不触发 → data
+
+t = Test()
+for attr in sorted(vars(t)):
+    print(f"  {attr} = {getattr(t, attr)}")
 ```
 
-`LOAD_CONST` 加载对象,`STORE_NAME` 写入名字空间 dict——直观体现"赋值是名字空间写入"。`a, b = b, a` 的字节码有 `ROT_TWO` 等栈操作实现解包交换。这些字节码细节属 CPython 内部,日常不必深究,但知道"赋值翻译成 STORE_NAME 写名字空间"能加深对模型的理解。
+运行结果：
 
----
+```text
+  __init__ = 3
+  _Test__data = 1
+  _Test__data2_ = 2
+  _data = 4
+  data = 5
+```
+
+可以看到，`__data` 变成了 `_Test__data`，`__data2_` 变成了 `_Test__data2_`，而 `__init__`（前后双下划线）和 `_data`（单下划线前缀）都保持不变。
+
+### 4.2 重整的存储与访问
+
+名称重整后，属性在实例的 `__dict__` 中以重整后的名字存储。这意味着：
+
+1. 在类内部，你仍然用 `self.__secret_discount` 访问——Python 帮你做了映射。
+2. 在类外部（不在类定义体内），`self.__secret_discount` 会被理解为字面量 `__secret_discount`，而实例里没有这个名字，所以报 `AttributeError`。
+3. 但如果你知道重整规则，可以用 `_ClassName__secret_discount` 访问——这并不是漏洞，而是 Python 设计的取舍。
+
+**数据流**：
+
+![示例图片](../images/base/202609151133.svg)
+
+### 4.3 名称重整的设计目的
+
+名称重整的主要设计目的是**防止子类无意中覆盖父类的"私有"属性**。Python 没有 Java 那样的 `private` 关键字，它只用约定（`_name`）提供了"弱私有"，但弱私有无法防止属性名碰撞。
+
+**没有名称重整的假设场景**：
+
+```text
+如果 Python 不做名称重整：
+  class Order:
+      self.__discount = 0.05     # 父类属性
+
+  class VipOrder(Order):
+      self.__discount = 0.2      # 子类属性 → 覆盖父类！
+
+  VipOrder 的 __discount 变成 0.2
+  父类方法中引用 self.__discount 的逻辑全部受影响 → 意料之外的 bug
+```
+
+**有了名称重整后**：
+
+```text
+  class Order:
+      self.__discount = 0.05     → _Order__discount = 0.05
+
+  class VipOrder(Order):
+      self.__discount = 0.2      → _VipOrder__discount = 0.2
+
+  两个属性互不干扰：
+      _Order__discount = 0.05    ← 父类的
+      _VipOrder__discount = 0.2  ← 子类的
+```
+
+**名称重整 vs Java private 对比**：
+
+| 维度 | Python 名称重整 | Java private |
+|------|----------------|-------------|
+| 访问控制强度 | 弱（可通过重整名访问） | 强（编译期强制，反射才能绕过） |
+| 设计目的 | 防止属性名碰撞 | 完全禁止外部访问 |
+| 子类能否覆盖 | 不能（名字不同） | 不能（编译报错） |
+| 反射绕过 | 直接用重整名 | 用反射 API 可绕过 |
+
+Python 的哲学是"we are all consenting adults here"——不做强制限制，靠开发者自觉。名称重整减少碰撞坑，但把是否遵守私有的决定权留给开发者。
 
 ## 5. 总结
 
-### 5.1 本文内容回顾
+本文围绕 Python 标识符命名规范展开，主要介绍了以下内容：
 
-- **赋值本质**:Python 变量是"名字标签",贴在对象上;`=` 是建立/更新名字空间里"名字→对象引用"的映射,不是盒子装值、不是拷贝。
-- **对象模型**:一切皆对象,有 id/type/value;变量是引用;名字空间是 dict。
-- **基本语法**:简单/链式/多重/增量/星号解包/海象赋值,本质都是贴引用。
-- **可变/不可变**:不可变(int/str/tuple)"改"是换对象,可变(list/dict/set)可就地改身份不变;对共享、哈希、拷贝影响深远。
-- **赋值贴标签不拷贝**:`a=b` 共享引用,可变对象就地改互相影响。
-- **多重赋值解包**:右侧先求值成元组再解包,故能交换;星号收集不定长。
-- **可变对象共享陷阱**:list/dict 共享、默认参数陷阱(可变默认累积),用 None 哨兵修复。
-- **函数传参**:传对象引用,就地改影响外部,重新赋值不影响,不可变"改"不影响。
-- **增量赋值**:可变对象 `+=` 就地改(`__iadd__`),`+` 新建(`__add__`),对共享者影响不同。
-- **浅拷贝**:外层独立、内层共享(`.copy()`/`[:]`/`copy.copy`),内部不可变时即够独立。
-- **深拷贝**:递归全独立(`copy.deepcopy`),用 memo 处理循环引用,代价高。
-- **== vs is**:`==` 比值,`is` 比身份;值比用 `==`,单例判断用 `is None`;勿用 `is` 比值(缓存陷阱)。
-- **del**:删名字/引用/元素,不直接删对象;对象回收靠引用计数+GC。
-- **作用域**:LEGB,赋值默认局部,`global`/`nonlocal` 改目标;读穿透、写默认局部。
-- **海象 `:=`**:表达式内赋值并返回,条件/循环里减重复。
-- **原理**:名字标签 vs C 盒子模型对比、名字空间是 dict;引用计数与对象生命周期、循环引用与分代 GC;可变/不可变本质与哈希性;浅/深拷贝实现(递归+不可变优化+memo);小整数/字符串缓存;赋值字节码 STORE_NAME。
-- **最佳实践**:警惕可变共享、可变不作默认参数、按需浅/深拷贝、== / is None 正确选用、明确函数是否改入参、增量赋值注意就地、解包惯用法、慎用 global、del 不保证释放、大对象贴引用零成本、海象适度、id/type/is 排查。
-
-### 5.2 读完本文你应能掌握
-
-- 阐述 Python"变量是名字标签"模型与 C"盒子"模型的本质差异,并用 `globals()` 验证名字空间是 dict。
-- 说明对象有 id/type/value,`=` 是建立名字到对象引用,不拷贝对象。
-- 区分可变与不可变对象,说明"修改"对二者身份的不同影响及对共享/哈希的作用。
-- 识别并规避可变对象共享陷阱与默认参数陷阱,用 None 哨兵修复。
-- 说明函数传参是"传对象引用",区分就地改(影响外部)与重新赋值/不可变改(不影响)。
-- 解释可变对象 `+=`(就地)与 `+`(新建)的差异及对共享者的影响。
-- 正确选用浅拷贝(`.copy()`/`[:]`/`copy.copy`)与深拷贝(`copy.deepcopy`),说明各自独立性边界与适用场景。
-- 正确使用 `==`(值)与 `is`(身份/None),避开小整数缓存的 `is` 陷阱。
-- 说明 `del` 删引用而非对象,对象回收靠引用计数+分代 GC,解释循环引用问题。
-- 阐述作用域 LEGB 与赋值默认局部,正确使用 `global`/`nonlocal`。
-- 用 `id`/`type`/`is`/`sys.getrefcount` 排查引用与赋值相关问题。
-- 阐述引用计数原理、浅/深拷贝实现机制(递归+不可变优化+memo)、可哈希性来源。
-
-### 5.3 延伸方向
-
-- **垃圾回收进阶**:分代 GC 细节、`gc` 模块手动控制、弱引用 `weakref` 避免阻止回收。
-- **数据模型与魔法方法**:`__eq__`/`__hash__`/`__copy__`/`__deepcopy__`/`__iadd__` 等如何决定对象在赋值与比较中的行为。
-- **weakref 弱引用**:不增加引用计数的引用,用于缓存、观察者,避免内存泄漏。
-- **`dataclass` 与 `pydantic`**:结构化数据对象的赋值、拷贝、相等语义,现代数据建模。
-- **函数式编程与不可变数据**:用不可变对象/`frozendict` 等规避共享副作用,函数式风格。
+- **标识符语法规则**：合法字符集（字母、数字、下划线、Unicode），不能数字开头，不能包含空格和连字符，不能使用 Python 关键字。用 `str.isidentifier()` 和 `keyword.kwlist` 验证合法性。
+- **大小写敏感**：`count`、`Count`、`COUNT` 是三个不同标识符，PEP 8 利用大小写区分变量、类和常量的命名风格。
+- **命名风格约定**：变量和函数用 snake_case，类用 PascalCase，常量用 UPPER_SNAKE_CASE，私有成员用单下划线前缀，异常类以 Error 结尾。
+- **下划线的特殊含义**：`_` 忽略占位符、`_name` 约定私有、`__name` 名称重整、`__name__` 魔法方法、`name_` 避免与关键字冲突。
+- **避免遮蔽内置名**：不用 `list`、`dict`、`id`、`sum` 等内置名作变量名，遮蔽后会导致内置函数无法使用。
+- **名称重整机制**：双下划线前缀触发编译器自动改名为 `_ClassName__name`，防止子类属性名碰撞，但不是真正的访问控制。
+- **作用域与命名长度**：作用域越宽名字越具体，作用域越窄名字越简短。全局变量要自解释，局部变量可以依赖上下文。
+- **函数命名规范**：动词开头，snake_case 风格，布尔返回用 `is_`/`has_` 前缀，私有函数用单下划线前缀。
+- **最佳实践**：推荐描述性名称而非缩写，布尔变量用 `is_` 前缀，集合用复数名，常量集中管理，避免否定式命名和魔法数字。
+- **名称重整原理**：触发条件（双下划线前缀、不以双下划线结尾、在类定义体内），重整后的存储格式 `_ClassName__name`，设计目的是防止子类属性碰撞而非强制访问控制。

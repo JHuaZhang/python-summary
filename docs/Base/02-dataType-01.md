@@ -38,7 +38,7 @@ print(type(x))       # <class 'list'>
 
 在 Python 的内置类型中，可以按照"表示单个值 vs 存放多个值"这一维度，划分为两大类：
 
-- **基础类型（标量类型）**：表示单个原子值，是数据的"最小单元"。包括 `int`（整数）、`float`（浮点数）、`complex`（复数）、`bool`（布尔值）、`str`（字符串）、`NoneType`（空值）。这些是真正意义上的"基础数据类型"，本篇会逐一做简要介绍。
+- **基础类型（标量类型）**：表示单个原子值，是数据的"最小单元"。包括 `int`（整数）、`float`（浮点数）、`complex`（复数）、`bool`（布尔值）、`str`（字符串）、`bytes`（字节串）、`NoneType`（空值）。这些是真正意义上的"基础数据类型"，本篇会逐一做简要介绍。
 
 - **容器类型（集合类型）**：用于存放多个对象，是数据的"组织方式"。包括 `list`（列表）、`tuple`（元组）、`dict`（字典）、`set`（集合）、`frozenset`（冻结集合）。严格来说，它们并非"基础数据类型"，而是建立在基础类型之上的容器结构。本篇将它们作为补充项在后面简要说明。
 
@@ -50,27 +50,7 @@ print(type(x))       # <class 'list'>
 
 Python 的内置类型构成了一个层次分明的体系，可以用下面的分类图概览：
 
-```text
-Python 内置类型
-├── 基础类型（标量，表示单个值）
-│   ├── 数字类型
-│   │   ├── int          整数（任意精度）
-│   │   ├── float        浮点数（IEEE 754 双精度）
-│   │   └── complex      复数（a + bj）
-│   ├── bool             布尔值（True/False，int 的子类）
-│   ├── str              字符串（不可变 Unicode）
-│   └── NoneType         空值（只有 None 一个实例）
-│
-└── 容器类型（集合，存放多个值）
-    ├── 序列类型
-    │   ├── list         列表（可变有序）
-    │   └── tuple        元组（不可变有序）
-    ├── 映射类型
-    │   └── dict         字典（键值对映射）
-    └── 集合类型
-        ├── set          集合（可变，元素唯一）
-        └── frozenset    冻结集合（不可变，元素唯一）
-```
+![示例图片](../images/base/202609041637.svg)
 
 需要说明的是，`bool` 虽然在语义上是独立的布尔类型，但在 Python 的实现中它是 `int` 的子类（`True == 1`，`False == 0`），因此它既可以归入数字类型，也可以单独列出。本篇将其单独列出，以突出其语义独立性。
 
@@ -124,6 +104,7 @@ print(type(str))    # <class 'type'>
 | 数字类型 | `int`、`float`、`complex` | 表示数值，支持算术运算 |
 | 布尔类型 | `bool` | 表示真值（True/False），是 int 的子类 |
 | 文本类型 | `str` | 表示 Unicode 字符序列 |
+| 二进制类型 | `bytes` | 表示不可变的字节序列（0-255 的整数） |
 | 空值类型 | `NoneType` | 表示"没有值"，只有 None 一个实例 |
 
 **按可变性分类**：
@@ -132,8 +113,8 @@ print(type(str))    # <class 'type'>
 
 | 分类 | 类型 | 说明 |
 |------|------|------|
-| 不可变 | `int`、`float`、`complex`、`bool`、`str`、`NoneType` | "修改"操作返回新对象，原对象不变 |
-| 可变 | （容器类型中的 `list`、`dict`、`set`） | 可就地增删改，id 不变 |
+| 不可变 | `int`、`float`、`complex`、`bool`、`str`、`bytes`、`NoneType` | "修改"操作返回新对象，原对象不变 |
+| 可变 | （容器类型中的 `list`、`dict`、`set`、`bytearray`） | 可就地增删改，id 不变 |
 
 可以看到，**所有基础类型都是不可变的**。这意味着对基础类型的任何"修改"操作（如 `s.upper()`、`x + 1`）都会产生一个新对象，原对象在生命周期内值永不变。不可变对象可以被多个名字安全共享——谁都无法"偷偷改"它。
 
@@ -325,6 +306,14 @@ print('World' in s)            # True —— 成员判断
 
 **一句话总结**：`str` 是不可变 Unicode 文本，支持多种字面量写法（含原始字符串、f-string），是处理文本的基础类型。更多细节见《字符串深度剖析》大章节。
 
+**str 与 bytes 的关系**：`str` 存的是 Unicode 字符，而 `bytes` 存的是原始字节。两者通过编码（encode）和解码（decode）互相转换——这是新手最容易混淆的概念之一，此处先建立基本认知，2.8 节会展开 `bytes`：
+
+```python
+s = "你好"
+b = s.encode("utf-8")       # str → bytes（编码），b = b'\xe4\xbd\xa0\xe5\xa5\xbd'
+s2 = b.decode("utf-8")     # bytes → str（解码），s2 = '你好'
+```
+
 ### 2.7 空值类型：NoneType
 
 `NoneType` 只有一个实例 `None`，表示"没有值"或"空"。
@@ -351,7 +340,81 @@ if x is None:           # 正确
 
 **一句话总结**：`NoneType` 只有 `None` 一个值，表示"没有值"，判断 None 用 `is None`。更多细节见《None 类型详解》。
 
-### 2.8 基础类型速查表
+### 2.8 二进制类型：bytes
+
+`bytes` 表示**不可变的字节序列**——每个元素是一个 0~255 的整数（一个字节），是 `str` 在二进制世界的对应物。文件 I/O、网络传输、加密、压缩等场景处理的都是 `bytes` 而非 `str`。
+
+**核心特征**：`bytes` 是**不可变**的，和 `str` 一样。任何"修改"操作都返回新对象。它的可变对应物是 `bytearray`（见第 3 节）。
+
+字面量三种写法：
+
+```python
+b1 = b'hello'              # b 前缀，ASCII 字符直接映射为字节
+b2 = b'\x41\x42\x43'       # 十六进制转义 → b'ABC'
+b3 = bytes([72, 101, 108, 108, 111])  # 从整数列表构造 → b'Hello'
+
+print(type(b1))            # <class 'bytes'>
+print(b1)                  # b'hello'
+print(b1[0])               # 104 —— 注意！取元素返回 int，不是 b'h'
+print(b1[0:3])             # b'hel' —— 切片返回 bytes
+```
+
+⚠️ 易错点：`bytes` 取单个元素返回的是 `int`（0~255），不是单字节 `bytes`；切片才返回 `bytes`。这与 `str` 取元素返回单字符 `str` 不同。
+
+**str 与 bytes 的转换（编码与解码）**：
+
+这是最常见的操作。`str` 是 Unicode 字符，`bytes` 是字节序列，两者通过编码（`str → bytes`）和解码（`bytes → str`）转换：
+
+```python
+# 编码：str → bytes
+s = "你好"
+b = s.encode("utf-8")       # b'\xe4\xbd\xa0\xe5\xa5\xbd'（每个中文字符占 3 字节）
+print(len(s))               # 2 —— 2 个字符
+print(len(b))               # 6 —— 6 个字节
+
+# 解码：bytes → str
+s2 = b.decode("utf-8")     # '你好'
+print(s == s2)              # True
+```
+
+编码/解码时必须指定相同的编码（常用 `utf-8`），否则会乱码或报 `UnicodeDecodeError`：
+
+```python
+b = "你好".encode("utf-8")
+# b.decode("ascii")        # UnicodeDecodeError: ascii 搞不定中文
+b.decode("gbk")             # 乱码：'浣犲ソ'（编码不匹配）
+```
+
+**bytes 常用操作**：
+
+```python
+b = b'Hello, World'
+print(len(b))                    # 12
+print(b.split(b', '))            # [b'Hello', b'World']  —— 注意分隔符也是 bytes
+print(b.upper())                 # b'HELLO, WORLD'
+print(b.replace(b'World', b'Python'))  # b'Hello, Python'
+print(b.startswith(b'Hello'))    # True
+```
+
+`bytes` 的大部分方法与 `str` 同名，但参数和返回值都是 `bytes` 而非 `str`——比如 `split` 的分隔符要写 `b', '` 而非 `', '`。
+
+**什么时候用 bytes 而不是 str？**
+
+- **文件 I/O**：以 `'rb'`/`'wb'` 模式打开文件时，读写的是 `bytes`；`'r'`/`'w'` 模式才是 `str`（会自动编解码）
+- **网络传输**：HTTP 报文、TCP/UDP 数据都是原始字节
+- **加密/哈希**：`hashlib.md5()`、`hmac` 等接收 `bytes`
+- **二进制协议**：图片、视频、压缩包等非文本数据
+
+```python
+# 读二进制文件
+with open('photo.jpg', 'rb') as f:     # rb = read binary
+    data = f.read()                      # data 是 bytes
+print(type(data))                        # <class 'bytes'>
+```
+
+**一句话总结**：`bytes` 是不可变的字节序列，是 `str` 的二进制对应物，通过 `encode`/`decode` 互转，用于文件 I/O、网络、加密等二进制场景。更多细节见《bytes 与编码详解》。
+
+### 2.9 基础类型速查表
 
 下表汇总全部基础类型的核心信息。其中"可变性"决定了对象能否被就地修改，"可哈希"决定了能否做 `dict` 的键或 `set` 的元素。
 
@@ -362,6 +425,7 @@ if x is None:           # 正确
 | `complex` | `1+2j` | 复数 | 不可变 | 是 |
 | `bool` | `True` `False` | 布尔值（int 子类） | 不可变 | 是 |
 | `str` | `"abc"` `'x'` `r''` `f''` | 字符串（Unicode） | 不可变 | 是 |
+| `bytes` | `b'hello'` `b'\x41'` | 字节串（二进制序列） | 不可变 | 是 |
 | `NoneType` | `None` | 空值（单例） | 不可变 | 是 |
 
 可以看到，**所有基础类型都是不可变且可哈希的**。不可变意味着对象创建后值不能被修改（"修改"会创建新对象），可哈希意味着可以做 `dict` 的键或 `set` 的元素。这两个特性是基础类型的共同特征，也是它们与容器类型（`list`/`dict`/`set` 等可变类型）的关键区别。
@@ -539,7 +603,44 @@ empty_set = set()    # 这才是空集合
 
 **核心特征**：`set` 可变、无序、元素唯一、O(1) 成员判断；`frozenset` 不可变、可哈希。更多细节见《集合深度剖析》。
 
-### 3.5 容器类型速查表
+### 3.5 字节数组：bytearray
+
+`bytearray` 是 `bytes` 的**可变**版本——和 `bytes` 一样存字节序列，但可以就地增删改。它本质上就是"可变的 bytes"，就像 `list` 之于 `tuple` 的关系。
+
+```python
+ba = bytearray(b'hello')
+print(type(ba))            # <class 'bytearray'>
+print(ba)                  # bytearray(b'hello')
+
+# 就地修改（bytes 做不到）
+ba[0] = 72                 # 修改单个字节 → bytearray(b'Hello')
+ba.append(33)              # 追加一个字节 → bytearray(b'Hello!')
+ba.extend(b'!!')           # 追加多个字节 → bytearray(b'Hello!!!')
+print(ba)                  # bytearray(b'Hello!!!')
+del ba[0]                  # 删除字节
+print(ba)                  # bytearray(b'ello!!!')
+```
+
+`bytes` vs `bytearray` 的关系，完全对应 `tuple` vs `list`：
+
+| 对比 | 不可变版本 | 可变版本 |
+|------|-----------|---------|
+| 通用序列 | `tuple` | `list` |
+| 二进制序列 | `bytes` | `bytearray` |
+
+两者互相转换很方便：
+
+```python
+ba = bytearray(b'hello')
+b = bytes(ba)              # bytearray → bytes
+ba2 = bytearray(b)         # bytes → bytearray
+```
+
+**什么时候用 bytearray?** 当你需要就地对二进制数据做修改时——比如构建可变的二进制缓冲区、拼接大量字节数据（比反复 `bytes + bytes` 更高效，因为后者每次创建新对象）。
+
+**核心特征**：可变、有序、二进制序列、不可哈希。更多细节见《bytes 与编码详解》。
+
+### 3.6 容器类型速查表
 
 | 类型 | 字面量示例 | 用途 | 可变性 | 可哈希 |
 |------|-----------|------|--------|--------|
@@ -548,6 +649,7 @@ empty_set = set()    # 这才是空集合
 | `dict` | `{"a":1}` | 键值映射 | 可变 | 否 |
 | `set` | `{1,2,3}` | 无序唯一集合 | 可变 | 否 |
 | `frozenset` | `frozenset({1,2})` | 不可变集合 | 不可变 | 是 |
+| `bytearray` | `bytearray(b'hi')` | 可变二进制序列 | 可变 | 否 |
 
 可以看到，容器类型的可变/不可变、可哈希/不可哈希关系与基础类型遵循同一条规则：**不可变的可哈希，可变的不可哈希**。这条规则贯穿所有内置类型——`list`/`dict`/`set` 是可变的故不可哈希（不能做 `dict` 键），`tuple`/`frozenset` 是不可变的故可哈希（可做 `dict` 键）。
 
@@ -605,14 +707,15 @@ print(int(float("12.5")))  # 12 —— 先转 float 再截断
 本文围绕 Python 基础数据类型展开，主要介绍了以下内容：
 
 - **基础数据类型定义**：Python 一切皆对象，类型是对象的类；基础数据类型是内置、开箱即用的核心类型集合，按"表示单个值 vs 存放多个值"分为基础类型（标量）和容器类型（集合）两大类。
-- **类型分类**：基础类型按数据性质分为数字（`int`/`float`/`complex`）、布尔（`bool`）、文本（`str`）、空值（`NoneType`）；所有基础类型都是不可变且可哈希的。
+- **类型分类**：基础类型按数据性质分为数字（`int`/`float`/`complex`）、布尔（`bool`）、文本（`str`）、二进制（`bytes`）、空值（`NoneType`）；所有基础类型都是不可变且可哈希的。
 - **int**：任意精度整数，无溢出，支持多种进制字面量和下划线分隔，`/` 返回 float、`//` 整除（负数向负无穷取整）。
 - **float**：IEEE 754 双精度浮点数，有精度误差（`0.1+0.2!=0.3`），支持科学计数法，`round` 采用银行家舍入。
 - **complex**：复数 `a+bj`，实虚部为 float，科学计算领域使用。
 - **bool**：只有 True/False，是 int 的子类（`True==1`），任何对象可做真值测试（空/零为假）。
-- **str**：不可变 Unicode 字符串，支持单/双/三引号、原始字符串 `r''`、f-string。
+- **str**：不可变 Unicode 字符串，支持单/双/三引号、原始字符串 `r''`、f-string，与 `bytes` 通过 `encode`/`decode` 转换。
+- **bytes**：不可变字节序列，是 `str` 的二进制对应物，取元素返回 `int`、切片返回 `bytes`，用于文件 I/O、网络、加密等二进制场景。
 - **NoneType**：只有 None 单例，表示"没有值"，判断用 `is None`，常作函数默认返回值和参数哨兵。
-- **容器类型**（补充）：`list` 可变有序序列（`append`/`extend` 区分）、`tuple` 不可变有序序列（可做 dict 键、解包优雅）、`dict` 键值映射 O(1) 查找、`set`/`frozenset` 无序唯一集合（去重、集合运算）。
+- **容器类型**（补充）：`list` 可变有序序列（`append`/`extend` 区分）、`tuple` 不可变有序序列（可做 dict 键、解包优雅）、`dict` 键值映射 O(1) 查找、`set`/`frozenset` 无序唯一集合（去重、集合运算）、`bytearray` 可变二进制序列（`bytes` 的可变版本）。
 - **可变性与可哈希性**：不可变 → 可哈希（可做 dict 键/set 元素），可变 → 不可哈希。这条规则贯穿所有内置类型。
 - **类型转换**：通过构造函数（`int()`/`float()`/`str()`/`list()` 等）在类型间转换，失败抛 `ValueError`。
 - **类型观察工具**：`type()` 查看类型、`isinstance()` 判断类型（推荐）、`id()` 查看身份。

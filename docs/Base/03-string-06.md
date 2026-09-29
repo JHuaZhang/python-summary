@@ -3,1215 +3,1044 @@ group:
   title: 【03】字符串介绍
   order: 3
 order: 6
-title: f-string高级格式化
+title: 字符串与类型转换
 nav:
   title: Python基础
   order: 1
 ---
 
+# 字符串与类型转换
+
 ## 1. 介绍
 
-### 1.1 什么是 f-string
+### 1.1 什么是字符串与类型转换
 
-f-string（Formatted String Literal，格式化字符串字面量）是 Python 3.6 引入的一种字符串格式化机制。它以 `f` 或 `F` 为前缀，在字符串内部使用花括号 `{}` 包裹表达式、变量或函数调用，实现"所见即所得"的字符串格式化。与传统的 `%` 格式化、`str.format()` 方法相比，f-string 以其简洁的语法、优秀的性能以及强大的功能，迅速成为 Python 中字符串格式化的首选方式。
+字符串与类型转换是 Python 中字符串（`str`）与其他数据类型之间的双向转换操作。在实际开发中，数据在输入、处理、输出各环节经常以字符串形式存在（用户输入、文件读取、网络请求），而计算时需要数字、列表等类型。掌握字符串与其他类型的互转方法，是数据处理的基础能力。
 
-f-string 的核心设计理念是：**将表达式直接嵌入字符串字面量中，让格式化代码与字符串内容融为一体**。这种设计使得代码既保持了自然语言的可读性，又实现了精确的格式化控制。
+Python 提供了一整套类型转换工具，覆盖了日常开发的各个方向：
 
-```python
-# f-string 的基本用法
-name = "Alice"
-age = 30
+| 转换方向 | 主要函数/方法 | 典型场景 |
+|---------|-------------|---------|
+| 其他类型 → 字符串 | `str()` | 输出展示、字符串拼接 |
+| 字符串 → 整数 | `int()` | 解析用户输入、配置读取 |
+| 字符串 → 浮点数 | `float()` | 解析价格、分数、坐标 |
+| 字符串 ↔ 字符列表 | `list()` / `str.join()` | 逐字符处理、字符串拼接 |
+| 字符 ↔ 码点 | `chr()` / `ord()` | 编码处理、字符运算 |
+| 对象 → 字符串 | `str()` / `repr()` | 显示 vs 调试 |
 
-# 使用 f-string 进行字符串格式化
-message = f"Hello, my name is {name}, I'm {age} years old."
-print(message)
-# 输出：Hello, my name is Alice, I'm 30 years old.
-```
-
-对比传统的格式化方式，f-string 的优势显而易见：
+### 1.2 最简示例
 
 ```python
-# 传统 % 格式化
-msg1 = "Hello, my name is %s, I'm %d years old." % (name, age)
+# 其他类型 → 字符串
+print(str(42))        # '42'
+print(str(3.14))       # '3.14'
+print(str(True))       # 'True'
 
-# str.format() 方法
-msg2 = "Hello, my name is {}, I'm {} years old.".format(name, age)
+# 字符串 → 数字
+print(int("42"))       # 42
+print(float("3.14"))   # 3.14
 
-# f-string（推荐）
-msg3 = f"Hello, my name is {name}, I'm {age} years old."
+# 字符串 ↔ 列表
+chars = list("hello")
+print(chars)           # ['h', 'e', 'l', 'l', 'o']
+print("".join(chars))  # hello
+
+# 字符 ↔ 码点
+print(ord('A'))       # 65
+print(chr(65))         # 'A'
+
+# str() vs repr()
+s = "Hello\nWorld"
+print(str(s))          # 原样显示（含换行）
+print(repr(s))         # 'Hello\nWorld'（带转义符）
 ```
 
-从以上对比可以看出，f-string 的语法更加直观——变量名直接出现在字符串中，不需要额外的占位符或格式说明符。这不仅让代码更容易阅读，也大大减少了拼写错误和位置参数错配的可能性。
-
-### 1.2 f-string 与字符串拼接的关系
-
-在《字符串拼接性能对比》章节中，我们学习了各种字符串拼接方式的性能特点。f-string 作为一种格式化工具，同时也承担着字符串拼接的功能。与传统的字符串拼接（使用 `+` 运算符或 `+=`）相比，f-string 在可读性和性能两个维度都表现出色。
-
-**f-string 的拼接能力**：
-
-```python
-# 使用 f-string 进行字符串构建
-parts = ["apple", "banana", "cherry"]
-result = f"Fruits: {', '.join(parts)}"
-print(result)  # Fruits: apple, banana, cherry
-```
-
-f-string 的拼接能力体现在它可以将变量、表达式、甚至函数调用直接嵌入字符串中。这是传统的 `+` 拼接方式无法做到的——使用 `+` 时，字符串和变量需要明确分开，使用 `+` 运算符连接。
-
-```python
-# 对比：f-string vs + 拼接
-
-# f-string 方式
-name = "Alice"
-greeting = f"Hello, {name}!"
-# 代码含义一目了然：创建一个包含 name 值的问候语
-
-# + 拼接方式
-greeting = "Hello, " + name + "!"
-# 代码被分隔符（+）打断，可读性略逊
-```
-
-在性能方面，f-string 与其他现代格式化方式（如 `format()` 方法）的性能相当，通常优于 `%` 格式化。在 Python 3.6+ 中，f-string 是处理字符串格式化的首选方案。
-
-### 1.3 f-string 的发展历史与版本要求
-
-f-string 是在 **PEP 498**（Literal String Interpolation）中提出，并于 **Python 3.6** 版本正式引入的。这一特性的引入标志着 Python 字符串格式化进入了新的时代。
-
-**关键版本节点**：
-
-- **Python 3.6 (2016)**: f-string 正式引入，成为标准特性
-- **Python 3.8 (2019)**: 增加了 `=` 自引用调试规范的特性
-- **Python 3.12 (2023)**: 对 f-string 的解析进行了多项优化，错误信息更清晰
-
-```python
-# Python 版本检查
-import sys
-print(f"当前 Python 版本: {sys.version}")
-
-# 如果版本低于 3.6，f-string 将无法使用
-# raise SyntaxError: f-strings are not supported
-```
-
-值得注意的是，**Python 3.6 之前的版本不支持 f-string**。如果你的代码需要兼容旧版 Python，应避免使用 f-string，或者使用条件判断来选择不同的格式化方式。
-
-### 1.4 f-string 的典型应用场景
-
-f-string 在日常 Python 编程中有极其广泛的应用场景，以下是一些最常见的例子：
-
-**场景一：变量值插入**
-
-```python
-# 最基本的用法：将变量值插入字符串
-user = "Bob"
-score = 95
-print(f"User: {user}, Score: {score}")
-# 输出：User: Bob, Score: 95
-```
-
-**场景二：表达式计算**
-
-```python
-# 在 f-string 中直接计算表达式
-a, b = 10, 20
-print(f"{a} + {b} = {a + b}")           # 10 + 20 = 30
-print(f"{a} * {b} = {a * b}")           # 10 * 20 = 200
-print(f"{a} ** 2 = {a ** 2}")           # 10 ** 2 = 100
-```
-
-**场景三：函数调用结果**
-
-```python
-# 在 f-string 中调用函数
-name = "  Alice  "
-print(f"Upper: {name.upper().strip()}")  # Upper: ALICE
-print(f"Length: {len(name.strip())}")    # Length: 5
-```
-
-**场景四：条件表达式**
-
-```python
-# 条件表达式（三元运算符）
-score = 85
-print(f"Result: {'Pass' if score >= 60 else 'Fail'}")
-# 输出：Result: Pass
-```
-
-**场景五：调试输出**
-
-```python
-# = 调试规范（Python 3.8+）
-x = 42
-y = "hello"
-print(f"{x=} {y=}")
-# 输出：x=42 y='hello'
-```
-
-这些应用场景覆盖了日常编程中的大部分需求。在后续的"核心内容"章节中，我们将深入讲解 f-string 的各项高级特性，包括格式化规范、类型转换、自定义格式化等。
-
----
+这些转换函数构成了 Python 数据处理的"核心工具箱"——从用户输入解析到文件读取、从数据序列化到调试输出，都离不开它们。
 
 ## 2. 核心内容
 
-本章深入讲解 f-string 的各项特性与高级用法，从基础语法到进阶技巧全面覆盖。
+### 2.1 `str()` 将各种类型转为字符串
 
-### 2.1 基本语法与使用
+#### 2.1.1 基本类型转字符串
 
-#### 2.1.1 语法结构
-
-f-string 的基本语法结构是在字符串前加上 `f` 或 `F` 前缀，然后在字符串内部使用花括号 `{}` 包裹表达式：
+`str()` 是最通用的"转字符串"函数——它可以接收任何 Python 对象，返回其字符串表示。对于基本类型，转换行为直观明了：
 
 ```python
-# 基本语法
-f"内容 {表达式} 内容"
-F"内容 {表达式} 内容"
-```
-
-花括号内的表达式会在运行时被求值，其结果会被转换为字符串并插入到最终输出中。表达式的范围可以是一个简单的变量名，也可以是一个复杂的函数调用或算术表达式。
-
-```python
-# 简单变量
-name = "Alice"
-print(f"Hello, {name}")  # Hello, Alice
-
-# 算术表达式
-a, b = 5, 3
-print(f"{a} * {b} = {a * b}")  # 5 * 3 = 15
-
-# 函数调用
-import math
-radius = 5
-print(f"圆面积: {math.pi * radius ** 2:.2f}")  # 圆面积: 78.54
-```
-
-#### 2.1.2 引号的使用
-
-f-string 支持单引号、双引号和三引号，与普通字符串的规则一致。选择哪种引号取决于字符串内容本身是否包含该种引号。
-
-```python
-# 双引号 f-string
-s1 = f"Hello, {name}"
-
-# 单引号 f-string
-s2 = f'Hello, {name}'
-
-# 三引号 f-string（多行）
-s3 = f"""
-Name: {name}
-Age: {age}
-"""
-```
-
-如果字符串内容中需要同时包含单引号和双引号，可以使用转义或选择一种不在内容中出现的引号作为外层包裹。
-
-```python
-# 字符串内容包含双引号，使用单引号包裹
-msg = f'She said: "Hello"'
-print(msg)  # She said: "Hello"
-
-# 字符串内容包含单引号，使用双引号包裹
-msg = f"It's a beautiful day"
-print(msg)  # It's a beautiful day
-
-# 两者都需要时，使用转义
-msg = f"He said: \"It's fine\""
-print(msg)  # He said: "It's fine"
-```
-
-#### 2.1.3 嵌套的花括号
-
-当需要在 f-string 输出中包含字面量的花括号时，需要将花括号双写以进行转义：
-
-```python
-# 输出字面的花括号
-s = f"Python 字典: {{'key': 'value'}}"
-print(s)  # Python 字典: {'key': 'value'}
-
-# 双写大括号输出单大括号
-s = f"{{ }}"
-print(s)  # { }
-
-# 示例：JSON 格式输出
-data = {"name": "Alice"}
-s = f'{{"name": "{data["name"]}"}}'
-print(s)  # {"name": "Alice"}
-```
-
-这是 f-string 中花括号的双重含义：
-- 单个 `{...}` 表示插入表达式的值
-- 双写 `{{...}}` 表示输出字面的花括号字符
-
-### 2.2 格式化规范详解
-
-f-string 的强大之处在于其内置的格式化规范。通过在表达式后添加冒号和格式说明符，可以精确控制数值的呈现方式。
-
-#### 2.2.1 数值格式化
-
-**整数格式化**：
-
-```python
-# 整数基本格式化
+# 整数 → 字符串
 n = 42
+s = str(n)
+print(type(s), s)  # <class 'str'> 42
 
-# 默认显示
-print(f"{n}")           # 42
+# 浮点数 → 字符串
+f = 3.14159
+s = str(f)
+print(s)  # 3.14159
 
-# 指定宽度（右对齐，默认用空格填充）
-print(f"{n:5}")         #    42
+# 布尔 → 字符串
+print(str(True))   # True
+print(str(False))  # False
 
-# 指定宽度（用 0 填充）
-print(f"{n:05}")        # 00042
-
-# 左对齐
-print(f"{n:<5}")        # 42   
-
-# 居中对齐
-print(f"{n:^5}")        #  42  
-
-# 逗号分隔（千分位）
-print(f"{n:,}")         # 42
-print(f"{n:,.0f}")      # 42
-
-n = 1234567
-print(f"{n:,}")         # 1,234,567
-
-# 二进制、八进制、十六进制
-print(f"{n:b}")         # 1110101（二进制）
-print(f"{n:o}")         # 52（八进制）
-print(f"{n:x}")         # 2a（十六进制，小写）
-print(f"{n:X}")         # 2A（十六进制，大写）
-print(f"{n:#x}")        # 0x2a（带前缀）
+# None → 字符串
+print(str(None))   # None
 ```
 
-**浮点数格式化**：
+#### 2.1.2 容器类型转字符串
+
+容器类型（列表、字典、元组等）的 `str()` 返回的是它们的"字面量表示"——和 `print()` 直接打印它们的效果一致：
 
 ```python
-# 浮点数基本格式化
-pi = 3.1415926535
+# 列表 → 字符串
+lst = [1, 2, 3]
+print(str(lst))  # [1, 2, 3]
 
-# 默认显示
-print(f"{pi}")          # 3.1415926535
+# 字典 → 字符串
+d = {"name": "Alice", "age": 30}
+print(str(d))  # {'name': 'Alice', 'age': 30}
 
-# 指定小数位数
-print(f"{pi:.2f}")      # 3.14
-print(f"{pi:.4f}")      # 3.1416
-
-# 指定总宽度（包含小数点）
-print(f"{pi:10.2f}")    #      3.14
-
-# 用 0 填充
-print(f"{pi:010.2f}")   # 000003.14
-
-# 逗号分隔
-money = 1234567.89
-print(f"{money:,.2f}") # 1,234,567.89
-
-# 百分比格式
-rate = 0.856
-print(f"{rate:.1%}")    # 85.6%
-
-# 科学计数法
-large = 123456789
-print(f"{large:.2e}")   # 1.23e+08
-print(f"{large:.2E}")   # 1.23E+08
-
-# 浮点数正负号显示
-num = -3.14
-print(f"{num:+}")       # -3.14
-num = 3.14
-print(f"{num:+}")       # +3.14
+# 元组 → 字符串
+t = (1, "hello", True)
+print(str(t))  # (1, 'hello', True)
 ```
 
-**精度与填充的综合示例**：
+注意 `str()` 转换容器类型得到的是一个完整的字符串（如 `"[1, 2, 3]"`），而不是把列表元素拼接在一起。如果需要拼接列表元素为字符串，应该用 `join()`。
+
+#### 2.1.3 `str()` 与 `print()` 的关系
+
+`print()` 内部会自动调用 `str()` 将参数转为字符串后再输出。因此 `str(x)` 返回的内容就是 `print(x)` 打印出来的文本：
 
 ```python
-# 综合示例
-values = [3.14159, 2.71828, 1.41421]
+print(42)         # print 内部执行 str(42)，输出: 42
+print(str(42))    # 显式调用 str(42)，输出: 42
 
-for v in values:
-    # 默认格式
-    print(f"默认: {v}")
-    # 保留3位小数
-    print(f"小数: {v:.3f}")
-    # 宽度10，右对齐
-    print(f"右对齐: {v:10.3f}")
-    # 宽度10，左对齐
-    print(f"左对齐: {v:<10.3f}")
-    # 宽度10，居中
-    print(f"居中: {v:^10.3f}")
-    print("-" * 20)
+# 两者输出相同，因为 print 本质就是 print(str(x))
 ```
 
-#### 2.2.2 字符串格式化
+#### 2.1.4 实际应用——字符串拼接
 
-**字符串对齐与填充**：
+`str()` 最常见的用途之一是将非字符串数据拼接进字符串。在 f-string 出现之前，这是唯一的拼接方式：
 
 ```python
-# 字符串基本格式化
-s = "hello"
+# 用 str() 手动拼接
+count = 5
+price = 9.99
+total = count * price
+msg = "买了 " + str(count) + " 件商品，总价 " + str(total) + " 元"
+print(msg)
+# 买了 5 件商品，总价 49.95 元
 
-# 默认显示
-print(f"{s}")           # hello
-
-# 指定宽度（右对齐）
-print(f"{s:>10}")       #      hello
-
-# 指定宽度（左对齐）
-print(f"{s:<10}")       # hello     
-
-# 指定宽度（居中）
-print(f"{s:^10}")       #   hello  
-
-# 用特定字符填充
-print(f"{s:*>10}")      # ******hello
-print(f"{s:_<10}")      # hello_____
-print(f"{s:-^10}")      # --hello---
-
-# 截断字符串
-long_s = "abcdefghij"
-print(f"{long_s:.5}")   # abcde
-print(f"{long_s:5.5}")  # abcde（宽度5，截断5）
-
-# 字符串截断 + 宽度
-s = "Hello World"
-print(f"{s:15.5}")      # Hello          （宽度15，只显示前5字符）
-print(f"{s:>15.5}")     #           Hello
-print(f"{s:<15.5}")     # Hello          
-print(f"{s:^15.5}")     #     Hello      
+# f-string 内部自动调用 __format__ 方法，效果相同但更简洁
+msg2 = f"买了 {count} 件商品，总价 {total} 元"
+print(msg2)
+# 买了 5 件商品，总价 49.95 元
 ```
 
-**字符串大小写转换**：
+在现代 Python 代码中，f-string 已基本替代了 `str()` 拼接场景。但 `str()` 在需要显式类型转换的场景仍然不可替代——比如将表单数据统一转为字符串存储：
 
 ```python
-# 大小写转换
-s = "Hello World"
+def normalize_form(data):
+    """将表单字段的值统一转为字符串"""
+    result = {}
+    for key, value in data.items():
+        if value is None:
+            result[key] = ""
+        else:
+            result[key] = str(value).strip()
+    return result
 
-# 全部小写
-print(f"{s.lower()}")   # hello world
+form = {"name": "Alice", "age": 30, "vip": True, "memo": None}
+clean = normalize_form(form)
+for k, v in clean.items():
+    print(f"  {k}: {v!r}")
 
-# 全部大写
-print(f"{s.upper()}")   # HELLO WORLD
-
-# 首字母大写
-print(f"{s.title()}")   # Hello World
-
-# 单词首字母大写
-print(f"{s.capitalize()}")  # Hello world
-
-# 大小写互换
-print(f"{s.swapcase()}")   # hELLO wORLD
+# 输出:
+#   name: 'Alice'
+#   age: '30'
+#   vip: 'True'
+#   memo: ''
 ```
 
-这些字符串方法可以直接在 f-string 的表达式部分调用，实现即时的格式转换。
+### 2.2 `int()` / `float()` 将字符串解析为数字
 
-#### 2.2.3 对齐与填充的综合应用
+#### 2.2.1 `int()` 基本用法
+
+`int()` 将字符串解析为整数。要求字符串内容是合法的整数表示（可带正负号和两端空白）：
 
 ```python
-# 制作表格输出
-headers = ["Name", "Age", "City"]
+# 纯数字字符串 → 整数
+print(int("42"))     # 42
+
+# 负数字符串
+print(int("-100"))   # -100
+
+# 自动去除两端空白
+print(int("  42  "))  # 42
+```
+
+#### 2.2.2 `int()` 的进制参数
+
+`int(string, base)` 可以将指定进制的字符串转为整数。`base` 范围是 2~36：
+
+```python
+# 二进制
+print(int("1010", 2))  # 10
+
+# 八进制
+print(int("17", 8))    # 15
+
+# 十六进制
+print(int("FF", 16))   # 255
+```
+
+`base=0` 是一个特殊值——它会让 `int()` 根据字符串前缀自动判断进制：`0x` 开头是十六进制，`0b` 开头是二进制，`0o` 开头是八进制，否则是十进制：
+
+```python
+print(int("0xFF", 0))   # 255  ← 十六进制
+print(int("0b1010", 0)) # 10   ← 二进制
+print(int("0o17", 0))   # 15   ← 八进制
+print(int("42", 0))     # 42   ← 十进制
+```
+
+#### 2.2.3 `int()` 解析失败的异常处理
+
+`int()` 对字符串格式有严格要求——含有非整数字符（小数点、字母等）的字符串会抛出 `ValueError`：
+
+```python
+def safe_int(s):
+    """安全转换字符串为整数，失败返回 None"""
+    try:
+        return int(s)
+    except ValueError:
+        return None
+
+test_values = ["42", "3.14", "hello", "12abc", "", "  100  "]
+for v in test_values:
+    result = safe_int(v)
+    print(f"  int({v!r:<12}) → {result}")
+
+# 输出:
+#   int('42'         ) → 42
+#   int('3.14'       ) → None  ← 浮点字符串不能直接转 int
+#   int('hello'      ) → None
+#   int('12abc'      ) → None
+#   int(''           ) → None
+#   int('  100  '    ) → 100
+```
+
+注意 `"3.14"` 不能直接用 `int()` 转换——它是一个浮点字符串，需要先经过 `float()` 再转 `int()`。
+
+#### 2.2.4 `float()` 基本用法
+
+`float()` 将字符串解析为浮点数，支持小数点和科学记数法：
+
+```python
+# 普通浮点数
+print(float("3.14"))  # 3.14
+
+# 整数字符串也能转 float
+print(float("42"))    # 42.0
+
+# 科学记数法
+print(float("1.5e3"))  # 1500.0
+print(float("2.5E-2")) # 0.025
+
+# 特殊浮点值
+print(float("inf"))   # inf
+print(float("-inf"))  # -inf
+print(float("nan"))   # nan
+
+# 自动去除两端空白
+print(float("  3.14  "))  # 3.14
+```
+
+#### 2.2.5 `float()` 解析失败处理
+
+```python
+def safe_float(s):
+    """安全转换字符串为浮点数，失败返回 None"""
+    try:
+        return float(s)
+    except ValueError:
+        return None
+
+float_tests = ["3.14", "42", "1e5", "hello", "3.14.15", ""]
+for v in float_tests:
+    result = safe_float(v)
+    print(f"  float({v!r:<12}) → {result}")
+
+# 输出:
+#   float('3.14'      ) → 3.14
+#   float('42'        ) → 42.0
+#   float('1e5'       ) → 100000.0
+#   float('hello'     ) → None
+#   float('3.14.15'   ) → None  ← 两个小数点
+#   float(''          ) → None
+```
+
+#### 2.2.6 字符串 → float → int 的链式转换
+
+浮点字符串不能直接用 `int()` 转换，需要先经过 `float()`：
+
+```python
+price_str = "29.99"
+# int(price_str)  # ValueError!
+price_cents = int(float(price_str) * 100)
+print(f"价格 {price_str} → {price_cents} 分")
+# 价格 29.99 → 2999 分
+```
+
+#### 2.2.7 `int()` 与 `float()` 的关键差异
+
+| 维度 | `int()` | `float()` |
+|------|---------|-----------|
+| 接受的小数点 | 不接受 | 接受 |
+| 接受科学记数法 | 不接受 | 接受 |
+| 整数字符串 | 可以 | 可以（返回 `.0`） |
+| 浮点字符串 | 不行（报错） | 可以 |
+| 进制参数 | 支持 `base` | 不支持 |
+| 特殊值 | 无 | `inf`/`nan` |
+
+**记住**：`int()` 要求字符串是纯整数表示，`float()` 要求字符串是合法的浮点表示。浮点字符串要转整数，必须先 `float()` 再 `int()`。
+
+#### 2.2.8 实际应用——表单数据类型转换
+
+```python
+def parse_form_numbers(form_data):
+    """将表单中的数值字段从字符串转为数字"""
+    parsed = {}
+    for key, value in form_data.items():
+        parsed[key] = value  # 保留原值
+
+        # 先尝试转整数
+        try:
+            parsed[key] = int(value)
+            continue
+        except (ValueError, TypeError):
+            pass
+
+        # 再尝试转浮点数
+        try:
+            parsed[key] = float(value)
+            continue
+        except (ValueError, TypeError):
+            pass
+
+    return parsed
+
+form = {"name": "Alice", "age": "25", "score": "95.5", "count": "3"}
+result = parse_form_numbers(form)
+for k, v in result.items():
+    print(f"  {k}: {v!r} (type={type(v).__name__})")
+
+# 输出:
+#   name: 'Alice' (type=str)
+#   age: 25 (type=int)
+#   score: 95.5 (type=float)
+#   count: 3 (type=int)
+```
+
+### 2.3 字符串与列表互转：`list()` / `join()`
+
+#### 2.3.1 `list()` 将字符串转为字符列表
+
+`list()` 将字符串拆解为字符列表——每个字符变成列表的一个独立元素：
+
+```python
+# 英文字符串
+chars = list("hello")
+print(chars)
+# ['h', 'e', 'l', 'l', 'o']
+
+# 中文字符串（也是逐字符拆分）
+cn = list("你好世界")
+print(cn)
+# ['你', '好', '世', '界']
+
+# 空字符串 → 空列表
+print(list(""))
+# []
+```
+
+#### 2.3.2 `str.join()` 将列表拼回字符串
+
+`join()` 是 `list()` 的逆操作——将字符串列表用指定的分隔符连接成一个字符串：
+
+```python
+# 用 "-" 连接
+words = ["Python", "is", "awesome"]
+print("-".join(words))
+# Python-is-awesome
+
+# 无分隔符拼接
+print("".join(["H", "e", "l", "l", "o"]))
+# Hello
+
+# 空格拼接
+print(" ".join(["2024", "01", "15"]))
+# 2024 01 15
+```
+
+#### 2.3.3 `list()` → `join()` 往返转换
+
+`list()` 拆字符后修改，再用 `join()` 拼回来——这是字符串"可变操作"的惯用模式：
+
+```python
+text = "hello"
+chars = list(text)
+# 修改第 0 个字符
+chars[0] = "H"
+# 拼回字符串
+new_text = "".join(chars)
+print(f"原: {text} → 改: {new_text}")
+# 原: hello → 改: Hello
+```
+
+经典应用——反转字符串：
+
+```python
+text = "Hello Python"
+reversed_text = "".join(reversed(list(text)))
+print(f"反转: {reversed_text}")
+# 反转: nohtyP olleH
+```
+
+#### 2.3.4 `join()` 只能拼接字符串元素
+
+`join()` 要求列表中的每个元素都是字符串类型。如果列表含非字符串元素（如整数），需要先转换：
+
+```python
+# 列表含整数时直接 join 会报错
+numbers = [1, 2, 3]
+# "-".join(numbers)  # TypeError!
+
+# 需要先转为字符串
+result = "-".join(str(n) for n in numbers)
+print(result)
+# 1-2-3
+```
+
+#### 2.3.5 `split()` 与 `join()` 的互逆关系
+
+`split()` 将字符串按分隔符拆成列表，`join()` 将列表按分隔符拼成字符串——两者互为逆操作：
+
+```python
+csv_line = "apple,banana,cherry"
+
+# split 拆
+parts = csv_line.split(",")
+print(f"拆分: {parts}")
+# 拆分: ['apple', 'banana', 'cherry']
+
+# join 拼
+restored = ",".join(parts)
+print(f"还原: {restored}")
+# 还原: apple,banana,cherry
+
+# 往返一致性
+print(f"往返一致: {restored == csv_line}")
+# 往返一致: True
+```
+
+不过这里需要注意，下面这种写法是会报错的：
+
+```python
+test = '123456'
+print(test.split(''))
+# Traceback (most recent call last):
+#   File "/Users/mac/PyCharmMiscProject/test.py", line 2, in <module>
+#     print(test.split(''))
+#           ^^^^^^^^^^^^^^
+# ValueError: empty separator
+
+# 进程已结束，退出代码为 1
+```
+
+原因是：split() 的参数是“分隔符”，不能是空字符串 ''。因为空字符串没法定义“从哪里切开”。如果想把每个字符拆开，应该用下面这些方式：
+
+```python
+test = '123456'
+
+# 方式1：直接转成 list
+print(list(test))
+# ['1', '2', '3', '4', '5', '6']
+
+# 方式2：解包
+print([*test])
+# ['1', '2', '3', '4', '5', '6']
+
+# 方式3：列表推导式
+print([c for c in test])
+# ['1', '2', '3', '4', '5', '6']
+```
+
+如果只是想按某个字符分割，就可以直接使用split。
+
+#### 2.3.6 `join()` 的性能优势
+
+`join()` 在拼接大量字符串时性能远优于 `+` 拼接——`join()` 一次性分配所需内存并填充，而 `+` 每次拼接都创建新的字符串对象：
+
+```python
+import time
+
+parts = [str(i) for i in range(10000)]
+
+# + 拼接（每次创建新对象）
+start = time.perf_counter()
+result_plus = ""
+for p in parts:
+    result_plus += p + ","
+result_plus = result_plus.rstrip(",")
+plus_time = time.perf_counter() - start
+
+# join 拼接（一次创建）
+start = time.perf_counter()
+result_join = ",".join(parts)
+join_time = time.perf_counter() - start
+
+print(f"+ 拼接 10000 个元素: {plus_time:.6f}s")
+print(f"join 拼接 10000 个元素: {join_time:.6f}s")
+print(f"join 快了约 {plus_time / join_time:.0f} 倍")
+```
+
+**运行结果**：
+
+```text
++ 拼接 10000 个元素: 0.004216s
+join 拼接 10000 个元素: 0.000068s
+join 快了约 62 倍
+```
+
+#### 2.3.7 实际应用——CSV 行生成
+
+```python
+def list_to_csv_row(fields, delimiter=","):
+    """将字段列表转为 CSV 行，自动处理含分隔符的字段"""
+    escaped = []
+    for field in fields:
+        field = str(field)
+        # 字段包含分隔符或引号时，用引号包裹并转义内部引号
+        if delimiter in field or '"' in field:
+            field = '"' + field.replace('"', '""') + '"'
+        escaped.append(field)
+    return delimiter.join(escaped)
+
 rows = [
-    ["Alice", "25", "Beijing"],
-    ["Bob", "30", "Shanghai"],
-    ["Charlie", "28", "Guangzhou"],
+    ["Alice", "30", "alice@test.com"],
+    ["Bob, Jr.", "25", "bob@test.com"],
+    ['Charlie "Chuck"', "35", "charlie@test.com"],
 ]
 
-# 打印表头
-print(f"{headers[0]:<10} {headers[1]:>5} {headers[2]:<15}")
-print("-" * 35)
-
-# 打印数据行
 for row in rows:
-    print(f"{row[0]:<10} {row[1]:>5} {row[2]:<15}")
+    print(list_to_csv_row(row))
+
+# 输出:
+# Alice,30,alice@test.com
+# "Bob, Jr.",25,bob@test.com
+# "Charlie ""Chuck""",35,charlie@test.com
 ```
 
-运行结果：
+### 2.4 `chr()` / `ord()` 字符与码点互转
 
-```
-Name              Age City            
------------------------------------
-Alice              25 Beijing         
-Bob                30 Shanghai        
-Charlie            28 Guangzhou       
-```
+#### 2.4.1 `ord()` 字符 → 码点
 
-### 2.3 日期时间格式化
-
-f-string 对 `datetime` 对象有良好的内置支持，可以直接使用格式规范进行日期时间的格式化输出。
-
-#### 2.3.1 datetime 格式化基础
+`ord()` 返回单个字符的 Unicode 码点（一个整数）：
 
 ```python
-from datetime import datetime, date, time
+print(ord('A'))   # 65
+print(ord('a'))    # 97
+print(ord('0'))    # 48
+print(ord(' '))    # 32
 
-# 获取当前时间
-now = datetime.now()
-print(f"当前时间: {now}")
-
-# 年月日格式化
-print(f"年: {now:%Y}")        # 2024
-print(f"月: {now:%m}")        # 01
-print(f"日: {now:%d}")        # 15
-print(f"完整日期: {now:%Y-%m-%d}")  # 2024-01-15
-
-# 时间格式化
-print(f"时: {now:%H}")        # 14
-print(f"分: {now:%M}")        # 30
-print(f"秒: {now:%S}")        # 45
-
-# 组合格式化
-print(f"格式化时间: {now:%Y年%m月%d日 %H:%M:%S}")
-# 输出：格式化时间: 2024年01月15日 14:30:45
+# 中文字符
+print(ord('中'))   # 20013
+print(ord('文'))    # 25991
 ```
 
-#### 2.3.2 常用日期时间格式代码
+#### 2.4.2 `chr()` 码点 → 字符
+
+`chr()` 是 `ord()` 的逆函数——将 Unicode 码点转为对应的字符：
 
 ```python
-from datetime import datetime
+print(chr(65))       # 'A'
+print(chr(97))        # 'a'
+print(chr(48))        # '0'
 
-dt = datetime(2024, 1, 15, 14, 30, 45)
-
-# 常用格式代码
-print(f"%Y 4位年份: {dt:%Y}")                    # 2024
-print(f"%y 2位年份: {dt:%y}")                    # 24
-print(f"%m 月份（01-12）: {dt:%m}")              # 01
-print(f"%d 日期（01-31）: {dt:%d}")              # 15
-print(f"%H 24小时（00-23）: {dt:%H}")            # 14
-print(f"%I 12小时（01-12）: {dt:%I}")            # 02
-print(f"%M 分钟（00-59）: {dt:%M}")              # 30
-print(f"%S 秒（00-59）: {dt:%S}")                # 45
-
-print(f"%a 星期缩写: {dt:%a}")                   # Mon
-print(f"%A 星期全称: {dt:%A}")                   # Monday
-print(f"%b 月份缩写: {dt:%b}")                   # Jan
-print(f"%B 月份全称: {dt:%B}")                   # January
-
-print(f"%c 日期和时间: {dt:%c}")                  # Mon Jan 15 14:30:45 2024
-print(f"%x 日期: {dt:%x}")                       # 01/15/24
-print(f"%X 时间: {dt:%X}")                       # 14:30:45
-
-# 常用格式组合
-print(f"ISO 格式: {dt:%Y-%m-%d}")                # 2024-01-15
-print(f"中文格式: {dt:%Y年%m月%d日}")            # 2024年01月15日
-print(f"美国格式: {dt:%m/%d/%Y}")                # 01/15/2024
-print(f"24小时制: {dt:%H:%M:%S}")                # 14:30:45
-print(f"12小时制: {dt:%I:%M:%S %p}")             # 02:30:45 PM
+# 中文
+print(chr(20013))    # '中'
+print(chr(25991))     # '文'
 ```
 
-#### 2.3.3 date 对象的格式化
+#### 2.4.3 `chr()` / `ord()` 的互逆关系
 
 ```python
-from datetime import date
-
-# 创建日期对象
-today = date.today()
-print(f"今天是: {today}")
-
-# 格式化
-print(f"{today:%Y-%m-%d}")  # 2024-01-15
-print(f"{today:%Y年%m月%d日}")  # 2024年01月15日
-print(f"星期: {today:%A}")  # Monday
+# ord 然后 chr 可还原
+print(chr(ord('A')))   # 'A'
+print(ord(chr(65)))     # 65
 ```
 
-### 2.4 高级特性
+#### 2.4.4 ASCII 码值速查
 
-#### 2.4.1 自引用调试规范（Python 3.8+）
-
-Python 3.8 引入了一个极其方便的特性：`=` 自引用调试规范。在 f-string 中使用 `{expr=}` 语法，会同时输出表达式本身和其值，非常适合调试输出。
+ASCII 字符的码点范围非常有用，是许多字符操作的基础：
 
 ```python
-# 基本用法
-x = 42
-y = "hello"
-print(f"{x=}")        # x=42
-print(f"{y=}")        # y='hello'
-
-# 多个变量
-a = 10
-b = 20
-c = 30
-print(f"{a=}, {b=}, {c=}")
-# 输出：a=10, b=20, c=30
-
-# 表达式
-print(f"{a + b=}")
-# 输出：a + b=30
-
-# 带格式化
-value = 3.14159
-print(f"{value=:.2f}")
-# 输出：value=3.14
+# 常用 ASCII 码值范围
+print(f"数字 '0'-'9':  码点 {ord('0')}~{ord('9')}，共 {ord('9') - ord('0') + 1} 个")
+print(f"大写 'A'-'Z':  码点 {ord('A')}~{ord('Z')}，共 {ord('Z') - ord('A') + 1} 个")
+print(f"小写 'a'-'z':  码点 {ord('a')}~{ord('z')}，共 {ord('z') - ord('a') + 1} 个")
+# 数字 '0'-'9':  码点 48~57，共 10 个
+# 大写 'A'-'Z':  码点 65~90，共 26 个
+# 小写 'a'-'z':  码点 97~122，共 26 个
 ```
 
-#### 2.4.2 在 f-string 中使用条件表达式
+大小写字母的码点差值固定为 32——大写字母码点 + 32 = 对应小写字母码点。这就是 Python 内置 `upper()`/`lower()` 方法的底层原理：
 
 ```python
-# 条件表达式（三元运算符）
-score = 85
-result = f"成绩: {'优秀' if score >= 90 else '良好' if score >= 80 else '及格' if score >= 60 else '不及格'}"
-print(result)  # 成绩: 良好
+def to_upper_manual(s):
+    """手动将小写字母转大写"""
+    result = []
+    for ch in s:
+        code = ord(ch)
+        # 小写 a~z (97~122) → 大写 A~Z (65~90)，差值 32
+        if 97 <= code <= 122:
+            result.append(chr(code - 32))
+        else:
+            result.append(ch)
+    return "".join(result)
 
-# 嵌套条件
-status = "active"
-role = "admin"
-permission = f"{'管理员' if role == 'admin' else '普通用户'}"
-print(permission)  # 管理员
+print(to_upper_manual("Hello World"))
+# HELLO WORLD
 ```
 
-#### 2.4.3 在 f-string 中调用函数和方法
+#### 2.4.5 凯撒密码
+
+`chr()` 和 `ord()` 是实现各种字符级加密算法的基础。凯撒密码是最简单的加密方式——每个字母在字母表中位移固定位数：
 
 ```python
-# 调用内置函数
-import math
-print(f"π 向上取整: {math.ceil(math.pi)}")
-print(f"π 向下取整: {math.floor(math.pi)}")
-print(f"π 四舍五入: {round(math.pi, 2)}")
+def caesar_encrypt(text, shift=3):
+    """凯撒加密：每个字母位移 shift 位"""
+    result = []
+    for ch in text:
+        if ch.isalpha():
+            base = ord('A') if ch.isupper() else ord('a')
+            # 位移后在 26 个字母内循环
+            shifted = (ord(ch) - base + shift) % 26 + base
+            result.append(chr(shifted))
+        else:
+            result.append(ch)
+    return "".join(result)
 
-# 调用自定义函数
-def greet(name):
-    return f"Hello, {name}!"
+def caesar_decrypt(text, shift=3):
+    """凯撒解密：反向位移"""
+    return caesar_encrypt(text, -shift)
 
-name = "Alice"
-print(f"{greet(name)}")
+message = "Hello Python 2024"
+encrypted = caesar_encrypt(message)
+decrypted = caesar_decrypt(encrypted)
 
-# 调用字符串方法
-text = "hello world"
-print(f"大写: {text.upper()}")
-print(f"首字母大写: {text.title()}")
-
-# 链式调用
-s = "  hello  "
-print(f"处理后: {s.strip().upper()}")
+print(f"原文:   {message}")
+print(f"加密后: {encrypted}")
+print(f"解密后: {decrypted}")
+# 原文:   Hello Python 2024
+# 加密后: Khoor Sbwkrq 2024
+# 解密后: Hello Python 2024
 ```
 
-#### 2.4.4 嵌套的 f-string
+#### 2.4.6 生成连续字符序列
 
-从 Python 3.12 开始，f-string 支持嵌套使用，虽然这是一个较新的特性，但了解它有助于理解 f-string 的工作原理。
+`chr()` 配合 `range()` 可以生成字母表等连续字符序列：
 
 ```python
-# 嵌套 f-string（Python 3.12+）
-nesting_level = 2
-prefix = "test"
+uppercase = [chr(i) for i in range(65, 91)]
+lowercase = [chr(i) for i in range(97, 123)]
+digits = [chr(i) for i in range(48, 58)]
 
-# 注意：Python 3.12 之前的版本不支持嵌套 f-string
-# 以下代码仅适用于 Python 3.12+
-# nested = f"Value: {f'{nesting_level * 10}'}"
+print("".join(uppercase))  # ABCDEFGHIJKLMNOPQRSTUVWXYZ
+print("".join(lowercase))  # abcdefghijklmnopqrstuvwxyz
+print("".join(digits))     # 0123456789
 ```
 
-在实际开发中，更常见的是通过在表达式中调用函数来实现类似的灵活性。
+#### 2.4.7 Unicode 表探索
 
-### 2.5 类型转换与 self-="{ }" 规范
-
-#### 2.5.1 类型转换
-
-f-string 会自动将表达式的结果转换为字符串。如果需要显式指定转换方式，可以使用转换标志：
+`chr()` 和 `ord()` 不限于 ASCII——它们覆盖整个 Unicode 范围：
 
 ```python
-# 转换标志
-# !s: 使用 str() 转换（默认行为）
-# !r: 使用 repr() 转换
-# !a: 使用 ascii() 转换
+# CJK 统一汉字（常用区: U+4E00 ~ U+9FFF）
+for code in range(0x4E00, 0x4E05):
+    print(f"  U+{code:04X} → {chr(code)}")
 
-text = "Hello\nWorld"
+# 输出:
+#   U+4E00 → 一
+#   U+4E01 → 丁
+#   U+4E02 → 丂
+#   U+4E03 → 七
+#   U+4E04 → 丄
 
-# 默认：str 转换
-print(f"{text}")
-# 输出（显示换行）：
-# Hello
-# World
+# Emoji 表情符号（U+1F600 ~ U+1F64F）
+for code in range(0x1F600, 0x1F605):
+    print(f"  U+{code:04X} → {chr(code)}")
 
-# repr 转换：显示原始表示
-print(f"{text!r}")
-# 输出：'Hello\nWorld'
-
-# str 显式转换
-print(f"{text!s}")
-# 输出（显示换行）：
-# Hello
-# World
-
-# ascii 转换：类似 repr，但对非 ASCII 字符使用 \x 转义
-chinese = "中文"
-print(f"{chinese!r}")  # '中文'
-print(f"{chinese!a}")  # '中文'
+# 输出:
+#   U+1F600 → 😀
+#   U+1F601 → 😁
+#   U+1F602 → 😂
+#   U+1F603 → 😃
+#   U+1F604 → 😄
 ```
 
-#### 2.5.2 !r 与调试
+### 2.5 `repr()` vs `str()`
 
-`!r` 转换在调试时非常有用，因为它能显示变量的"原始"表示，包括引号、转义序列等：
+#### 2.5.1 两者的设计目标差异
+
+`str()` 和 `repr()` 都返回对象的字符串表示，但设计目标截然不同：
+
+- **`str()`**：给**人**看——返回人类可读的字符串，关注"看起来怎么样"
+- **`repr()`**：给**程序**看——返回可重新构造对象的合法 Python 表达式，关注"准确还原"
 
 ```python
-# 调试场景
-name = "Alice"
-path = "C:\\Users\\Admin"
+s = "Hello\nWorld"
 
-# 普通输出
-print(f"名字: {name}")
-# 名字: Alice
+print(f"str(s):  {str(s)}")
+print(f"repr(s): {repr(s)}")
 
-# repr 输出（显示引号）
-print(f"名字: {name!r}")
-# 名字: 'Alice'
-
-# repr 输出（显示原始路径）
-print(f"路径: {path!r}")
-# 路径: 'C:\\Users\\Admin'
-
-# 结合调试规范
-print(f"{name=!r}")
-# name='Alice'
+# str(s):  Hello
+# World        ← 多行显示，人看到的文本
+# repr(s): 'Hello\nWorld'  ← 单行带转义符，可 eval 还原
 ```
 
-### 2.6 与其他格式化方式的对比
-
-#### 2.6.1 f-string vs % 格式化
+#### 2.5.2 内置类型的 `str` vs `repr`
 
 ```python
-# % 格式化（旧式）
+# 字符串：repr 带引号，str 不带
+text = "It's a test"
+print(str(text))   # It's a test
+print(repr(text))  # "It's a test"
+
+# 浮点数：repr 保留完整精度
+pi = 3.141592653589793
+print(str(pi))    # 3.141592653589793
+print(repr(pi))   # 3.141592653589793  ← 大部分情况一致
+
+# 列表：str 和 repr 基本相同
+lst = [1, "hello", True]
+print(str(lst))   # [1, 'hello', True]
+print(repr(lst))  # [1, 'hello', True]
+```
+
+#### 2.5.3 `repr()` 的可求值特性
+
+`repr()` 的核心设计目标之一是：对于内置类型，`eval(repr(x))` 应该能还原 `x`：
+
+```python
+s = "Hello 'World'"
+r = repr(s)
+
+print(f"repr(s) = {r}")
+print(f"eval(repr(s)) = {eval(r)!r}")
+print(f"eval(repr(s)) == s: {eval(r) == s}")
+
+# repr(s) = "Hello 'World'"
+# eval(repr(s)) = "Hello 'World'"
+# eval(repr(s)) == s: True
+```
+
+这意味着 `repr()` 可以用作简单对象的序列化方式——将对象转为字符串存储，之后用 `eval()` 还原。
+
+#### 2.5.4 自定义类的 `__str__` 和 `__repr__`
+
+自定义类可以通过 `__str__` 和 `__repr__` 魔术方法分别控制 `str()` 和 `repr()` 的行为：
+
+```python
+class Temperature:
+    def __init__(self, celsius):
+        self.celsius = celsius
+
+    def __str__(self):
+        """给用户看：友好的显示"""
+        return f"{self.celsius}°C"
+
+    def __repr__(self):
+        """给开发者看：可重新构造的表达式"""
+        return f"Temperature(celsius={self.celsius})"
+
+t = Temperature(25.5)
+
+print(f"str(t):   {str(t)}")     # 25.5°C
+print(f"repr(t):  {repr(t)}")    # Temperature(celsius=25.5)
+print(f"print(t): {t}")          # print 默认调用 __str__
+print(f"[t]:      {[t]}")        # 容器中显示用 __repr__
+```
+
+**关键规则**：当对象被放入列表、字典等容器中时，容器会使用 `__repr__` 来显示元素——即使你 `print` 一个列表，列表中的元素也会用 `repr` 而非 `str` 显示。
+
+#### 2.5.5 `repr()` 在调试中的作用
+
+`repr()` 在调试时极有价值——它能区分看起来相同的不同类型值，并显示字符串中的转义字符：
+
+```python
+mixed_list = ["hello", 42, "world\n", True, None]
+print(f"调试信息: {mixed_list!r}")
+# ['hello', 42, 'world\n', True, None]
+# ↑ 可以看到 'world\n' 中的 \n 是转义符，而非真正的换行
+# ↑ 还能区分 'hello'(字符串) 和 hello(变量名)
+```
+
+f-string 中的 `!r` 后缀可以直接在格式化中调用 `repr()`：
+
+```python
 name = "Alice"
 age = 30
-msg1 = "My name is %s, I'm %d years old." % (name, age)
-
-# f-string（新式，推荐）
-msg2 = f"My name is {name}, I'm {age} years old."
-
-# 输出相同
-print(msg1)  # My name is Alice, I'm 30 years old.
-print(msg2)  # My name is Alice, I'm 30 years old.
+print(f"name={name!r}, age={age!r}")
+# name='Alice', age=30
 ```
 
-f-string 相比 % 格式化的优势：
-- 语法更直观，变量直接在字符串中可见
-- 不需要记忆占位符类型（%s, %d, %f 等）
-- 支持更丰富的格式化选项
-- 性能相当或更好
-
-#### 2.6.2 f-string vs format() 方法
+f-string 支持 `!s` 和 `!r` 两个后缀，分别强制使用 `str()` 和 `repr()`：
 
 ```python
-# format() 方法
-name = "Bob"
-age = 25
-msg1 = "Hello, {}, you are {} years old.".format(name, age)
+text = "Hello\nWorld"
 
-# f-string
-msg2 = f"Hello, {name}, you are {age} years old."
+print(f"默认:  {text}")     # 使用 __format__
+print(f"!s:    {text!s}")   # 使用 __str__
+print(f"!r:    {text!r}")   # 使用 __repr__
 
-# 位置参数
-msg3 = "{0} loves {1}. And {0} lives in {2}.".format("Alice", "Bob", "Beijing")
-
-# f-string 无法直接使用位置参数，但可以这样：
-name1, name2, city = "Alice", "Bob", "Beijing"
-msg4 = f"{name1} loves {name2}. And {name1} lives in {city}."
-
-print(msg3)  # Alice loves Bob. And Alice lives in Beijing.
-print(msg4)  # Alice loves Bob. And Alice lives in Beijing.
+# 默认:  Hello
+# World
+# !s:    Hello
+# World
+# !r:    'Hello\nWorld'
 ```
 
-f-string 相比 format() 方法的优势：
-- 语法更简洁，不需要 `.format()` 调用
-- 变量直接可见，不需要位置索引或命名参数
-- 表达力更强，代码更短
+#### 2.5.6 `str()` vs `repr()` 对比总结
 
-### 2.7 综合示例
+| 维度 | `str()` | `repr()` |
+|------|---------|---------|
+| 设计目标 | 给人看（人类可读） | 给程序看（可重新构造） |
+| 字符串 | 原样显示 | 带引号和转义符 |
+| 浮点数 | 截断或简化 | 保留完整精度 |
+| 自定义对象 | 调用 `__str__` | 调用 `__repr__` |
+| `print()` | 默认使用 | 需显式使用 |
+| 容器内 | 不使用 | 列表/字典中显示用 `repr` |
+| 可 `eval()` | 不一定 | 通常 `eval(repr(x)) == x` |
 
-#### 示例一：生成报告摘要
+#### 2.5.7 实际应用——数据序列化
+
+`repr()` 和 `eval()` 配合，可以实现简单对象的序列化和反序列化：
 
 ```python
-from datetime import datetime
+# 序列化
+data = [1, "hello", 3.14, True, None]
+serialized = repr(data)
+print(f"序列化: {serialized}")
 
-# 模拟数据
-sales_data = {
-    "2024-01": {"revenue": 125000, "orders": 1250, "customers": 980},
-    "2024-02": {"revenue": 142000, "orders": 1380, "customers": 1120},
-    "2024-03": {"revenue": 168000, "orders": 1620, "customers": 1340},
-}
+# 反序列化
+restored = eval(serialized)
+print(f"还原:   {restored}")
+print(f"一致:   {restored == data}")
 
-# 生成报告
-report = f"""
-{'='*50}
-销售报告摘要
-生成时间: {datetime.now():%Y-%m-%d %H:%M:%S}
-{'='*50}
-"""
-
-for month, data in sales_data.items():
-    avg_order_value = data["revenue"] / data["orders"]
-    customer_value = data["revenue"] / data["customers"]
-    
-    report += f"""
-{'-'*30}
-月份: {month}
-{'-'*30}
-收入: ¥{data['revenue']:,}
-订单数: {data['orders']:,}
-客户数: {data['customers']:,}
-平均客单价: ¥{avg_order_value:.2f}
-人均贡献: ¥{customer_value:.2f}
-"""
-
-print(report)
+# 序列化: [1, 'hello', 3.14, True, None]
+# 还原:   [1, 'hello', 3.14, True, None]
+# 一致:   True
 ```
 
-#### 示例二：JSON 格式化输出
-
-```python
-import json
-
-# 模拟 API 响应数据
-api_response = {
-    "status": "success",
-    "code": 200,
-    "data": {
-        "user": {
-            "id": 1001,
-            "name": "Alice",
-            "email": "alice@example.com",
-            "roles": ["admin", "editor"]
-        },
-        "last_login": "2024-01-15T10:30:00Z"
-    },
-    "meta": {
-        "page": 1,
-        "per_page": 10,
-        "total": 1
-    }
-}
-
-# 使用 f-string 格式化输出
-output = f"""API 响应:
---------
-状态: {api_response['status']}
-代码: {api_response['code']}
-
-用户信息:
-  ID: {api_response['data']['user']['id']}
-  姓名: {api_response['data']['user']['name']}
-  邮箱: {api_response['data']['user']['email']}
-  角色: {', '.join(api_response['data']['user']['roles'])}
-
-元数据:
-  页码: {api_response['meta']['page']}
-  每页数量: {api_response['meta']['per_page']}
-  总数: {api_response['meta']['total']}
-"""
-
-print(output)
-
-# 同时输出原始 JSON
-print("\n原始 JSON:")
-print(json.dumps(api_response, indent=2, ensure_ascii=False))
-```
-
-#### 示例三：表格数据格式化
-
-```python
-# 模拟用户数据表格
-users = [
-    {"name": "Alice", "age": 28, "city": "Beijing", "score": 92.5},
-    {"name": "Bob", "age": 34, "city": "Shanghai", "score": 87.3},
-    {"name": "Charlie", "age": 25, "city": "Guangzhou", "score": 95.8},
-    {"name": "Diana", "age": 31, "city": "Shenzhen", "score": 88.1},
-    {"name": "Eve", "age": 27, "city": "Hangzhou", "score": 91.6},
-]
-
-# 表格标题
-print(f"{'姓名':<10} {'年龄':>5} {'城市':<12} {'分数':>8} {'评级':<6}")
-print("-" * 50)
-
-# 打印数据行
-for user in users:
-    # 根据分数确定评级
-    if user["score"] >= 90:
-        rating = "A"
-    elif user["score"] >= 80:
-        rating = "B"
-    elif user["score"] >= 70:
-        rating = "C"
-    else:
-        rating = "D"
-    
-    print(f"{user['name']:<10} {user['age']:>5} {user['city']:<12} {user['score']:>8.1f} {rating:<6}")
-
-# 汇总统计
-avg_score = sum(u["score"] for u in users) / len(users)
-max_score = max(u["score"] for u in users)
-min_score = min(u["score"] for u in users)
-
-print("-" * 50)
-print(f"{'平均分':<10} {avg_score:>8.1f}")
-print(f"{'最高分':<10} {max_score:>8.1f}")
-print(f"{'最低分':<10} {min_score:>8.1f}")
-```
-
----
+注意：`eval()` 会执行任意代码，存在安全风险——仅用于可信数据。生产环境应使用 `json` 或 `pickle` 等专用序列化库。
 
 ## 3. 最佳实践
 
-### 3.1 优先使用 f-string 作为字符串格式化的首选
+### 3.1 选择正确的转换方法
 
-在 Python 3.6+ 环境中，f-string 应该是字符串格式化的首选方式。它在可读性和性能方面都表现出色，是现代 Python 编程的最佳实践。
+| 需求 | 推荐方法 | 原因 |
+|------|---------|------|
+| 数字 → 字符串 | `str()` / f-string | f-string 更简洁 |
+| 字符串 → 整数 | `int()` | 注意异常处理 |
+| 字符串 → 浮点数 | `float()` | 支持小数和科学记数法 |
+| 浮点字符串 → 整数 | `int(float(s))` | 需两步转换 |
+| 字符串 → 字符列表 | `list(s)` | 逐字符拆分 |
+| 字符列表 → 字符串 | `"".join(list)` | 无分隔符拼接 |
+| 字符 → 码点 | `ord(c)` | 单字符的 Unicode 码 |
+| 码点 → 字符 | `chr(n)` | 码点转字符 |
+| 对象 → 显示字符串 | `str()` | 给用户看 |
+| 对象 → 调试字符串 | `repr()` | 给开发者看 |
+
+### 3.2 推荐 vs 不推荐写法
 
 ```python
+# ---- 数字转字符串 ----
+
 # 推荐：f-string
-name = "Alice"
-age = 30
-message = f"Hello, {name}!"
+result = f"用户 {user_id} 下单成功"
 
-# 可接受但不如 f-string 简洁
-message = "Hello, {}!".format(name)
-message = "Hello, %s!" % name
+# 不推荐：手动 str() 拼接（啰嗦）
+result = "用户 " + str(user_id) + " 下单成功"
 
-# 不推荐：使用 + 拼接
-message = "Hello, " + name + "!"
+# ---- 字符串转数字 ----
+
+# 推荐：try-except 安全转换
+try:
+    value = int(user_input)
+except ValueError:
+    value = 0
+
+# 不推荐：直接转换不处理异常（可能崩溃）
+value = int(user_input)  # 如果 user_input 不是数字就报错
+
+# ---- 列表拼字符串 ----
+
+# 推荐：join
+result = ", ".join(items)
+
+# 不推荐：循环 += 拼接（性能差）
+result = ""
+for i, item in enumerate(items):
+    if i > 0:
+        result += ", "
+    result += item
+
+# ---- 调试输出 ----
+
+# 推荐：用 !r 显示原始值
+print(f"数据: {data!r}")
+
+# 不推荐：直接打印（看不到转义符和类型差异）
+print(f"数据: {data}")
+
+# ---- 凯撒密码等字符操作 ----
+
+# 推荐：用 chr/ord 在字符层面操作
+def caesar(text, shift):
+    result = []
+    for ch in text:
+        if ch.isalpha():
+            base = ord('A') if ch.isupper() else ord('a')
+            result.append(chr((ord(ch) - base + shift) % 26 + base))
+        else:
+            result.append(ch)
+    return "".join(result)
+
+# 不推荐：用字符串查找+索引（易错且低效）
+ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+def caesar_bad(text, shift):
+    result = []
+    for ch in text:
+        if ch in ALPHABET:
+            idx = ALPHABET.index(ch)
+            result.append(ALPHABET[(idx + shift) % 26])
+        elif ch in ALPHABET.lower():
+            idx = ALPHABET.lower().index(ch)
+            result.append(ALPHABET.lower()[(idx + shift) % 26])
+        else:
+            result.append(ch)
+    return "".join(result)
 ```
 
-### 3.2 在调试输出时使用 = 自引用规范
+### 3.3 综合推荐 vs 不推荐对照表
 
-Python 3.8+ 的 `=` 自引用规范是调试输出的利器，建议在开发过程中广泛使用。
+| 场景 | 推荐写法 | 不推荐写法 | 原因 |
+|------|---------|-----------|------|
+| 数字转字符串 | `f"{n}"` 或 `str(n)` | `"n = " + `n`` | 类型不匹配 |
+| 字符串转整数 | `try: int(s) except: 0` | `int(s)` 不处理 | 可能崩溃 |
+| 浮点字符串转整数 | `int(float(s))` | `int(s)` | 报 ValueError |
+| 列表拼字符串 | `", ".join(items)` | `for + +=` 拼接 | join 快几十倍 |
+| 反转字符串 | `"".join(reversed(s))` | `s[::-1]` 可用但 `reversed` 更清晰 | 两者都可 |
+| 调试输出 | `print(f"{x!r}")` | `print(x)` | repr 显示类型和转义 |
+| 进制转换 | `int("FF", 16)` | 手动计算 | int 内置进制参数 |
+
+### 3.4 常见错误与注意事项
+
+**`int()` 不能直接转浮点字符串**
 
 ```python
-# 开发调试时
-x = 42
-y = [1, 2, 3]
-z = {"key": "value"}
+# 错误：浮点字符串直接转 int
+# int("3.14")  # ValueError!
 
-# 普通输出
-print(f"x = {x}, y = {y}, z = {z}")
-
-# 使用 = 规范（更清晰，显示变量名）
-print(f"{x=}, {y=}, {z=}")
-# 输出：x=42, y=[1, 2, 3], z={'key': 'value'}
-
-# 结合表达式
-print(f"{x * 2=}")
-# 输出：x * 2=84
-
-# 结合格式化
-print(f"{y=!r}")  # 显示 Python 字面量风格
-# 输出：y=[1, 2, 3]
+# 正确：先 float 再 int
+value = int(float("3.14"))  # 3
 ```
 
-### 3.3 数值格式化时考虑可读性
-
-在进行数值格式化时，应优先考虑可读性：
+**`join()` 不能拼接非字符串列表**
 
 ```python
-# 金额格式化：使用逗号千分位
-price = 1234567.89
-print(f"价格: ¥{price:,.2f}")
-# 输出：价格: ¥1,234,567.89
+# 错误：列表含整数
+# ",".join([1, 2, 3])  # TypeError!
 
-# 百分比格式化
-conversion_rate = 0.8567
-print(f"转化率: {conversion_rate:.1%}")
-# 输出：转化率: 85.7%
-
-# 对齐输出（表格场景）
-data = [
-    ("Apple", 100),
-    ("Banana", 250),
-    ("Cherry", 50),
-]
-
-print(f"{'水果':<10} {'数量':>6}")
-print("-" * 18)
-for name, count in data:
-    print(f"{name:<10} {count:>6}")
+# 正确：先转为字符串
+result = ",".join(str(n) for n in [1, 2, 3])
 ```
 
-### 3.4 处理特殊字符和转义
-
-在使用 f-string 时，需要注意特殊字符的处理：
+**`ord()` 只接受单个字符**
 
 ```python
-# 输出花括号：双写花括号
-s = f"字典: {{'key': 'value'}}"
-print(s)  # 字典: {'key': 'value'}
+# 错误：传入多字符字符串
+# ord("AB")  # TypeError!
 
-# 输出引号
-s = f'She said: "Hello"'
-print(s)  # She said: "Hello"
-
-# 输出反斜杠（在原始字符串中更简洁）
-path1 = "C:\\Users\\Admin"         # 普通字符串，双写
-path2 = r"C:\Users\Admin"          # 原始字符串，单写
-print(f"{path1}, {path2}")
-
-# 多行字符串使用三引号 f-string
-multiline = f"""
-This is a multiline
-f-string with variables:
-name = {name}
-age = {age}
-"""
+# 正确：单个字符
+print(ord("A"))  # 65
 ```
 
-### 3.5 避免在 f-string 中执行复杂计算
-
-虽然 f-string 支持表达式，但过于复杂的表达式会影响代码可读性：
+**容器中使用 `repr` 而非 `str`**
 
 ```python
-# 不推荐：过于复杂的表达式
-result = f"结果是: {[x**2 for x in range(10) if x % 2 == 0][-1] if len([x**2 for x in range(10) if x % 2 == 0]) > 0 else 0}"
+class Item:
+    def __str__(self):
+        return "商品"
+    def __repr__(self):
+        return "Item()"
 
-# 推荐：先计算，再格式化
-squares = [x**2 for x in range(10) if x % 2 == 0]
-result_value = squares[-1] if squares else 0
-result = f"结果是: {result_value}"
+item = Item()
+print(item)       # 商品 ← 用 __str__
+print([item])     # [Item()] ← 用 __repr__
+
+# 如果只在容器中看到 <__main__.Item object at 0x...>，
+# 说明没有定义 __repr__，调试时不友好
 ```
-
-### 3.6 在循环中使用 f-string 的注意事项
-
-在循环中构建字符串时，应根据性能要求选择合适的方式：
-
-```python
-# 小规模循环（< 100 次）：直接使用 f-string
-parts = []
-for i in range(50):
-    parts.append(f"Item {i}: {i*10}")
-
-# 大规模循环（>= 100 次）：考虑 join
-# 详见《字符串拼接性能对比》章节
-```
-
-### 3.7 使用 !r 进行调试输出
-
-当需要显示变量的"原始"表示时，使用 `!r` 转换标志：
-
-```python
-# 调试字符串（含特殊字符）
-text = "Hello\nWorld"
-print(f"str:  {text}")         # 显示为两行
-print(f"repr: {text!r}")       # 显示为 'Hello\nWorld'
-
-# 输出文件路径
-path = "C:\\Users\\Admin"
-print(f"路径: {path!r}")       # 路径: 'C:\\Users\\Admin'
-
-# 输出包含引号的字符串
-quote = 'She said "Hi"'
-print(f"引用: {quote!r}")      # 引用: 'She said "Hi"'
-```
-
-### 3.8 格式化规范的一致性
-
-在项目中保持格式化规范的一致性：
-
-```python
-# 建立团队约定：
-# 1. 浮点数保留 2 位小数，除非有特殊要求
-print(f"金额: {amount:.2f}")
-
-# 2. 百分比保留 1 位小数
-print(f"比例: {ratio:.1%}")
-
-# 3. 日期使用 ISO 格式或中文格式，不混用
-print(f"日期: {date:%Y-%m-%d}")    # ISO
-print(f"日期: {date:%Y年%m月%d日}")  # 中文
-
-# 4. 整数用逗号分隔千分位
-print(f"数量: {count:,}")
-```
-
----
 
 ## 4. 原理
 
-### 4.1 f-string 的编译原理
+### 4.1 `str()` 与 `__str__` / `__repr__` 协议
 
-f-string 看似简单，实际上在编译阶段经历了复杂的转换过程。理解其原理有助于更好地使用这个特性。
+Python 的 `str()` 和 `repr()` 内置函数背后是特殊方法协议。当调用 `str(obj)` 时，Python 解释器会按以下顺序查找方法：
 
-**编译阶段的转换**：
+![示例图片](../images/base/202609222002.svg)
 
-```python
-# 源代码
-s = f"Hello, {name}!"
+关键设计：`str()` 会回退到 `__repr__`——这意味着如果你的类只定义了 `__repr__`，`str()` 和 `repr()` 都会使用它。但反过来不成立：只定义 `__str__` 时，`repr()` 不会使用 `__str__`，而是返回默认的对象描述。
 
-# Python 编译器将其转换为类似以下形式：
-s = "Hello, {}!".format(name)
+这是 Python 的惯例："`__repr__` 是基础，`__str__` 是增强"。定义类时建议至少定义 `__repr__`，确保容器内显示和调试都有可读内容。
 
-# 或者（更底层）：
-s = "Hello, {0}".format(name)
-```
+### 4.2 `int()` 解析字符串的内部流程
 
-这种转换发生在**编译时**，而非运行时。这意味着 f-string 的格式化模板在编译阶段就已经被解析和优化，运行时只需要执行简单的格式化操作。
+`int(string)` 在 CPython 中的解析过程：
 
-**字节码层面的分析**：
+![示例图片](../images/base/202609222003.svg)
 
-```python
-import dis
+当指定 `base` 时，步骤 4 的字符范围检查会改变——例如 `base=16` 时，`a-f` 和 `A-F` 也被视为合法数字字符。
 
-# 简单的 f-string
-def test_fstring():
-    name = "Alice"
-    return f"Hello, {name}"
+`int("3.14")` 之所以失败——在步骤 4 中遇到 `.` 时，`.` 不在 `0-9` 的字符范围内，直接抛出 `ValueError`。而 `float("3.14")` 内部有不同的解析逻辑，能识别小数点和科学记数法。
 
-# 对比传统方式
-def test_concat():
-    name = "Alice"
-    return "Hello, " + name
+### 4.3 `join()` 为什么比 `+` 快
 
-# 查看字节码
-print("=== f-string ===")
-dis.dis(test_fstring)
-print("\n=== 字符串拼接 ===")
-dis.dis(test_concat)
-```
+`+` 拼接每次都创建新字符串对象。Python 字符串是不可变的，拼接两个字符串需要分配一块新的内存，把两个原字符串的内容复制进去：
 
-从字节码分析可以看出，f-string 生成的字节码通常更加简洁，因为它避免了运行时的字符串拼接操作。
+![示例图片](../images/base/202609222004.svg)
 
-### 4.2 格式化规范的解析
+`join()` 的工作方式完全不同——它先计算所有元素的总长度，一次性分配足够的内存，然后把所有元素的内容直接复制到目标位置：
 
-f-string 中的格式化规范（如 `:>10`、`.2f` 等）是在运行时通过 `__format__` 协议进行解析的。
+![示例图片](../images/base/202609222005.svg)
 
-**`__format__` 协议**：
+当拼接 N 个字符串时，`+` 的总内存分配次数是 O(N)，而 `join` 是 O(1)——差异随 N 增大而放大。
 
-```python
-# 内置类型的格式化都遵循 __format__ 协议
-# 例如整数的格式化
+### 4.4 `chr()` / `ord()` 与 Unicode 编码
 
-n = 42
-print(f"{n:05}")  # 00042
+`chr()` 和 `ord()` 直接操作 Unicode 码点——它们是 Python 字符串与整数之间的"最低层"转换接口。
 
-# 等价于
-print(format(n, "05"))
-# 再等价于
-print(n.__format__("05"))
-```
+![示例图片](../images/base/202609222006.svg)
 
-自定义类可以通过实现 `__format__` 方法来支持格式化规范：
-
-```python
-class Point:
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
-    
-    def __format__(self, spec):
-        if spec == "short":
-            return f"({self.x}, {self.y})"
-        elif spec == "coord":
-            return f"x={self.x}, y={self.y}"
-        else:
-            # 默认格式
-            return self.__format__("short")
-
-p = Point(3, 4)
-print(f"{p}")           # (3, 4)  （默认格式）
-print(f"{p:short}")     # (3, 4)
-print(f"{p:coord}")     # x=3, y=4
-```
-
-### 4.3 性能特性分析
-
-f-string 的性能通常优于或等同于其他格式化方式，这是因为它在编译阶段进行了优化。
-
-**性能测试对比**：
-
-```python
-import timeit
-
-name = "Alice"
-age = 30
-
-# f-string
-t1 = timeit.timeit('f"{name} is {age} years old"', globals=globals())
-
-# % 格式化
-t2 = timeit.timeit('"%s is %d years old" % (name, age)', globals=globals())
-
-# format() 方法
-t3 = timeit.timeit('"{} is {} years old".format(name, age)', globals=globals())
-
-print(f"f-string:  {t1*1000:.3f}ms")
-print(f"% 格式化:  {t2*1000:.3f}ms")
-print(f"format():  {t3*1000:.3f}ms")
-```
-
-**性能差异的原因**：
-1. **编译时优化**：f-string 的模板在编译时解析
-2. **字节码简洁**：生成的字节码更少
-3. **无运行时字典查找**：不需要像 format() 那样处理位置或命名参数
-
-### 4.4 字符串驻留与 f-string
-
-Python 的字符串驻留机制对 f-string 的性能有一定影响：
-
-```python
-# 短字符串会被自动驻留
-s1 = f"hello"
-s2 = f"hello"
-print(s1 is s2)  # True（可能）
-
-# 但动态插入的值不会被驻留
-name = "Alice"
-s1 = f"hello {name}"
-s2 = f"hello {name}"
-print(s1 is s2)  # False（通常）
-
-# 格式化后的结果通常也不会被驻留
-# 这是正常的，不影响使用
-```
-
-### 4.5 版本差异与兼容性
-
-不同 Python 版本对 f-string 的支持程度有所不同：
-
-**Python 3.6**：
-- 基本 f-string 功能
-- 不支持嵌套 f-string
-- 不支持 `=` 调试规范
-
-**Python 3.8**：
-- 新增 `=` 调试规范
-- 错误信息更清晰
-
-**Python 3.12**：
-- 性能优化
-- 支持在 f-string 中使用注释（`#`）
-- 更灵活的语法解析
-
-```python
-# 版本兼容性检查
-import sys
-
-if sys.version_info < (3, 6):
-    raise RuntimeError("需要 Python 3.6 或更高版本")
-elif sys.version_info < (3, 8):
-    # Python 3.6-3.7
-    print(f"当前版本: {sys.version_info.major}.{sys.version_info.minor}")
-    print("注意：= 调试规范不可用")
-else:
-    # Python 3.8+
-    x = 42
-    print(f"{x=}")  # x=42
-```
-
----
+Python 的内置字符串方法（如 `upper()`、`isalpha()`）在底层都依赖 Unicode 码点来判断字符类别和执行转换。`chr()` 和 `ord()` 揭示了这层"字符 ↔ 整数"的映射关系，使得开发者可以直接在码点层面进行操作——这在编码处理、加密算法、字符分类等场景中非常有用。
 
 ## 5. 总结
 
-### 5.1 本文内容回顾
+本文围绕 Python 字符串与类型转换展开，主要介绍了以下内容：
 
-- **f-string 基础**：以 `f` 为前缀的字符串字面量，使用 `{}` 嵌入表达式，是 Python 3.6+ 推荐的字符串格式化方式。
-- **基本语法**：单双三引号支持、花括号转义、嵌套使用等规则。
-- **格式化规范**：数值格式化（宽度、填充、对齐、科学计数法、百分比）、字符串格式化（对齐、截断）、日期时间格式化（各种格式代码）。
-- **高级特性**：`=` 自引用调试规范、条件表达式、函数调用、`!r`/`!s`/`!a` 转换标志。
-- **最佳实践**：优先使用 f-string、调试时用 `=` 规范、数值格式化考虑可读性、避免复杂表达式。
-- **原理**：编译时转换、__format__ 协议、性能特性分析。
-
-### 5.2 读完本文你应能掌握
-
-- 说明 f-string 的基本语法和相对于其他格式化方式的优势。
-- 使用 f-string 进行变量插入、表达式计算、函数调用。
-- 使用格式化规范精确控制数值（`.2f`、`：,`等）和字符串（`：>10`、`：.5`等）的输出格式。
-- 使用 `=` 调试规范进行快速调试输出。
-- 解释 f-string 与 % 格式化、format() 方法的区别，并能根据场景选择合适的格式化方式。
-- 在实际项目中应用 f-string 的最佳实践，提高代码可读性和维护性。
-
-### 5.3 延伸方向
-
-- **自定义类的格式化**：通过实现 `__format__` 方法，让自定义类支持 f-string 格式化规范。
-- **模板字符串**：对于复杂的消息模板，可以了解 `string.Template` 或 Jinja2 等模板引擎。
-- **pathlib 路径格式化**：结合 pathlib 模块，使用 f-string 格式化文件路径。
-- **正则表达式与 f-string**：在正则表达式中使用 f-string 动态构建模式。
-- **性能调优**：在高吞吐量场景下，测试和比较不同格式化方式的性能。
+- **`str()` 方法**：将任何类型转为字符串，基本类型直接转换，容器类型返回字面量表示；内部调用 `__str__` 协议方法；`print()` 默认使用 `str()`
+- **`int()` / `float()` 方法**：将字符串解析为数字；`int()` 支持进制参数 `base`（2~36）和 `base=0` 自动识别；`int()` 不接受浮点字符串（需先 `float()` 再 `int()`）；解析失败抛 `ValueError`，应使用 try-except 安全处理
+- **`list()` / `join()` 方法**：`list()` 将字符串拆成字符列表，`join()` 将字符串列表拼回字符串，互为逆操作；`join()` 只能拼接字符串元素，非字符串需先 `str()` 转换；`join()` 性能远优于 `+` 拼接（单次内存分配 vs 多次分配）
+- **`chr()` / `ord()` 方法**：字符与 Unicode 码点互转，互为逆函数；ASCII 范围内大小写码点差 32；可用于实现凯撒密码、生成字符表、Unicode 表探索
+- **`str()` vs `repr()` 方法**：`str()` 给人看（人类可读），`repr()` 给程序看（可 `eval` 还原）；自定义类通过 `__str__` 和 `__repr__` 分别控制；容器内使用 `repr` 显示元素；调试时用 `!r` 后缀
+- **最佳实践**：数字转字符串用 f-string 代替 `str()` 拼接；字符串转数字用 try-except 安全处理；列表拼字符串用 `join()`；调试输出用 `repr()` 或 `!r`
+- **底层原理**：`str()`/`repr()` 基于特殊方法协议（`__str__` 回退到 `__repr__`）；`int()` 逐字符验证数字范围；`join()` 单次分配内存优于 `+` 的多次分配；`chr()`/`ord()` 直接操作 Unicode 码点

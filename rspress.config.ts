@@ -11,6 +11,7 @@ export default defineConfig({
   title: 'Python 学习笔记',
   logo: basePath + 'logo.png',
   logoText: 'Python 学习笔记',
+  icon: 'logo.ico',
   root: 'docs',
   base: basePath,
   outDir: 'dist',
@@ -31,6 +32,7 @@ export default defineConfig({
         {
             "text": "【01】初识python",
             "collapsible": true,
+            "collapsed": true,
             "items": [
                 {
                     "text": "Python介绍及安装",
@@ -53,79 +55,81 @@ export default defineConfig({
                     "link": "/Base/01-firstEncounter-05"
                 },
                 {
-                    "text": "VSCode配置",
+                    "text": "print输出详解",
                     "link": "/Base/01-firstEncounter-06"
                 },
                 {
-                    "text": "print输出详解",
+                    "text": "input输入与类型转换",
                     "link": "/Base/01-firstEncounter-07"
                 },
                 {
-                    "text": "input输入与类型转换",
+                    "text": "注释规范",
                     "link": "/Base/01-firstEncounter-08"
                 },
                 {
-                    "text": "注释规范",
+                    "text": "变量赋值机制",
                     "link": "/Base/01-firstEncounter-09"
                 },
                 {
-                    "text": "变量赋值机制",
+                    "text": "标识符命名规范",
                     "link": "/Base/01-firstEncounter-10"
                 },
                 {
-                    "text": "标识符命名规范",
-                    "link": "/Base/01-firstEncounter-11"
-                },
-                {
                     "text": "常量约定",
-                    "link": "/Base/01-firstEncounter-12"
+                    "link": "/Base/01-firstEncounter-11"
                 }
             ]
         },
         {
             "text": "【02】基础数据类型和类型系统",
             "collapsible": true,
+            "collapsed": true,
             "items": [
                 {
                     "text": "基础数据类型汇总",
                     "link": "/Base/02-dataType-01"
                 },
                 {
-                    "text": "字面量详解",
+                    "text": "类型判断与type系统",
                     "link": "/Base/02-dataType-02"
                 },
                 {
-                    "text": "类型判断与type系统",
+                    "text": "int类型详解",
                     "link": "/Base/02-dataType-03"
                 },
                 {
-                    "text": "int类型详解",
+                    "text": "float类型与精度问题",
                     "link": "/Base/02-dataType-04"
                 },
                 {
-                    "text": "float类型与精度问题",
+                    "text": "bool类型与短路逻辑",
                     "link": "/Base/02-dataType-05"
                 },
                 {
-                    "text": "bool类型与短路逻辑",
+                    "text": "None类型详解",
                     "link": "/Base/02-dataType-06"
                 },
                 {
-                    "text": "None类型详解",
+                    "text": "complex复数类型",
                     "link": "/Base/02-dataType-07"
+                },
+                {
+                    "text": "bytes类型详解",
+                    "link": "/Base/02-dataType-08"
                 }
             ]
         },
         {
             "text": "【03】字符串介绍",
             "collapsible": true,
+            "collapsed": true,
             "items": [
                 {
                     "text": "字符串创建与驻留机制",
                     "link": "/Base/03-string-01"
                 },
                 {
-                    "text": "索引与切片",
+                    "text": "字符串索引与切片",
                     "link": "/Base/03-string-02"
                 },
                 {
@@ -141,850 +145,687 @@ export default defineConfig({
                     "link": "/Base/03-string-05"
                 },
                 {
-                    "text": "f-string高级格式化",
+                    "text": "字符串与类型转换",
                     "link": "/Base/03-string-06"
                 },
                 {
-                    "text": "split与rsplit分割",
+                    "text": "f-string 与字符串格式化",
                     "link": "/Base/03-string-07"
                 },
                 {
-                    "text": "strip去除字符",
+                    "text": "占位符精度控制",
                     "link": "/Base/03-string-08"
                 },
                 {
-                    "text": "find与index区别",
+                    "text": "字符串与正则表达式",
                     "link": "/Base/03-string-09"
                 },
                 {
-                    "text": "replace与translate批量替换",
+                    "text": "字符串与字符编码",
                     "link": "/Base/03-string-10"
                 },
                 {
-                    "text": "占位符精度控制",
+                    "text": "字符串长度与成员判断",
                     "link": "/Base/03-string-11"
+                },
+                {
+                    "text": "前缀与后缀判断",
+                    "link": "/Base/03-string-12"
+                },
+                {
+                    "text": "子串位置查找",
+                    "link": "/Base/03-string-13"
+                },
+                {
+                    "text": "子串计数方法",
+                    "link": "/Base/03-string-14"
+                },
+                {
+                    "text": "字符类型判断",
+                    "link": "/Base/03-string-15"
+                },
+                {
+                    "text": "大小写与格式判断",
+                    "link": "/Base/03-string-16"
+                },
+                {
+                    "text": "标识符与其他判断",
+                    "link": "/Base/03-string-17"
+                },
+                {
+                    "text": "字符串清洗方法",
+                    "link": "/Base/03-string-18"
+                },
+                {
+                    "text": "大小写转换方法",
+                    "link": "/Base/03-string-19"
+                },
+                {
+                    "text": "字符串对齐填充",
+                    "link": "/Base/03-string-20"
+                },
+                {
+                    "text": "split 与 rsplit 方法",
+                    "link": "/Base/03-string-21"
+                },
+                {
+                    "text": "splitlines 按行分割",
+                    "link": "/Base/03-string-22"
+                },
+                {
+                    "text": "partition 与 rpartition 方法",
+                    "link": "/Base/03-string-23"
+                },
+                {
+                    "text": "replace 方法",
+                    "link": "/Base/03-string-24"
+                },
+                {
+                    "text": "translate 与 maketrans 方法",
+                    "link": "/Base/03-string-25"
+                },
+                {
+                    "text": "replace 与 translate 对比",
+                    "link": "/Base/03-string-26"
                 }
             ]
         },
         {
-            "text": "【04】运算符和表达式",
+            "text": "【04】列表介绍",
             "collapsible": true,
+            "collapsed": true,
             "items": [
                 {
-                    "text": "算术运算符",
-                    "link": "/Base/04-operator-01"
+                    "text": "列表概述与内存模型",
+                    "link": "/Base/04-list-01"
                 },
-                {
-                    "text": "除法与整除的区别",
-                    "link": "/Base/04-operator-02"
-                },
-                {
-                    "text": "赋值运算符与增强赋值",
-                    "link": "/Base/04-operator-03"
-                },
-                {
-                    "text": "值相等与引用相等",
-                    "link": "/Base/04-operator-04"
-                },
-                {
-                    "text": "链式比较",
-                    "link": "/Base/04-operator-05"
-                },
-                {
-                    "text": "逻辑运算符与短路求值",
-                    "link": "/Base/04-operator-06"
-                },
-                {
-                    "text": "三元表达式",
-                    "link": "/Base/04-operator-07"
-                },
-                {
-                    "text": "位运算符",
-                    "link": "/Base/04-operator-08"
-                },
-                {
-                    "text": "in与not in成员判断",
-                    "link": "/Base/04-operator-09"
-                },
-                {
-                    "text": "运算符优先级完整表",
-                    "link": "/Base/04-operator-10"
-                }
-            ]
-        },
-        {
-            "text": "【05】列表深度剖析",
-            "collapsible": true,
-            "items": [
                 {
                     "text": "列表创建方式",
-                    "link": "/Base/05-list-01"
+                    "link": "/Base/04-list-02"
                 },
                 {
-                    "text": "索引访问与切片赋值",
-                    "link": "/Base/05-list-02"
+                    "text": "列表索引与切片",
+                    "link": "/Base/04-list-03"
                 },
                 {
-                    "text": "append与extend区别",
-                    "link": "/Base/05-list-03"
-                },
-                {
-                    "text": "insert、pop、remove方法介绍",
-                    "link": "/Base/05-list-04"
-                },
-                {
-                    "text": "index查找与count统计",
-                    "link": "/Base/05-list-05"
-                },
-                {
-                    "text": "sort原地排序与sorted新列表",
-                    "link": "/Base/05-list-06"
-                },
-                {
-                    "text": "reverse原地反转与reversed迭代器",
-                    "link": "/Base/05-list-07"
-                },
-                {
-                    "text": "列表拷贝",
-                    "link": "/Base/05-list-08"
-                },
-                {
-                    "text": "浅拷贝与深拷贝介绍",
-                    "link": "/Base/05-list-09"
+                    "text": "列表与运算符",
+                    "link": "/Base/04-list-04"
                 },
                 {
                     "text": "列表推导式",
-                    "link": "/Base/05-list-10"
+                    "link": "/Base/04-list-05"
                 },
                 {
-                    "text": "列表推导式与map/filter性能",
-                    "link": "/Base/05-list-11"
+                    "text": "append 与 extend 区别",
+                    "link": "/Base/04-list-06"
                 },
                 {
-                    "text": "for循环遍历时修改列表的坑",
-                    "link": "/Base/05-list-12"
+                    "text": "insert、pop 与 remove 方法",
+                    "link": "/Base/04-list-07"
+                },
+                {
+                    "text": "index 查找与 count 统计",
+                    "link": "/Base/04-list-08"
+                },
+                {
+                    "text": "sort 与 sorted 排序",
+                    "link": "/Base/04-list-09"
+                },
+                {
+                    "text": "reverse 与 reversed 反转",
+                    "link": "/Base/04-list-10"
+                },
+                {
+                    "text": "列表拷贝深浅剖析",
+                    "link": "/Base/04-list-11"
+                },
+                {
+                    "text": "列表与栈和队列",
+                    "link": "/Base/04-list-12"
+                },
+                {
+                    "text": "遍历修改列表的坑",
+                    "link": "/Base/04-list-13"
+                },
+                {
+                    "text": "列表解包与星号表达式",
+                    "link": "/Base/04-list-14"
+                },
+                {
+                    "text": "推导式与 map/filter 性能对比",
+                    "link": "/Base/04-list-15"
+                },
+                {
+                    "text": "生成器表达式与列表推导式对比",
+                    "link": "/Base/04-list-16"
+                },
+                {
+                    "text": "嵌套列表与矩阵操作",
+                    "link": "/Base/04-list-17"
+                },
+                {
+                    "text": "列表与deque对比",
+                    "link": "/Base/04-list-18"
+                },
+                {
+                    "text": "列表与其他序列类型对比",
+                    "link": "/Base/04-list-19"
+                },
+                {
+                    "text": "列表性能优化与时间复杂度",
+                    "link": "/Base/04-list-20"
+                },
+                {
+                    "text": "列表常用技巧与惯用法",
+                    "link": "/Base/04-list-21"
+                },
+                {
+                    "text": "列表与 JSON 序列化",
+                    "link": "/Base/04-list-22"
                 }
             ]
         },
         {
-            "text": "【06】元组深度剖析",
+            "text": "【05】元组介绍",
             "collapsible": true,
+            "collapsed": true,
             "items": [
                 {
-                    "text": "元组创建与单元素陷阱",
-                    "link": "/Base/06-tuple-01"
+                    "text": "元组概述与基本概念",
+                    "link": "/Base/05-tuple-01"
                 },
                 {
-                    "text": "元组不可变性的边界",
-                    "link": "/Base/06-tuple-02"
+                    "text": "元组的创建方式",
+                    "link": "/Base/05-tuple-02"
                 },
                 {
-                    "text": "元组解包",
-                    "link": "/Base/06-tuple-03"
+                    "text": "元组的索引与切片",
+                    "link": "/Base/05-tuple-03"
                 },
                 {
-                    "text": "元组作为字典的key",
-                    "link": "/Base/06-tuple-04"
+                    "text": "元组与运算符",
+                    "link": "/Base/05-tuple-04"
                 },
                 {
-                    "text": "namedtuple命名元组",
-                    "link": "/Base/06-tuple-05"
+                    "text": "元组的拼接与重复",
+                    "link": "/Base/05-tuple-05"
                 },
                 {
-                    "text": "列表 vs 元组选择指南",
-                    "link": "/Base/06-tuple-06"
+                    "text": "元组的成员判断与比较",
+                    "link": "/Base/05-tuple-06"
+                },
+                {
+                    "text": "count 方法统计元素",
+                    "link": "/Base/05-tuple-07"
+                },
+                {
+                    "text": "index 方法查找索引",
+                    "link": "/Base/05-tuple-08"
+                },
+                {
+                    "text": "元组的可哈希性与 hash 方法",
+                    "link": "/Base/05-tuple-09"
+                },
+                {
+                    "text": "元组的不可变性深度剖析",
+                    "link": "/Base/05-tuple-10"
+                },
+                {
+                    "text": "元组解包与星号表达式",
+                    "link": "/Base/05-tuple-11"
+                },
+                {
+                    "text": "元组与列表对比",
+                    "link": "/Base/05-tuple-12"
+                },
+                {
+                    "text": "命名元组 namedtuple",
+                    "link": "/Base/05-tuple-13"
+                },
+                {
+                    "text": "元组常用技巧与惯用法",
+                    "link": "/Base/05-tuple-14"
                 }
             ]
         },
         {
-            "text": "【07】字典深度剖析",
+            "text": "【06】字典介绍",
             "collapsible": true,
+            "collapsed": true,
             "items": [
                 {
-                    "text": "字典创建方式",
-                    "link": "/Base/07-dictionary-01"
+                    "text": "字典概述与基本概念",
+                    "link": "/Base/06-dict-01"
                 },
                 {
-                    "text": "键值存取",
-                    "link": "/Base/07-dictionary-02"
+                    "text": "字典的创建方式",
+                    "link": "/Base/06-dict-02"
                 },
                 {
-                    "text": "setdefault设置默认值",
-                    "link": "/Base/07-dictionary-03"
+                    "text": "字典的访问与查找",
+                    "link": "/Base/06-dict-03"
                 },
                 {
-                    "text": "defaultdict自动生成默认值",
-                    "link": "/Base/07-dictionary-04"
+                    "text": "字典的增删改操作",
+                    "link": "/Base/06-dict-04"
                 },
                 {
-                    "text": "OrderedDict有序字典",
-                    "link": "/Base/07-dictionary-05"
+                    "text": "字典的遍历方法",
+                    "link": "/Base/06-dict-05"
                 },
                 {
-                    "text": "Counter计数器",
-                    "link": "/Base/07-dictionary-06"
+                    "text": "字典推导式",
+                    "link": "/Base/06-dict-06"
                 },
                 {
-                    "text": "字典遍历",
-                    "link": "/Base/07-dictionary-07"
+                    "text": "字典的嵌套与深度操作",
+                    "link": "/Base/06-dict-07"
                 },
                 {
-                    "text": "字典合并",
-                    "link": "/Base/07-dictionary-08"
+                    "text": "字典的 get 方法与默认值",
+                    "link": "/Base/06-dict-08"
                 },
                 {
-                    "text": "字典解包与**kwargs",
-                    "link": "/Base/07-dictionary-09"
+                    "text": "字典的 setdefault 方法",
+                    "link": "/Base/06-dict-09"
                 },
                 {
-                    "text": "字典的in操作时间复杂度",
-                    "link": "/Base/07-dictionary-10"
+                    "text": "字典的 update 与合并",
+                    "link": "/Base/06-dict-10"
                 },
                 {
-                    "text": "字典底层原理哈希表",
-                    "link": "/Base/07-dictionary-11"
+                    "text": "字典的 pop 与 popitem 方法",
+                    "link": "/Base/06-dict-11"
                 },
                 {
-                    "text": "列表 vs 元组选择指南",
-                    "link": "/Base/07-dictionary-12"
+                    "text": "字典的 keys / values / items 方法",
+                    "link": "/Base/06-dict-12"
+                },
+                {
+                    "text": "字典的 fromkeys 方法",
+                    "link": "/Base/06-dict-13"
+                },
+                {
+                    "text": "字典的拷贝深浅剖析",
+                    "link": "/Base/06-dict-14"
+                },
+                {
+                    "text": "字典与运算符",
+                    "link": "/Base/06-dict-15"
+                },
+                {
+                    "text": "字典的哈希机制与键要求",
+                    "link": "/Base/06-dict-16"
+                },
+                {
+                    "text": "字典的内存模型与性能",
+                    "link": "/Base/06-dict-17"
+                },
+                {
+                    "text": "有序字典 OrderedDict",
+                    "link": "/Base/06-dict-18"
+                },
+                {
+                    "text": "字典与 JSON 互转",
+                    "link": "/Base/06-dict-19"
+                },
+                {
+                    "text": "字典与列表对比",
+                    "link": "/Base/06-dict-20"
+                },
+                {
+                    "text": "defaultdict 默认值字典",
+                    "link": "/Base/06-dict-21"
+                },
+                {
+                    "text": "Counter 计数字典",
+                    "link": "/Base/06-dict-22"
+                },
+                {
+                    "text": "字典常用技巧与惯用法",
+                    "link": "/Base/06-dict-23"
+                },
+                {
+                    "text": "字典与数据类对比",
+                    "link": "/Base/06-dict-24"
                 }
             ]
         },
         {
-            "text": "【08】集合与冻结集合",
+            "text": "【07】集合介绍",
             "collapsible": true,
+            "collapsed": true,
             "items": [
                 {
-                    "text": "集合创建与空集合陷阱",
-                    "link": "/Base/08-set-01"
+                    "text": "集合概述与基本概念",
+                    "link": "/Base/07-set-01"
                 },
                 {
-                    "text": "集合操作",
-                    "link": "/Base/08-set-02"
+                    "text": "集合的创建方式",
+                    "link": "/Base/07-set-02"
                 },
                 {
-                    "text": "集合数学运算",
-                    "link": "/Base/08-set-03"
+                    "text": "集合的添加操作",
+                    "link": "/Base/07-set-03"
                 },
                 {
-                    "text": "集合关系判断",
-                    "link": "/Base/08-set-04"
+                    "text": "集合的删除操作",
+                    "link": "/Base/07-set-04"
                 },
                 {
-                    "text": "frozenset冻结集合",
-                    "link": "/Base/08-set-05"
+                    "text": "集合的成员判断与遍历",
+                    "link": "/Base/07-set-05"
                 },
                 {
-                    "text": "集合去重原理",
-                    "link": "/Base/08-set-06"
+                    "text": "集合与运算符",
+                    "link": "/Base/07-set-06"
+                },
+                {
+                    "text": "集合的并集操作",
+                    "link": "/Base/07-set-07"
+                },
+                {
+                    "text": "集合的交集操作",
+                    "link": "/Base/07-set-08"
+                },
+                {
+                    "text": "集合的差集操作",
+                    "link": "/Base/07-set-09"
+                },
+                {
+                    "text": "集合的对称差集操作",
+                    "link": "/Base/07-set-10"
+                },
+                {
+                    "text": "集合的子集与超集判断",
+                    "link": "/Base/07-set-11"
+                },
+                {
+                    "text": "集合的交集判断",
+                    "link": "/Base/07-set-12"
+                },
+                {
+                    "text": "集合推导式",
+                    "link": "/Base/07-set-13"
+                },
+                {
+                    "text": "集合的哈希机制与元素要求",
+                    "link": "/Base/07-set-14"
+                },
+                {
+                    "text": "frozenset 不可变集合",
+                    "link": "/Base/07-set-15"
+                },
+                {
+                    "text": "集合的拷贝与内存模型",
+                    "link": "/Base/07-set-16"
+                },
+                {
+                    "text": "集合的性能与时间复杂度",
+                    "link": "/Base/07-set-17"
+                },
+                {
+                    "text": "集合去重与去重方案对比",
+                    "link": "/Base/07-set-18"
+                },
+                {
+                    "text": "集合与其他数据类型对比",
+                    "link": "/Base/07-set-19"
+                },
+                {
+                    "text": "集合常用技巧与惯用法",
+                    "link": "/Base/07-set-20"
                 }
             ]
         },
         {
-            "text": "【09】流程控制",
+            "text": "【08】运算符和表达式",
             "collapsible": true,
+            "collapsed": true,
             "items": [
                 {
-                    "text": "if_elif_else条件判断",
-                    "link": "/Base/09-flow-01"
+                    "text": "运算符与表达式概述与基本概念",
+                    "link": "/Base/08-operator-01"
                 },
                 {
-                    "text": "for循环与range",
-                    "link": "/Base/09-flow-02"
+                    "text": "算术运算符",
+                    "link": "/Base/08-operator-02"
                 },
                 {
-                    "text": "enumerate同时取索引和值",
-                    "link": "/Base/09-flow-03"
+                    "text": "赋值与复合赋值运算符",
+                    "link": "/Base/08-operator-03"
                 },
                 {
-                    "text": "zip并行遍历",
-                    "link": "/Base/09-flow-04"
+                    "text": "比较运算符",
+                    "link": "/Base/08-operator-04"
                 },
                 {
-                    "text": "while循环",
-                    "link": "/Base/09-flow-05"
+                    "text": "逻辑运算符与短路求值",
+                    "link": "/Base/08-operator-05"
                 },
                 {
-                    "text": "break_continue_pass",
-                    "link": "/Base/09-flow-06"
+                    "text": "位运算符",
+                    "link": "/Base/08-operator-06"
                 },
                 {
-                    "text": "for_else与while_else",
-                    "link": "/Base/09-flow-07"
+                    "text": "成员运算符",
+                    "link": "/Base/08-operator-07"
                 },
                 {
-                    "text": "循环优化技巧",
-                    "link": "/Base/09-flow-08"
+                    "text": "身份运算符",
+                    "link": "/Base/08-operator-08"
+                },
+                {
+                    "text": "条件表达式",
+                    "link": "/Base/08-operator-09"
+                },
+                {
+                    "text": "海象运算符",
+                    "link": "/Base/08-operator-10"
+                },
+                {
+                    "text": "运算符优先级与结合性",
+                    "link": "/Base/08-operator-11"
+                },
+                {
+                    "text": "运算符重载",
+                    "link": "/Base/08-operator-12"
+                },
+                {
+                    "text": "运算符常用技巧与惯用法",
+                    "link": "/Base/08-operator-13"
                 }
             ]
         },
         {
-            "text": "【10】异常处理完整体系",
+            "text": "【09】条件分支",
             "collapsible": true,
+            "collapsed": true,
             "items": [
                 {
-                    "text": "try-except基础异常捕获",
-                    "link": "/Base/10-exception-01"
+                    "text": "条件分支概述与基本概念",
+                    "link": "/Base/09-conditionalBranch-01"
                 },
                 {
-                    "text": "捕获多个异常",
-                    "link": "/Base/10-exception-02"
+                    "text": "布尔值与真值测试",
+                    "link": "/Base/09-conditionalBranch-02"
                 },
                 {
-                    "text": "获取异常对象",
-                    "link": "/Base/10-exception-03"
+                    "text": "if 语句基础",
+                    "link": "/Base/09-conditionalBranch-03"
                 },
                 {
-                    "text": "else子句",
-                    "link": "/Base/10-exception-04"
+                    "text": "if-else 二分支结构",
+                    "link": "/Base/09-conditionalBranch-04"
                 },
                 {
-                    "text": "finally子句",
-                    "link": "/Base/10-exception-05"
+                    "text": "if-elif-else 多分支结构",
+                    "link": "/Base/09-conditionalBranch-05"
                 },
                 {
-                    "text": "主动抛异常raise",
-                    "link": "/Base/10-exception-06"
+                    "text": "嵌套 if 语句",
+                    "link": "/Base/09-conditionalBranch-06"
                 },
                 {
-                    "text": "异常链raise_from",
-                    "link": "/Base/10-exception-07"
+                    "text": "比较运算符在条件中的应用",
+                    "link": "/Base/09-conditionalBranch-07"
                 },
                 {
-                    "text": "with与上下文管理器协议",
-                    "link": "/Base/10-exception-08"
+                    "text": "逻辑运算符与条件组合",
+                    "link": "/Base/09-conditionalBranch-08"
+                },
+                {
+                    "text": "成员与身份运算符在条件中",
+                    "link": "/Base/09-conditionalBranch-09"
+                },
+                {
+                    "text": "链式比较",
+                    "link": "/Base/09-conditionalBranch-10"
+                },
+                {
+                    "text": "条件表达式三元运算符",
+                    "link": "/Base/09-conditionalBranch-11"
+                },
+                {
+                    "text": "pass 语句与空分支",
+                    "link": "/Base/09-conditionalBranch-12"
+                },
+                {
+                    "text": "match-case 结构化模式匹配",
+                    "link": "/Base/09-conditionalBranch-13"
+                },
+                {
+                    "text": "条件分支嵌套优化与扁平化",
+                    "link": "/Base/09-conditionalBranch-14"
+                },
+                {
+                    "text": "条件分支常用技巧与惯用法",
+                    "link": "/Base/09-conditionalBranch-15"
                 }
             ]
         },
         {
-            "text": "【11】文件与路径操作",
+            "text": "【10】循环结构",
             "collapsible": true,
+            "collapsed": true,
             "items": [
                 {
-                    "text": "open函数与mode参数",
-                    "link": "/Base/11-filePath-01"
+                    "text": "循环结构概述与基本概念",
+                    "link": "/Base/10-loopStructure-01"
                 },
                 {
-                    "text": "文件读写方法",
-                    "link": "/Base/11-filePath-02"
+                    "text": "while 循环基础",
+                    "link": "/Base/10-loopStructure-02"
                 },
                 {
-                    "text": "文件指针操作",
-                    "link": "/Base/11-filePath-03"
+                    "text": "for 循环基础与迭代协议",
+                    "link": "/Base/10-loopStructure-03"
                 },
                 {
-                    "text": "文件指针操作",
-                    "link": "/Base/11-filePath-04"
+                    "text": "range 与步进控制",
+                    "link": "/Base/10-loopStructure-04"
                 },
                 {
-                    "text": "os模块基础操作",
-                    "link": "/Base/11-filePath-05"
+                    "text": "break 与 continue",
+                    "link": "/Base/10-loopStructure-05"
                 },
                 {
-                    "text": "os_walk递归遍历目录",
-                    "link": "/Base/11-filePath-06"
+                    "text": "循环 else 子句",
+                    "link": "/Base/10-loopStructure-06"
                 },
                 {
-                    "text": "pathlib面向对象路径",
-                    "link": "/Base/11-filePath-07"
+                    "text": "字典遍历与多变量解包",
+                    "link": "/Base/10-loopStructure-07"
                 },
                 {
-                    "text": "tempfile临时文件与目录",
-                    "link": "/Base/11-filePath-08"
+                    "text": "enumerate 与 zip",
+                    "link": "/Base/10-loopStructure-08"
                 },
                 {
-                    "text": "tempfile临时文件与目录",
-                    "link": "/Base/12-function-01"
+                    "text": "嵌套循环与复杂解包",
+                    "link": "/Base/10-loopStructure-09"
                 },
                 {
-                    "text": "tempfile临时文件与目录",
-                    "link": "/Base/12-function-02"
+                    "text": "列表推导式入门",
+                    "link": "/Base/10-loopStructure-10"
+                },
+                {
+                    "text": "推导式进阶：过滤、条件与嵌套",
+                    "link": "/Base/10-loopStructure-11"
+                },
+                {
+                    "text": "字典集合推导式与生成器表达式",
+                    "link": "/Base/10-loopStructure-12"
+                },
+                {
+                    "text": "循环惯用法与技巧",
+                    "link": "/Base/10-loopStructure-13"
+                },
+                {
+                    "text": "循环常见易错点",
+                    "link": "/Base/10-loopStructure-14"
                 }
             ]
         },
         {
-            "text": "【12】函数核心机制",
+            "text": "【11】函数基础",
             "collapsible": true,
+            "collapsed": true,
             "items": [
                 {
-                    "text": "位置参数与关键字参数",
-                    "link": "/Base/12-function-03"
+                    "text": "函数概述与基本概念",
+                    "link": "/Base/11-functionBasics-01"
                 },
                 {
-                    "text": "默认参数陷阱",
-                    "link": "/Base/12-function-04"
-                },
-                {
-                    "text": "可变位置参数args",
-                    "link": "/Base/12-function-05"
-                },
-                {
-                    "text": "可变关键字参数kwargs",
-                    "link": "/Base/12-function-06"
-                },
-                {
-                    "text": "参数顺序规范列",
-                    "link": "/Base/12-function-07"
-                },
-                {
-                    "text": "参数顺序规范列",
-                    "link": "/Base/12-function-08"
-                },
-                {
-                    "text": "仅关键字参数",
-                    "link": "/Base/12-function-09"
-                },
-                {
-                    "text": "作用域LEGB规则",
-                    "link": "/Base/12-function-10"
-                },
-                {
-                    "text": "global修改全局变量",
-                    "link": "/Base/12-function-11"
-                },
-                {
-                    "text": "nonlocal修改外层局部变量",
-                    "link": "/Base/12-function-12"
-                },
-                {
-                    "text": "docstring文档与help",
-                    "link": "/Base/12-function-13"
-                },
-                {
-                    "text": "函数注解与类型提示",
-                    "link": "/Base/12-function-14"
+                    "text": "函数定义与调用",
+                    "link": "/Base/11-functionBasics-02"
                 }
             ]
         },
         {
-            "text": "【13】高阶函数与闭包",
+            "text": "【12】函数参数介绍",
             "collapsible": true,
+            "collapsed": true,
             "items": [
                 {
-                    "text": "函数是一等公民",
-                    "link": "/Base/13-hofClosure-01"
+                    "text": "形参与实参：参数传递的本质",
+                    "link": "/Base/12-functionParameters-01"
                 },
                 {
-                    "text": "map 映射函数",
-                    "link": "/Base/13-hofClosure-02"
+                    "text": "位置参数",
+                    "link": "/Base/12-functionParameters-02"
                 },
                 {
-                    "text": "filter 过滤函数",
-                    "link": "/Base/13-hofClosure-03"
+                    "text": "关键字参数与混合传参",
+                    "link": "/Base/12-functionParameters-03"
                 },
                 {
-                    "text": "reduce 累积计算",
-                    "link": "/Base/13-hofClosure-04"
+                    "text": "默认参数值",
+                    "link": "/Base/12-functionParameters-04"
                 },
                 {
-                    "text": "sorted 自定义排序",
-                    "link": "/Base/13-hofClosure-05"
+                    "text": "可变默认参数陷阱",
+                    "link": "/Base/12-functionParameters-05"
                 },
                 {
-                    "text": "闭包（closure）",
-                    "link": "/Base/13-hofClosure-06"
+                    "text": "可变位置参数 *args",
+                    "link": "/Base/12-functionParameters-06"
                 },
                 {
-                    "text": "闭包应用场景",
-                    "link": "/Base/13-hofClosure-07"
+                    "text": "可变关键字参数 **kwargs",
+                    "link": "/Base/12-functionParameters-07"
                 },
                 {
-                    "text": "nonlocal 在闭包中的使用",
-                    "link": "/Base/13-hofClosure-08"
-                }
-            ]
-        },
-        {
-            "text": "【14】装饰器深度剖析",
-            "collapsible": true,
-            "items": [
-                {
-                    "text": "装饰器本质",
-                    "link": "/Base/14-decorator-01"
-                },
-                {
-                    "text": "无参装饰器实现",
-                    "link": "/Base/14-decorator-02"
-                },
-                {
-                    "text": "装饰器执行顺序",
-                    "link": "/Base/14-decorator-03"
-                },
-                {
-                    "text": "functools.wraps 保留原函数信息",
-                    "link": "/Base/14-decorator-04"
-                },
-                {
-                    "text": "带参数装饰器",
-                    "link": "/Base/14-decorator-05"
-                },
-                {
-                    "text": "类装饰器",
-                    "link": "/Base/14-decorator-06"
-                },
-                {
-                    "text": "装饰器实战权限校验",
-                    "link": "/Base/14-decorator-07"
-                },
-                {
-                    "text": "装饰器实战：lru_cache 缓存",
-                    "link": "/Base/14-decorator-08"
-                }
-            ]
-        },
-        {
-            "text": "【15】模块与包管理",
-            "collapsible": true,
-            "items": [
-                {
-                    "text": "import 与 from...import —— 模块导入的两种方式",
-                    "link": "/Base/15-modulePackage-01"
-                },
-                {
-                    "text": "模块搜索路径 sys.path",
-                    "link": "/Base/15-modulePackage-02"
-                },
-                {
-                    "text": "__name__ 与程序入口",
-                    "link": "/Base/15-modulePackage-03"
-                },
-                {
-                    "text": "Package 与 __init__.py",
-                    "link": "/Base/15-modulePackage-04"
-                },
-                {
-                    "text": "相对导入",
-                    "link": "/Base/15-modulePackage-05"
-                },
-                {
-                    "text": "__all__ 控制导出列表",
-                    "link": "/Base/15-modulePackage-06"
-                },
-                {
-                    "text": "requirements.txt 生成依赖",
-                    "link": "/Base/15-modulePackage-07"
-                },
-                {
-                    "text": "pyproject.toml 现代配置",
-                    "link": "/Base/15-modulePackage-08"
-                }
-            ]
-        },
-        {
-            "text": "【16】面向对象OOP全套",
-            "collapsible": true,
-            "items": [
-                {
-                    "text": "类与实例定义",
-                    "link": "/Base/16-oop-01"
-                },
-                {
-                    "text": "self 的本质",
-                    "link": "/Base/16-oop-02"
-                },
-                {
-                    "text": "实例属性动态添加",
-                    "link": "/Base/16-oop-03"
-                },
-                {
-                    "text": "类属性与实例属性区别",
-                    "link": "/Base/16-oop-04"
-                },
-                {
-                    "text": "实例方法",
-                    "link": "/Base/16-oop-05"
-                },
-                {
-                    "text": "classmethod 类方法",
-                    "link": "/Base/16-oop-06"
-                },
-                {
-                    "text": "staticmethod 静态方法",
-                    "link": "/Base/16-oop-07"
-                },
-                {
-                    "text": "classmethod 与 staticmethod 场景",
-                    "link": "/Base/16-oop-08"
-                },
-                {
-                    "text": "私有属性约定 _single_（单下划线）",
-                    "link": "/Base/16-oop-09"
-                },
-                {
-                    "text": "名称重整 __double__（双下划线 name mangling）",
-                    "link": "/Base/16-oop-10"
-                },
-                {
-                    "text": "property getter 封装",
-                    "link": "/Base/16-oop-11"
-                },
-                {
-                    "text": "property 的 setter 与 deleter",
-                    "link": "/Base/16-oop-12"
-                },
-                {
-                    "text": "单继承与子类",
-                    "link": "/Base/16-oop-13"
-                },
-                {
-                    "text": "方法重写",
-                    "link": "/Base/16-oop-14"
-                },
-                {
-                    "text": "super 调用父类",
-                    "link": "/Base/16-oop-15"
-                },
-                {
-                    "text": "多继承与菱形问题",
-                    "link": "/Base/16-oop-16"
-                },
-                {
-                    "text": "C3 线性化算法与 __mro__",
-                    "link": "/Base/16-oop-17"
-                },
-                {
-                    "text": "__str__ 与 __repr__",
-                    "link": "/Base/16-oop-18"
-                },
-                {
-                    "text": "__call__ 使实例可调用",
-                    "link": "/Base/16-oop-19"
-                },
-                {
-                    "text": "__del__析构函数",
-                    "link": "/Base/16-oop-20"
-                },
-                {
-                    "text": "__len__ 与 __getitem__",
-                    "link": "/Base/16-oop-21"
-                },
-                {
-                    "text": "迭代器协议 `__iter__` 与 `__next__`",
-                    "link": "/Base/16-oop-22"
-                }
-            ]
-        },
-        {
-            "text": "【17】生成器与迭代器",
-            "collapsible": true,
-            "items": [
-                {
-                    "text": "yield 生成器定义",
-                    "link": "/Base/17-generator-01"
-                },
-                {
-                    "text": "生成器惰性求值过程",
-                    "link": "/Base/17-generator-02"
-                },
-                {
-                    "text": "生成器表达式",
-                    "link": "/Base/17-generator-03"
-                },
-                {
-                    "text": "生成器 send 方法",
-                    "link": "/Base/17-generator-04"
-                },
-                {
-                    "text": "yield from 委托 —— 把生成器的\"产出\"与\"交互\"整体转发",
-                    "link": "/Base/17-generator-05"
-                },
-                {
-                    "text": "itertools 常用工具",
-                    "link": "/Base/17-generator-06"
-                },
-                {
-                    "text": "生成器 vs 列表内存对比",
-                    "link": "/Base/17-generator-07"
-                },
-                {
-                    "text": "生成器与协程关系",
-                    "link": "/Base/17-generator-08"
-                }
-            ]
-        },
-        {
-            "text": "【18】异步协程",
-            "collapsible": true,
-            "items": [
-                {
-                    "text": "同步阻塞痛点",
-                    "link": "/Base/18-async-01"
-                },
-                {
-                    "text": "协程概念与调度",
-                    "link": "/Base/18-async-02"
-                },
-                {
-                    "text": "async def 与 await —— 协程的定义与暂停",
-                    "link": "/Base/18-async-03"
-                },
-                {
-                    "text": "asyncio.run 启动事件循环",
-                    "link": "/Base/18-async-04"
-                },
-                {
-                    "text": "asyncio.sleep 模拟异步 IO",
-                    "link": "/Base/18-async-05"
-                },
-                {
-                    "text": "asyncio.create_task 并发执行",
-                    "link": "/Base/18-async-06"
-                },
-                {
-                    "text": "asyncio.gather 与 asyncio.wait",
-                    "link": "/Base/18-async-07"
-                },
-                {
-                    "text": "任务取消与超时控制",
-                    "link": "/Base/18-async-08"
-                },
-                {
-                    "text": "aiofiles 异步文件读写",
-                    "link": "/Base/18-async-09"
-                },
-                {
-                    "text": "aiohttp 异步 HTTP 请求",
-                    "link": "/Base/18-async-10"
-                },
-                {
-                    "text": "asyncio.Queue 异步队列",
-                    "link": "/Base/18-async-11"
-                },
-                {
-                    "text": "asyncio.Lock 异步锁",
-                    "link": "/Base/18-async-12"
-                },
-                {
-                    "text": "同步代码调用异步代码",
-                    "link": "/Base/18-async-13"
-                },
-                {
-                    "text": "异步代码调用同步代码",
-                    "link": "/Base/18-async-14"
-                }
-            ]
-        },
-        {
-            "text": "【19】标准库精讲",
-            "collapsible": true,
-            "items": [
-                {
-                    "text": "sys 模块：命令行参数与标准流",
-                    "link": "/Base/19-stdlib-01"
-                },
-                {
-                    "text": "os 模块：环境变量与进程",
-                    "link": "/Base/19-stdlib-02"
-                },
-                {
-                    "text": "pathlib 路径拼接与文件属性",
-                    "link": "/Base/19-stdlib-03"
-                },
-                {
-                    "text": "json 序列化与反序列化",
-                    "link": "/Base/19-stdlib-04"
-                },
-                {
-                    "text": "pickle 二进制序列化 —— Python 对象的存取与安全红线",
-                    "link": "/Base/19-stdlib-05"
-                },
-                {
-                    "text": "csv 读写 CSV 文件",
-                    "link": "/Base/19-stdlib-06"
-                },
-                {
-                    "text": "re 正则：match / search / findall",
-                    "link": "/Base/19-stdlib-07"
-                },
-                {
-                    "text": "正则捕获组与分组",
-                    "link": "/Base/19-stdlib-08"
-                },
-                {
-                    "text": "正则常用模式速查",
-                    "link": "/Base/19-stdlib-09"
-                },
-                {
-                    "text": "datetime.now 与 strftime",
-                    "link": "/Base/19-stdlib-10"
-                },
-                {
-                    "text": "datetime.strptime：解析字符串为 datetime 对象",
-                    "link": "/Base/19-stdlib-11"
-                },
-                {
-                    "text": "time.sleep 与时间戳",
-                    "link": "/Base/19-stdlib-12"
-                },
-                {
-                    "text": "timedelta 时间差计算",
-                    "link": "/Base/19-stdlib-13"
-                },
-                {
-                    "text": "uuid 生成唯一 ID",
-                    "link": "/Base/19-stdlib-14"
-                },
-                {
-                    "text": "random 随机数与采样",
-                    "link": "/Base/19-stdlib-15"
-                },
-                {
-                    "text": "logging.basicConfig 日志配置",
-                    "link": "/Base/19-stdlib-16"
-                },
-                {
-                    "text": "logging.FileHandler 与日志轮转",
-                    "link": "/Base/19-stdlib-17"
-                },
-                {
-                    "text": "argparse 命令行参数解析",
-                    "link": "/Base/19-stdlib-18"
-                },
-                {
-                    "text": "collections 常用工具",
-                    "link": "/Base/19-stdlib-19"
-                },
-                {
-                    "text": "functools 常用工具",
-                    "link": "/Base/19-stdlib-20"
-                }
-            ]
-        },
-        {
-            "text": "【20】网络请求与外部服务",
-            "collapsible": true,
-            "items": [
-                {
-                    "text": "requests 基础请求",
-                    "link": "/Base/20-network-01"
-                },
-                {
-                    "text": "requests 请求头与参数",
-                    "link": "/Base/20-network-02"
-                },
-                {
-                    "text": "requests 响应处理",
-                    "link": "/Base/20-network-03"
-                },
-                {
-                    "text": "requests 超时与代理",
-                    "link": "/Base/20-network-04"
-                },
-                {
-                    "text": "requests.Session 会话保持",
-                    "link": "/Base/20-network-05"
-                },
-                {
-                    "text": "redis-py 同步 Redis",
-                    "link": "/Base/20-network-06"
+                    "text": "调用侧参数解包",
+                    "link": "/Base/12-functionParameters-08"
                 },
                 {
-                    "text": "redis.asyncio 异步 Redis",
-                    "link": "/Base/20-network-07"
+                    "text": "仅位置参数与仅关键字参数",
+                    "link": "/Base/12-functionParameters-09"
                 },
                 {
-                    "text": "python-dotenv 环境变量管理",
-                    "link": "/Base/20-network-08"
+                    "text": "参数签名全景与顺序规则",
+                    "link": "/Base/12-functionParameters-10"
                 }
             ]
         }

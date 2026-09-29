@@ -3,889 +3,956 @@ group:
   title: 【03】字符串介绍
   order: 3
 order: 9
-title: find与index区别
+title: 字符串与正则表达式
 nav:
   title: Python基础
   order: 1
 ---
 
+# 字符串与正则表达式
+
 ## 1. 介绍
 
-### 1.1 什么是字符串查找方法
+### 1.1 什么是正则表达式
 
-字符串查找方法是 Python 中用于在字符串中定位子串或字符位置的核心方法。在文本处理、数据解析、日志分析、搜索功能实现等无数应用场景中，我们经常需要回答"某个子串是否存在于字符串中，如果存在，它在哪里？"这样的问题。为了解决这类问题，Python 字符串提供了多个"查找"方法，其中最常用也是最容易混淆的就是 `find()` 方法和 `index()` 方法。
-
-这两个方法的功能看似完全相同——都是在字符串中查找指定子串的位置——但它们在"未找到"时的行为截然不同：find 方法返回 `-1`，而 index 方法会抛出 `ValueError` 异常。这个看似微小的差异，却在实际的编程实践中产生了深远的影响，决定了这两个方法适用于不同的场景。
+正则表达式（Regular Expression，简称 regex）是一种描述字符串模式的微型语言。它用一套特殊的元字符和语法，精确定义"什么样的字符串符合要求"——比如"以数字开头""包含 @ 符号""恰好 11 位手机号"。Python 通过内置的 `re` 模块提供正则表达式支持。
 
 ```python
-# find 与 index 的基本对比
-text = "Hello, Python World!"
+import re
 
-# find 方法：找不到返回 -1
-position1 = text.find("Java")
-print(f"find('Java'): {position1}")  # -1
+# 验证手机号格式
+phone = "13812345678"
+if re.match(r'1[3-9]\d{9}$', phone):
+    print("手机号有效")
 
-# index 方法：找不到抛出 ValueError
-try:
-    position2 = text.index("Java")
-    print(f"index('Java'): {position2}")
-except ValueError as e:
-    print(f"index('Java') 抛出异常: {e}")
-# 输出：find('Java'): -1
-#       index('Java') 抛出异常: substring not found
+# 从文本中提取所有邮箱
+text = "联系: alice@example.com 或 bob@test.org"
+emails = re.findall(r'[\w.]+@[\w.]+\.\w+', text)
+print(emails)  # ['alice@example.com', 'bob@test.org']
+
+# 替换敏感词
+cleaned = re.sub(r'[垃圾骗局]', lambda m: '*' * len(m.group()), '这个游戏真垃圾')
+print(cleaned)  # 这个游戏真**
 ```
 
-从上面这段简单的代码演示中，我们可以清晰地看到两者的核心差异。这种差异看起来简单，但却是 Python 设计哲学的体现——"显式优于隐式"：find 方法"静默"地返回 -1 表示未找到，而 index 方法则"大声"地抛出异常告知调用者未找到。这种设计让开发者必须明确处理"未找到"的情况，避免潜在的 bug。
+### 1.2 正则表达式解决了什么问题
 
-### 1.2 find 与 index 的关系与差异
+字符串的 `str.find()`、`str.replace()` 只能处理固定的子串，而正则表达式处理的是"模式"——一类字符串的共同特征。当需求从"找到 hello"变成"找到以 h 开头、以 o 结尾、中间至少一个字母的单词"时，`str` 方法就力不从心了。
 
-`find()` 和 `index()` 是 Python 字符串方法中一对"功能相似但行为不同"的典型代表。在《Python之禅》（The Zen of Python）中，有一句话是"Errors should never pass silently"（错误不应该静默地传递），index 方法遵循这一原则，而 find 方法则提供了另一种选择。两者没有绝对的优劣之分，它们各自适用于不同的场景。
+| 需求 | `str` 方法 | 正则表达式 |
+|------|-----------|-----------|
+| 找到 "hello" | `"hello world".find("hello")` | `re.search(r'hello', 'hello world')` |
+| 找到任意数字 | 需手动遍历每个字符 | `re.findall(r'\d+', text)` |
+| 验证邮箱格式 | 几乎不可能 | `re.match(r'[\w.]+@[\w.]+\.\w+', email)` |
+| 替换所有数字 | 需多次 replace | `re.sub(r'\d', 'X', text)` |
+| 按多种分隔符分割 | 需多次 split 或循环 | `re.split(r'[,;|]', text)` |
 
-**两者共同点**：
+### 1.3 re 模块方法速览
 
-```python
-text = "Hello, Python World!"
+Python `re` 模块提供三组核心函数：
 
-# 两者都能找到子串时，返回相同的位置
-pos_find = text.find("Python")
-pos_index = text.index("Python")
-
-print(f"find('Python'): {pos_find}")    # 7
-print(f"index('Python'): {pos_index}")  # 7
-
-# 两者都支持可选的 start 和 end 参数
-pos1 = text.find("o", 5, 15)
-pos2 = text.index("o", 5, 15)
-print(f"find('o', 5, 15): {pos1}")    # 12
-print(f"index('o', 5, 15): {pos2}")   # 12
-```
-
-**两者核心差异**：
-
-```python
-text = "Hello, Python World!"
-
-# 都能找到的情况：返回位置
-print(f"find('Hello'): {text.find('Hello')}")     # 0
-print(f"index('Hello'): {text.index('Hello')}")    # 0
-
-# 找不到时：行为不同！
-print(f"find('Java'): {text.find('Java')}")        # -1
-
-try:
-    print(f"index('Java'): {text.index('Java')}")
-except ValueError as e:
-    print(f"index 抛出异常: {e}")
-```
-
-### 1.3 字符串查找方法家族
-
-除了 find 和 index，Python 字符串还提供了其他几个相关的查找方法，它们共同构成了字符串查找的方法家族：
-
-| 方法 | 功能 | 找失败返回值 |
-|------|------|-------------|
-| find() | 正向查找子串首次出现位置 | -1 |
-| rfind() | 反向查找子串最后一次出现位置 | -1 |
-| index() | 正向查找子串首次出现位置 | 抛出 ValueError |
-| rindex() | 反向查找子串最后一次出现位置 | 抛出 ValueError |
-| count() | 统计子串出现的次数 | 0（不抛异常） |
-| startswith() | 检查是否以指定子串开头 | True/False |
-| endswith() | 检查是否以指定子串结尾 | True/False |
-| in 运算符 | 检查子串是否存在 | True/False |
-
-```python
-# 字符串查找方法家族演示
-text = "Hello, Python World! Python is great!"
-
-# find/rfind
-print(f"find('o'): {text.find('o')}")       # 4
-print(f"rfind('o'): {text.rfind('o')}")      # 26
-
-# index/rindex
-print(f"index('o'): {text.index('o')}")      # 4
-print(f"rindex('o'): {text.rindex('o')}")    # 26
-
-# count
-print(f"count('o'): {text.count('o')}")      # 3
-
-# startswith/endswith
-print(f"startswith('Hello'): {text.startswith('Hello')}")  # True
-print(f"endswith('great!'): {text.endswith('great!')}")    # True
-
-# in 运算符
-print(f"'Python' in text: {'Python' in text}")  # True
-```
-
-理解 find 与 index 的差异以及整个查找方法家族，是编写健壮的字符串处理代码的基础。在后续的"核心内容"章节中，我们将对每个方法进行深入讲解。
-
-### 1.4 为什么要区分 find 和 index
-
-区分 find 和 index 方法不仅仅是为了应付面试题或考试，更是因为它们在实际编程中各有其最佳应用场景。选择正确的方法可以：
-
-1. **避免静默的错误**：使用 index 方法时，如果子串不存在，程序会立即报错，帮助开发者快速发现问题
-2. **简化控制流**：使用 find 方法时，返回值 -1 可以直接用于条件判断，不需要 try-except 包装
-3. **提高代码可读性**：根据场景选择合适的方法，可以让代码意图更加清晰
-
-```python
-# 场景1：确认存在后处理（适合用 in 或 find）
-email = "user@example.com"
-if "@" in email and "." in email:
-    local, domain = email.split("@")
-    # 处理逻辑
-
-# 场景2：需要位置信息且一定要找到（适合用 index）
-# 假设我们从配置文件读取格式化的数据，格式必须是 "key=value"
-config_line = "timeout=30"
-try:
-    key, value = config_line.split("=")  # split 在找不到分隔符时也会抛异常
-except ValueError:
-    print("配置格式错误")
-
-# 场景3：可能不存在，用默认值（适合用 find）
-user_input = input("请输入数字（直接回车使用默认值）:")
-pos = user_input.find("\n")  # 查找换行符
-if pos == -1:
-    print("您没有输入内容")
-else:
-    print(f"您输入了 {len(user_input)} 个字符")
-```
-
----
+| 函数 | 作用 | 返回值 |
+|------|------|--------|
+| `re.match` | 从字符串开头匹配 | `Match` 对象或 `None` |
+| `re.search` | 在任意位置搜索第一个匹配 | `Match` 对象或 `None` |
+| `re.fullmatch` | 要求整个字符串完全匹配 | `Match` 对象或 `None` |
+| `re.findall` | 找到所有匹配 | 字符串列表或元组列表 |
+| `re.finditer` | 找到所有匹配 | `Match` 对象迭代器 |
+| `re.sub` | 替换匹配 | 替换后的字符串 |
+| `re.subn` | 替换并计数 | `(替换后字符串, 替换次数)` |
+| `re.split` | 按正则分割 | 字符串列表 |
+| `re.compile` | 编译正则 | 编译后的 Pattern 对象 |
 
 ## 2. 核心内容
 
-### 2.1 find() 方法详解
+### 2.1 匹配与搜索：match / search / fullmatch
 
-#### 2.1.1 基本语法
+#### 2.1.1 `re.match` 从开头匹配
 
-`str.find(sub[, start[, end]])` 方法用于在字符串中查找子串首次出现的位置。如果找到，返回子串首次出现的索引（从 0 开始）；如果未找到，返回 `-1`。这是它与 index 方法的核心区别。
-
-```python
-# 语法：str.find(sub[, start[, end]])
-# 
-# 参数说明：
-# - sub: 要查找的子串
-# - start: 可选，查找的起始位置（默认 0）
-# - end: 可选的结束位置（默认字符串长度）
-#
-# 返回值：
-# - 找到：返回首次出现的索引（整数）
-# - 未找到：返回 -1
-```
-
-**基本示例**：
+`re.match(pattern, string)` 从字符串**开头**尝试匹配，如果开头不匹配则返回 `None`。返回 `Match` 对象表示匹配成功。
 
 ```python
-text = "Hello, Python World!"
+import re
 
-# 基本查找
-position = text.find("Python")
-print(f"find('Python'): {position}")  # 7
+# 开头匹配成功
+result = re.match(r'Hello', 'Hello World')
+print(result)  # <re.Match object; span=(0, 5), match='Hello'>
+print(result.group())  # Hello
+print(result.span())    # (0, 5)
 
-# 查找不存在的子串
-position = text.find("Java")
-print(f"find('Java'): {position}")    # -1
-
-# 查找单个字符
-position = text.find("o")
-print(f"find('o'): {position}")       # 4（第一个 o 的位置）
+# 开头不匹配 → 返回 None
+result = re.match(r'World', 'Hello World')
+print(result)  # None
 ```
 
-#### 2.1.2 start 和 end 参数详解
+`match` 只检查开头——即使模式在字符串后面出现了，只要开头不匹配就返回 `None`。
 
-find 方法支持可选的 start 和 end 参数，用于限定查找范围。这种能力在处理部分字符串或者从某个位置之后开始查找时非常有用。
+#### 2.1.2 `re.search` 任意位置搜索
+
+`re.search(pattern, string)` 在字符串**任意位置**搜索第一个匹配，找到就返回 `Match` 对象。
 
 ```python
-text = "Hello, Python World! Python is great!"
+# match 找不到（不在开头），search 能找到
+result = re.search(r'World', 'Hello World')
+print(result)  # <re.Match object; span=(6, 11), match='World'>
+print(result.group())  # World
+print(result.span())    # (6, 11)
 
-# 使用 start 参数：从指定位置开始查找
-position = text.find("o", 5)
-print(f"find('o', 5): {position}")  # 12（从索引5开始找，第一个 o 在位置 12）
-
-# 使用 start 和 end 参数：限定查找范围
-position = text.find("o", 5, 15)
-print(f"find('o', 5, 15): {position}")  # 12（在索引 5-15 范围内找）
-
-# start 和 end 可以是负数（表示从字符串末尾计算）
-position = text.find("Python", -20)
-print(f"find('Python', -20): {position}")  # 7（从倒数第20个字符开始找）
-
-# 超出范围时不会报错，会自动调整
-position = text.find("o", 100)  # 超出字符串长度
-print(f"find('o', 100): {position}")  # -1
+# 找不到时返回 None
+result = re.search(r'Python', 'Hello World')
+print(result)  # None
 ```
 
-**使用场景示例**：
+#### 2.1.3 `re.fullmatch` 完全匹配
+
+`re.fullmatch(pattern, string)` 要求**整个字符串**完全匹配模式，多了或少了都不行。
 
 ```python
-# 场景：解析 URL
-url = "https://example.com/path/to/page?query=value"
+# 完全匹配
+result = re.fullmatch(r'Hello World', 'Hello World')
+print(result)  # <re.Match object; span=(0, 11), match='Hello World'>
 
-# 找到协议部分
-protocol_pos = url.find("://")
-protocol = url[:protocol_pos] if protocol_pos != -1 else ""
-print(f"协议: {protocol}")  # https
-
-# 找到查询参数开始位置
-query_pos = url.find("?")
-if query_pos != -1:
-    path = url[:query_pos]
-    query = url[query_pos+1:]
-else:
-    path = url
-    query = ""
-print(f"路径: {path}, 查询: {query}")
+# 不完全匹配
+result = re.fullmatch(r'Hello', 'Hello World')
+print(result)  # None
 ```
 
-#### 2.1.3 find 方法的边界行为
-
-理解 find 方法在各种边界情况下的行为，对于编写健壮的代码至关重要。
+#### 2.1.4 三种匹配方式对比
 
 ```python
-# 空字符串作为子串
-text = "Hello"
-print(f"find(''): {text.find('')}")        # 0（空字符串被认为是存在于位置 0）
-print(f"find('', 3): {text.find('', 3)}")  # 3
+text = "Hello World"
 
-# 空字符串作为主字符串
-print(f"''.find('a'): {''.find('a')}")     # -1
-print(f"''.find(''): {''.find('')}")       # 0
+# match: 从开头匹配
+print(re.match(r'Hello', text))   # 匹配成功
+print(re.match(r'World', text))   # None（不在开头）
 
-# 子串长度大于主字符串
-print(f"'Hello'.find('Hello World'): {'Hello'.find('Hello World')}")  # -1
+# search: 任意位置搜索
+print(re.search(r'Hello', text)) # 匹配成功
+print(re.search(r'World', text)) # 匹配成功
 
-# 超出范围的 start/end
-print(f"'Hello'.find('o', 10): {'Hello'.find('o', 10)}")  # -1
-print(f"'Hello'.find('o', -10): {'Hello'.find('o', -10)}")  # 4（负数会自动调整）
-
-# start > end 的情况
-try:
-    result = "Hello".find("o", 3, 1)
-    print(result)
-except Exception as e:
-    print(f"异常: {e}")  # 不会抛异常，只是返回 -1
-print(f"'Hello'.find('o', 3, 1): {'Hello'.find('o', 3, 1)}")  # -1
+# fullmatch: 完全匹配
+print(re.fullmatch(r'Hello World', text))  # 匹配成功
+print(re.fullmatch(r'Hello', text))        # None（不完全匹配）
 ```
 
-#### 2.1.4 find 方法的返回值为 -1 的含义
+**选择指南**：
 
-在代码中使用 find 方法时，检查返回值是否为 -1 是一个常见的模式。理解这个行为可以帮助我们写出更清晰的代码。
+| 需求 | 推荐方法 |
+|------|---------|
+| 验证字符串是否以某模式开头 | `re.match` |
+| 验证字符串整体格式（如邮箱、手机号） | `re.fullmatch` |
+| 在文本中搜索某个模式 | `re.search` |
+
+#### 2.1.5 Match 对象的常用方法
+
+匹配成功后，`Match` 对象提供了多种方法获取匹配信息：
 
 ```python
-# 典型的 find 使用模式
-text = "Python is a powerful programming language"
+m = re.search(r'(\w+)@(\w+)\.(\w+)', '联系我: alice@example.com 或 bob@test.org')
 
-# 模式1：检查是否找到（常用）
-keyword = "Python"
-pos = text.find(keyword)
-if pos != -1:
-    print(f"关键词 '{keyword}' 在位置 {pos} 处找到")
-else:
-    print(f"关键词 '{keyword}' 未找到")
-
-# 模式2：使用 -1 作为"未找到"的标记
-# （这种模式在需要区分"未找到"和"找到位置0"时会有问题）
-pos = text.find("Python")
-found = pos != -1
-index = pos if found else None
-print(f"found: {found}, index: {index}")
-
-# 模式3：利用 -1 的特性进行高级查找
-# 查找所有出现的位置
-def find_all(text, sub):
-    positions = []
-    start = 0
-    while True:
-        pos = text.find(sub, start)
-        if pos == -1:
-            break
-        positions.append(pos)
-        start = pos + 1
-    return positions
-
-text = "apple banana apple cherry apple"
-print(find_all(text, "apple"))  # [0, 13, 26]
+print(m.group())      # alice@example.com（整个匹配）
+print(m.group(0))     # alice@example.com（同上）
+print(m.group(1))     # alice（第 1 组）
+print(m.group(2))     # example（第 2 组）
+print(m.group(3))     # com（第 3 组）
+print(m.groups())     # ('alice', 'example', 'com')
+print(m.start())      # 5（匹配起始位置）
+print(m.end())        # 22（匹配结束位置）
+print(m.span())       # (5, 22)
 ```
 
-### 2.2 index() 方法详解
+### 2.2 re.findall 与 re.finditer
 
-#### 2.2.1 基本语法
+#### 2.2.1 `re.findall` 找到所有匹配
 
-`str.index(sub[, start[, end]])` 方法与 find 方法的语法几乎完全相同，唯一的区别在于：当子串不存在时，index 方法会抛出 `ValueError` 异常，而不是返回 -1。
+`re.findall(pattern, string)` 返回所有匹配的列表。无分组时返回匹配的字符串列表，有分组时返回元组列表。
 
 ```python
-# 语法：str.index(sub[, start[, end]])
-# 
-# 参数说明：
-# - sub: 要查找的子串
-# - start: 可选，查找的起始位置（默认 0）
-# - end: 可选的结束位置（默认字符串长度）
-#
-# 返回值：
-# - 找到：返回首次出现的索引（整数）
-# - 未找到：抛出 ValueError 异常
+# 无分组：返回匹配的字符串列表
+results = re.findall(r'\d+', '电话: 13812345678, 邮编: 200001')
+print(results)  # ['13812345678', '200001']
+
+# 两个分组：返回元组列表
+results = re.findall(r'(\w+)@(\w+)\.com', 'alice@example.com 和 bob@test.org')
+print(results)  # [('alice', 'example'), ('bob', 'test')]
 ```
 
-**基本示例**：
+**分组对 findall 返回值的影响**：
+
+| 正则中有分组 | 返回值 |
+|------------|--------|
+| 无分组 | 匹配的完整字符串列表 |
+| 1 个分组 | 该组内容的字符串列表 |
+| 多个分组 | 各组内容的元组列表 |
+
+#### 2.2.2 `re.finditer` 返回 Match 迭代器
+
+`re.finditer` 返回 `Match` 对象的迭代器，可以获取每次匹配的位置信息：
 
 ```python
-text = "Hello, Python World!"
-
-# 基本查找（找到的情况）
-position = text.index("Python")
-print(f"index('Python'): {position}")  # 7
-
-# 查找不存在的情况（会抛出异常）
-try:
-    position = text.index("Java")
-    print(f"index('Java'): {position}")
-except ValueError as e:
-    print(f"抛出异常: {e}")  # substring not found
+for m in re.finditer(r'\d+', '价格: 100元, 200元, 350元'):
+    print(f"  匹配: '{m.group()}' 位置: {m.span()}")
+# 匹配: '100' 位置: (4, 7)
+# 匹配: '200' 位置: (10, 13)
+# 匹配: '350' 位置: (16, 19)
 ```
 
-#### 2.2.2 start 和 end 参数详解
+`findall` 拿不到位置信息（只返回字符串），`finditer` 可以拿到完整的 `Match` 对象。
 
-index 方法同样支持 start 和 end 参数，用法与 find 完全相同。
+### 2.3 正则元字符与字符类
+
+#### 2.3.1 基本元字符
+
+正则表达式用特殊的元字符描述模式：
 
 ```python
-text = "Hello, Python World! Python is great!"
+# . 匹配任意单个字符（除换行符）
+re.findall(r'c.t', 'cat cot cut c t')  # ['cat', 'cot', 'cut', 'c t']
 
-# 使用 start 参数
-position = text.index("o", 5)
-print(f"index('o', 5): {position}")  # 12
+# \d 匹配数字（0-9），\D 匹配非数字
+re.findall(r'\d+', 'abc123def456')  # ['123', '456']
 
-# 使用 start 和 end 参数
-position = text.index("o", 5, 15)
-print(f"index('o', 5, 15): {position}")  # 12
+# \w 匹配字母数字下划线，\W 匹配非字母数字下划线
+re.findall(r'\w+', 'hello_world 123!@#')  # ['hello_world', '123']
 
-# 使用负数索引
-position = text.index("Python", -20)
-print(f"index('Python', -20): {position}")  # 7
+# \s 匹配空白字符，\S 匹配非空白
+re.findall(r'\S+', 'hello world  python')  # ['hello', 'world', 'python']
 ```
 
-#### 2.2.3 index 方法的异常处理
+常用元字符速查表：
 
-使用 index 方法时，对"未找到"情况的处理是必须的。了解如何正确处理这种异常是使用 index 方法的关键。
+| 元字符 | 含义 | 示例 | 匹配 |
+|--------|------|------|------|
+| `.` | 任意单个字符（除换行） | `c.t` | `cat`、`cot` |
+| `\d` | 数字 0-9 | `\d+` | `123` |
+| `\D` | 非数字 | `\D+` | `abc` |
+| `\w` | 字母数字下划线 | `\w+` | `hello_123` |
+| `\W` | 非字母数字下划线 | `\W+` | `!@#` |
+| `\s` | 空白字符 | `\s+` | `  \t\n` |
+| `\S` | 非空白 | `\S+` | `hello` |
+| `\b` | 单词边界 | `\bcat\b` | `cat`（不匹配 `catfish`） |
+| `^` | 字符串开头 | `^Hello` | `Hello World` |
+| `$` | 字符串结尾 | `World$` | `Hello World` |
+| `\` | 转义字符 | `\.` | `.` 字面量 |
+
+#### 2.3.2 字符集合 `[...]`
+
+方括号定义字符集合，匹配集合中的任意一个字符：
 
 ```python
-# 基本异常处理
-text = "Hello, Python World!"
+# 匹配集合中的任意字符
+re.findall(r'[aeiou]', 'Hello World')  # ['e', 'o', 'o']
 
-try:
-    position = text.index("Java")
-except ValueError:
-    print("未找到子串")
+# 范围匹配
+re.findall(r'[0-9]+', 'a1b22c333')  # ['1', '22', '333']
+re.findall(r'[a-z]+', 'Hello World')  # ['ello', 'orld']
 
-# 带更多信息的异常处理
-def safe_index(s, sub, default=-1):
-    """安全版本的 index，返回默认值而不是抛出异常"""
-    try:
-        return s.index(sub)
-    except ValueError:
-        return default
-
-result = safe_index(text, "Java")
-print(f"safe_index 返回: {result}")  # -1
-
-result = safe_index(text, "Python")
-print(f"safe_index 返回: {result}")   # 7
-
-# 使用 index 时常见的错误模式
-# 错误：不检查异常直接使用
-# position = text.index(user_input)  # 如果不存在会崩溃
-
-# 正确：先检查或捕获异常
-user_input = "Java"
-if user_input in text:
-    position = text.index(user_input)
-    print(f"位置: {position}")
-else:
-    print("未找到")
-
-# 或者使用 try-except
-try:
-    position = text.index(user_input)
-except ValueError:
-    position = -1
-print(f"位置: {position}")
+# 取反：[^...] 匹配不在集合中的字符
+re.findall(r'[^aeiou]', 'Hello')  # ['H', 'l', 'l']
 ```
 
-#### 2.2.4 index 方法的高级应用
+#### 2.3.3 或运算 `|`
 
-index 方法虽然会因为未找到而抛出异常，但在某些场景下，这种"快速失败"的特性正是我们需要的。
+`|` 匹配左边或右边的模式：
 
 ```python
-# 场景1：解析固定格式的数据
-# 假设数据格式必须是 "key=value"，我们需要找到 = 的位置
-data = "username=admin"
+re.findall(r'cat|dog', 'I have a cat and a dog')  # ['cat', 'dog']
 
-try:
-    key, value = data.split("=")  # 这里如果用 index 也可以
-except ValueError:
-    print("数据格式错误")
-
-# 更适合用 index 的场景：期望一定存在
-# 例如：解析已知的日志格式
-log_line = "[INFO] 2024-01-15 User login successful"
-try:
-    level = log_line[1:log_line.index("]")]
-    print(f"日志级别: {level}")  # INFO
-except ValueError:
-    print("日志格式错误")
-
-# 场景2：链式查找
-text = "Hello, Python World!"
-try:
-    # 找到第一个 Python，然后在其后找 World
-    python_pos = text.index("Python")
-    after_python = text[python_pos:]
-    world_pos_in_sub = after_python.index("World")
-    world_pos = python_pos + world_pos_in_sub
-    print(f"'World' 在整体字符串中的位置: {world_pos}")
-except ValueError as e:
-    print(f"查找失败: {e}")
+# 多个选择
+re.findall(r'apple|banana|cherry', 'apple pie and banana cake')  # ['apple', 'banana']
 ```
 
-### 2.3 rfind() 与 rindex() 方法详解
+#### 2.3.4 单词边界 `\b`
 
-#### 2.3.1 rfind() 方法
-
-rfind（reverse find）方法从字符串的**右侧**开始查找，返回子串最后一次出现的位置。如果未找到，返回 -1。
+`\b` 匹配单词和空格（或字符串首尾）之间的位置，用于精确匹配单词：
 
 ```python
-text = "Hello, Python World! Python is great!"
+# 不加 \b：catfish 和 concatenate 中的 cat 也会匹配
+re.findall(r'cat', 'cat catfish concatenate')  # ['cat', 'cat', 'cat']
 
-# find 找第一个出现的 o
-print(f"find('o'): {text.find('o')}")   # 4
-
-# rfind 找最后一个出现的 o
-print(f"rfind('o'): {text.rfind('o')}") # 26
-
-# 结合 start/end 使用
-# 找在特定范围内最后一次出现
-print(f"rfind('o', 0, 20): {text.rfind('o', 0, 20)}")  # 12（在 0-20 范围内找最后一个）
+# 加 \b：只匹配独立的单词 cat
+re.findall(r'\bcat\b', 'cat catfish concatenate')  # ['cat']
 ```
 
-#### 2.3.2 rindex() 方法
+### 2.4 量词
 
-rindex（reverse index）方法与 rfind 类似，但从右侧开始查找，找到后返回最后一次出现的位置。与 index 的区别相同，如果未找到会抛出 ValueError。
+量词控制前一个元素匹配多少次：
+
+#### 2.4.1 基本量词
 
 ```python
-text = "Hello, Python World! Python is great!"
+# * 匹配 0 次或多次
+re.findall(r'ab*', 'a ab abb abbb')  # ['a', 'ab', 'abb', 'abbb']
 
-# rindex 找最后一个 o
-print(f"rindex('o'): {text.rindex('o')}")  # 26
+# + 匹配 1 次或多次
+re.findall(r'ab+', 'a ab abb abbb')  # ['ab', 'abb', 'abbb']
 
-# 找不到时抛出异常
-try:
-    print(f"rindex('xyz'): {text.rindex('xyz')}")
-except ValueError as e:
-    print(f"rindex 异常: {e}")  # substring not found
+# ? 匹配 0 次或 1 次
+re.findall(r'colou?r', 'color colour')  # ['color', 'colour']
 ```
 
-#### 2.3.3 rfind/rindex 与 find/index 的选择
+#### 2.4.2 精确量词 `{n}`, `{n,}`, `{n,m}`
 
 ```python
-# 选择依据：需要找第一个还是最后一个
+# {n} 恰好 n 次
+re.findall(r'\d{3}', '12 123 1234 12345')  # ['123', '123', '123']
 
-text = "apple banana apple cherry apple"
+# {n,} 至少 n 次
+re.findall(r'\d{2,}', '1 12 123 1234')  # ['12', '123', '1234']
 
-# 需要第一个匹配：使用 find / index
-first_apple_pos = text.find("apple")
-print(f"第一个 apple 位置: {first_apple_pos}")  # 0
-
-# 需要最后一个匹配：使用 rfind / rindex
-last_apple_pos = text.rfind("apple")
-print(f"最后一个 apple 位置: {last_apple_pos}")  # 26
-
-# 所有出现的位置（结合 find 和循环）
-def find_all_occurrences(text, sub):
-    positions = []
-    start = 0
-    while True:
-        pos = text.find(sub, start)
-        if pos == -1:
-            break
-        positions.append(pos)
-        start = pos + 1  # 移动到下一个位置继续查找
-    return positions
-
-print(find_all_occurrences(text, "apple"))  # [0, 13, 26]
+# {n,m} n 到 m 次
+re.findall(r'\d{2,4}', '1 12 123 1234 12345')  # ['12', '123', '1234', '1234']
 ```
 
-### 2.4 count() 方法
+#### 2.4.3 量词速查表
 
-虽然 count 方法不直接返回位置，但它是字符串查找方法家族中的重要成员，用于统计子串出现的次数。
+| 量词 | 匹配次数 | 等价形式 |
+|------|---------|---------|
+| `*` | 0 次或多次 | `{0,}` |
+| `+` | 1 次或多次 | `{1,}` |
+| `?` | 0 次或 1 次 | `{0,1}` |
+| `{n}` | 恰好 n 次 | |
+| `{n,}` | 至少 n 次 | |
+| `{n,m}` | n 到 m 次 | |
+
+### 2.5 分组与断言
+
+#### 2.5.1 捕获组 `(...)`
+
+用圆括号将模式的一部分分组，分组的内容可以被提取和反向引用：
 
 ```python
-text = "Hello, Python World! Python is great!"
-
-# 统计子串出现次数
-print(f"count('o'): {text.count('o')}")      # 3
-print(f"count('Python'): {text.count('Python')}")  # 2
-
-# 限定范围统计
-print(f"count('o', 0, 15): {text.count('o', 0, 15)}")  # 2（在 0-15 范围内）
-
-# 找不到返回 0（不会抛异常）
-print(f"count('Java'): {text.count('Java')}")  # 0
+m = re.search(r'(\d{4})-(\d{2})-(\d{2})', '日期: 2024-01-15')
+print(m.group(1))  # 2024
+print(m.group(2))  # 01
+print(m.group(3))  # 15
+print(m.groups())   # ('2024', '01', '15')
 ```
 
-### 2.5 startswith() 与 endswith() 方法
+#### 2.5.2 命名分组 `(?P<name>...)`
 
-这两个方法用于检查字符串是否以特定子串开头或结尾，它们返回布尔值，不会抛出异常。
+命名分组用 `(?P<name>...)` 给分组取名字，比数字索引更直观：
 
 ```python
-# 检查开头
-text = "Hello, Python World!"
-
-print(f"startswith('Hello'): {text.startswith('Hello')}")  # True
-print(f"startswith('Python'): {text.startswith('Python')}")  # False
-
-# 检查结尾
-print(f"endswith('!'): {text.endswith('!')}")      # True
-print(f"endswith('World'): {text.endswith('World')}")  # False
-
-# 使用元组检查多个前缀/后缀（非常有用的特性）
-filename = "document.pdf"
-print(f"startswith(('.pdf', '.doc', '.txt')): {filename.startswith(('.pdf', '.doc', '.txt'))}")  # True
-
-path = "/home/user/file.txt"
-print(f"endswith(('.txt', '.log')): {path.endswith(('.txt', '.log'))}")  # True
+m = re.search(r'(?P<year>\d{4})-(?P<month>\d{2})-(?P<day>\d{2})', '2024-01-15')
+print(m.group('year'))   # 2024
+print(m.group('month'))  # 01
+print(m.groupdict())      # {'year': '2024', 'month': '01', 'day': '15'}
 ```
 
-### 2.6 in 运算符与 find/index 的选择
+#### 2.5.3 非捕获组 `(?:...)`
 
-在 Python 中，检查子串是否存在有两种主要方式：使用 `in` 运算符，或者使用 find/index 方法。它们各有适用场景。
+非捕获组用 `(?:...)` 表示只分组不捕获——`findall` 不会返回它的内容：
 
 ```python
-text = "Hello, Python World!"
+# 普通分组：findall 返回分组内容
+re.findall(r'(\d{4})-(\d{2})-(\d{2})', '2024-01-15')
+# [('2024', '01', '15')]
 
-# 方式1：使用 in 运算符（最简洁）
-print(f"'Python' in text: {'Python' in text}")  # True
-
-# 方式2：使用 find 方法
-print(f"text.find('Python') != -1: {text.find('Python') != -1}")  # True
-
-# 方式3：使用 index 方法
-try:
-    text.index("Python")
-    print("Python 存在于文本中")
-except ValueError:
-    print("Python 不存在于文本中")
-
-# 选择建议：
-# - 只需要知道是否存在：用 in
-# - 需要知道位置：用 find（不需要抛异常）或 index（需要抛异常）
+# 非捕获组：findall 返回完整匹配
+re.findall(r'(?:\d{4})-(?:\d{2})-(?:\d{2})', '2024-01-15')
+# ['2024-01-15']
 ```
 
----
+非捕获组的优势——不需要提取内容时，用非捕获组避免 `findall` 返回分组内容，同时性能略优。
+
+#### 2.5.4 反向引用
+
+在正则表达式中用 `\1` 或 `(?P=name)` 引用前面的分组——检查重复内容：
+
+```python
+# \1 引用第 1 个分组，找出连续重复的单词
+re.findall(r'\b(\w+)\s+\1\b', 'hello hello world world test pass')
+# ['hello', 'world']
+
+# 命名反向引用
+m = re.search(r'(?P<word>\w+)\s+(?P=word)', 'hello hello world')
+print(m.group('word'))  # hello
+
+# 匹配成对的引号
+re.findall(r'(["\']).*?\1', "他说\"你好\", 她说'再见'")
+# ['"', "'"]
+```
+
+#### 2.5.5 零宽断言（Lookaround）
+
+零宽断言检查某个位置前后是否满足条件，但**不消耗字符**——匹配的位置是"边界"而非内容。
+
+| 断言 | 语法 | 含义 |
+|------|------|------|
+| 正向预查 | `(?=...)` | 后面跟着 X |
+| 负向预查 | `(?!...)` | 后面不跟着 X |
+| 正向后顾 | `(?<=...)` | 前面是 X |
+| 负向后顾 | `(?<!...)` | 前面不是 X |
+
+```python
+# 正向预查：提取"元"前面的数字
+re.findall(r'\d+(?=元)', '价格: 100元, 200美元, 350元')
+# ['100', '350']
+
+# 正向后顾：提取"￥"后面的数字
+re.findall(r'(?<=￥)\d+', '￥100, $200, ￥350')
+# ['100', '350']
+```
+
+**实际应用——URL 解析**：
+
+```python
+url_pattern = re.compile(
+    r'(?P<protocol>https?)://'
+    r'(?P<domain>[\w.]+)'
+    r'(?::(?P<port>\d+))?'
+    r'(?P<path>/[^\s]*)?'
+)
+
+url = 'http://api.test.org:8080/v1/users'
+m = url_pattern.search(url)
+if m:
+    d = m.groupdict()
+    print(f"  协议: {d.get('protocol')}")
+    print(f"  域名: {d.get('domain')}")
+    print(f"  端口: {d.get('port')}")
+    print(f"  路径: {d.get('path')}")
+
+# 输出:
+#   协议: http
+#   域名: api.test.org
+#   端口: 8080
+#   路径: /v1/users
+```
+
+### 2.6 贪婪与非贪婪
+
+#### 2.6.1 贪婪模式（默认）
+
+默认情况下，量词尽可能多地匹配——这就是"贪婪"模式：
+
+```python
+text = '<div>内容1</div><div>内容2</div>'
+
+# 贪婪 .* 从第一个 <div> 匹配到最后一个 </div>
+greedy = re.findall(r'<div>.*</div>', text)
+print(greedy)
+# ['<div>内容1</div><div>内容2</div>']  ← 一口气匹配到最后
+```
+
+#### 2.6.2 非贪婪模式
+
+在量词后加 `?` 使其变为非贪婪——尽可能少地匹配：
+
+```python
+# 非贪婪 .*? 遇到第一个 </div> 就停止
+lazy = re.findall(r'<div>.*?</div>', text)
+print(lazy)
+# ['<div>内容1</div>', '<div>内容2</div>']  ← 每个标签单独匹配
+```
+
+三种量词的非贪婪形式：
+
+| 贪婪 | 非贪婪 | 含义 |
+|------|--------|------|
+| `*` | `*?` | 0 或多次，尽可能少 |
+| `+` | `+?` | 1 或多次，尽可能少 |
+| `?` | `??` | 0 或 1 次，尽可能少 |
+
+#### 2.6.3 贪婪与非贪婪的典型陷阱
+
+```python
+text = '"name":"Alice","age":30,"city":"Beijing"'
+
+# 贪婪：从第一个引号匹配到最后一个引号
+re.findall(r'"(.*)"', text)
+# ['name":"Alice","age":30,"city":"Beijing']  ← 错误！
+
+# 非贪婪：每个引号对单独匹配
+re.findall(r'"(.*?)"', text)
+# ['name', 'Alice', 'age', 'city', 'Beijing']  ← 正确
+```
+
+**秒记**：提取成对标记的内容时，用 `.*?`（非贪婪）比 `.*`（贪婪）更安全。
+
+### 2.7 re.compile 编译预编译
+
+#### 2.7.1 为什么要编译
+
+`re.compile(pattern)` 将正则表达式编译为 `Pattern` 对象，避免每次调用都重新编译：
+
+```python
+# 不编译：每次调用都重新解析正则
+re.findall(r'\d+', '电话: 13812345678')
+re.findall(r'\d+', '邮编: 200001')
+
+# 编译一次，复用多次
+digit_pattern = re.compile(r'\d+')
+digit_pattern.findall('电话: 13812345678')
+digit_pattern.findall('邮编: 200001')
+```
+
+编译后的 `Pattern` 对象拥有与 `re` 模块相同的方法（`match`、`search`、`findall`、`sub`、`split` 等）。
+
+#### 2.7.2 编译标志（Flags）
+
+`re.compile` 的第二个参数可以传标志，控制正则的行为：
+
+```python
+# re.IGNORECASE (re.I): 忽略大小写
+p = re.compile(r'hello', re.I)
+p.search('HELLO')  # 匹配成功
+p.search('HeLLo')  # 匹配成功
+
+# re.DOTALL (re.S): 让 . 匹配包括换行符
+p = re.compile(r'.+', re.DOTALL)
+p.match('line1\nline2').group()  # 'line1\nline2'
+
+# re.MULTILINE (re.M): ^ 和 $ 匹配每一行的首尾
+p = re.compile(r'^\w+', re.MULTILINE)
+p.findall('line1\nline2\nline3')  # ['line1', 'line2', 'line3']
+
+# re.VERBOSE (re.X): 允许在正则中添加注释和空格
+p = re.compile(r"""
+    \d{4}      # 年
+    -          # 分隔符
+    \d{2}      # 月
+    -          # 分隔符
+    \d{2}      # 日
+""", re.VERBOSE)
+p.search('2024-01-15').group()  # '2024-01-15'
+```
+
+标志速查表：
+
+| 标志 | 缩写 | 作用 |
+|------|------|------|
+| `re.IGNORECASE` | `re.I` | 忽略大小写 |
+| `re.DOTALL` | `re.S` | `.` 匹配包括换行符 |
+| `re.MULTILINE` | `re.M` | `^` `$` 匹配每行首尾 |
+| `re.VERBOSE` | `re.X` | 允许注释和空格 |
+
+多个标志可以用 `|` 组合：`re.compile(pattern, re.I | re.M)`。
+
+### 2.8 re.sub 替换
+
+#### 2.8.1 基本替换
+
+`re.sub(pattern, repl, string, count=0)` 将匹配替换为 `repl`：
+
+```python
+# 替换所有匹配
+re.sub(r'\d+', 'N', '电话: 13812345678, 邮编: 200001')
+# '电话: N, 邮编: N'
+
+# count 参数：只替换前 N 个
+re.sub(r'\d+', 'N', '1-2-3-4-5', count=2)
+# 'N-N-3-4-5'
+
+# 替换为空串 = 删除
+re.sub(r'[\d,]', '', '1,000,000')
+# ''
+```
+
+#### 2.8.2 反向引用替换
+
+在替换字符串中用 `\1` 或 `\g<name>` 引用分组：
+
+```python
+# \1 \2 引用分组
+re.sub(r'(\w+)@(\w+)\.com', r'\2.\1@org.cn', '联系: alice@example.com')
+# '联系: example.alice@org.cn'
+
+# 日期格式转换 YYYY-MM-DD → DD/MM/YYYY
+re.sub(r'(\d{4})-(\d{2})-(\d{2})', r'\3/\2/\1', '日期: 2024-01-15')
+# '日期: 15/01/2024'
+```
+
+#### 2.8.3 函数替换
+
+`repl` 可以是一个函数，接收 `Match` 对象，返回替换字符串：
+
+```python
+# 敏感词替换为等长星号
+def replace_sensitive(match):
+    return '*' * len(match.group())
+
+re.sub(r'[垃圾骗局]', replace_sensitive, '这个游戏真垃圾，很骗局')
+# '这个游戏真**，很**'
+
+# 数字千分位格式化
+def add_commas(match):
+    return f'{int(match.group()):,}'
+
+re.sub(r'\d+', add_commas, '价格: 1234567 元, 运费: 89 元')
+# '价格: 1,234,567 元, 运费: 89 元'
+```
+
+#### 2.8.4 `re.subn` 替换并计数
+
+`re.subn` 与 `re.sub` 用法相同，但额外返回替换次数：
+
+```python
+result, count = re.subn(r'\d+', 'N', 'a1b2c3d4')
+print(result)  # aNbNcNdN
+print(count)   # 4
+```
+
+### 2.9 re.split 分割
+
+#### 2.9.1 基本分割
+
+`re.split(pattern, string, maxsplit=0)` 按正则匹配的位置分割字符串：
+
+```python
+# 按白色分割
+re.split(r'\s+', 'hello   world  python')
+# ['hello', 'world', 'python']
+
+# 多种分隔符
+re.split(r'[,;|]', 'a,b;c|d')
+# ['a', 'b', 'c', 'd']
+
+# maxsplit 参数
+re.split(r'[,;]', 'a,b;c,d,e', maxsplit=2)
+# ['a', 'b', 'c,d,e']
+```
+
+#### 2.9.2 分组对 split 的影响
+
+`re.split` 中如果模式含分组，分隔符也会出现在结果中：
+
+```python
+# 无分组：分隔符被丢弃
+re.split(r'\s*,\s*', 'a , b , c')
+# ['a', 'b', 'c']
+
+# 有分组：分隔符保留在结果中
+re.split(r'(\s*,\s*)', 'a , b , c')
+# ['a', ' , ', 'b', ' , ', 'c']
+
+# 保留日期中的分隔符
+re.split(r'(-)', '2024-01-15')
+# ['2024', '-', '01', '-', '15']
+```
+
+#### 2.9.3 re.split vs str.split
+
+```python
+text = "hello,,world,,,python"
+
+# str.split: 只能按固定字符串分割，产生空串
+text.split(',')
+# ['hello', '', 'world', '', '', 'python']
+
+# re.split: 用正则 + 匹配连续分隔符，无空串
+re.split(r',+', text)
+# ['hello', 'world', 'python']
+```
+
+`re.split` 支持"一个或多个分隔符"的模式，而 `str.split` 只能按固定字符串分割。
+
+### 2.10 综合实战
+
+#### 2.10.1 邮箱验证与提取
+
+```python
+email_pattern = re.compile(
+    r'^(?P<local>[\w.]+)@(?P<domain>[\w.]+)$'
+)
+
+# 验证
+test_emails = ['alice@example.com', 'invalid-email', '@no-local.com', 'no-domain@']
+for email in test_emails:
+    m = email_pattern.match(email)
+    status = f"有效 ({m.group('local')}@{m.group('domain')})" if m else "无效"
+    print(f"  {email:<25} → {status}")
+
+# 从文本中提取
+text = "联系: alice@example.com 或 bob@test.org, 非邮箱: @invalid"
+re.findall(r'[\w.]+@[\w.]+\.\w+', text)
+# ['alice@example.com', 'bob@test.org']
+```
+
+#### 2.10.2 手机号验证
+
+```python
+phone_pattern = re.compile(r'^1[3-9]\d{9}$')
+
+test_phones = ['13812345678', '19987654321', '12345678901', '1381234567']
+for phone in test_phones:
+    valid = bool(phone_pattern.match(phone))
+    print(f"  {phone:<15} {'有效' if valid else '无效'}")
+# 13812345678     有效
+# 19987654321     有效
+# 12345678901     无效
+# 1381234567      无效
+```
+
+#### 2.10.3 HTML 标签处理
+
+```python
+html = '<div class="header"><h1>标题</h1></div><p class="content">正文</p>'
+
+# 提取所有标签名
+re.findall(r'</?(\w+)[^>]*>', html)
+# ['div', 'h1', 'h1', 'div', 'p', 'p']
+
+# 提取属性键值对
+re.findall(r'(\w+)="([^"]*)"', html)
+# [('class', 'header'), ('class', 'content')]
+
+# 去除所有标签
+re.sub(r'</?[^>]+>', '', html)
+# '标题正文'
+
+# 提取特定标签内容（非贪婪）
+re.search(r'<h1>(.*?)</h1>', html).group(1)
+# '标题'
+```
+
+#### 2.10.4 日志解析
+
+```python
+log_pattern = re.compile(
+    r'\[(?P<date>\d{4}-\d{2}-\d{2})\s+(?P<time>\d{2}:\d{2}:\d{2})\]\s+'
+    r'(?P<level>\w+)\s+\|\s+'
+    r'(?P<service>\w+)\s+\|\s+'
+    r'(?P<message>.*)'
+)
+
+line = '[2024-01-15 10:30:45] INFO  | user_service | User login: id=12345'
+m = log_pattern.match(line)
+print(m.groupdict())
+# {'date': '2024-01-15', 'time': '10:30:45', 'level': 'INFO',
+#  'service': 'user_service', 'message': 'User login: id=12345'}
+
+# 提取日志中的键值对
+re.findall(r'(\w+)=(\S+)', line)
+# [('id', '12345')]
+```
+
+#### 2.10.5 密码强度检查
+
+```python
+def check_password_strength(password):
+    """用正则检查密码各项要求"""
+    checks = {
+        '长度>=8': bool(re.search(r'.{8,}', password)),
+        '包含大写': bool(re.search(r'[A-Z]', password)),
+        '包含小写': bool(re.search(r'[a-z]', password)),
+        '包含数字': bool(re.search(r'\d', password)),
+        '包含特殊字符': bool(re.search(r'[!@#$%^&*(),.?":{}|<>]', password)),
+    }
+    score = sum(checks.values())
+    levels = ['极弱', '弱', '一般', '中等', '较强', '强']
+    return levels[score], checks
+
+passwords = ['123', 'abc123', 'Abc123!', 'P@ssw0rd!']
+for pwd in passwords:
+    level, _ = check_password_strength(pwd)
+    print(f"  {pwd:<15} → {level}")
+# 123              → 弱
+# abc123           → 一般
+# Abc123!          → 较强
+# P@ssw0rd!        → 强
+```
 
 ## 3. 最佳实践
 
-### 3.1 只需要检查存在性时使用 in 运算符
+### 3.1 选择正确的方法
 
-这是最简洁也最 Pythonic 的方式。当你只需要知道"子串是否存在"而不关心其位置时，优先使用 `in` 运算符。
+| 需求 | 推荐方法 | 原因 |
+|------|---------|------|
+| 验证字符串格式 | `re.fullmatch` | 要求整串完全匹配 |
+| 从开头匹配 | `re.match` | 只匹配开头 |
+| 搜索第一个匹配 | `re.search` | 任意位置 |
+| 找到所有匹配 | `re.findall` | 返回列表，简洁 |
+| 遍历匹配+位置 | `re.finditer` | 需要 Match 对象 |
+| 替换匹配 | `re.sub` | 支持函数/反向引用 |
+| 替换并计数 | `re.subn` | 同时知道改了几处 |
+| 按正则分割 | `re.split` | 支持多分隔符 |
+| 重复使用同一正则 | `re.compile` | 编译一次复用多次 |
 
-```python
-# ✅ 推荐：使用 in 运算符检查存在性
-email = "user@example.com"
-if "@" in email and "." in email:
-    print("有效的邮箱格式")
-else:
-    print("无效的邮箱格式")
-
-# ❌ 不必要：为了检查存在性使用 find
-if email.find("@") != -1 and email.find(".") != -1:
-    print("有效的邮箱格式")
-# 这种写法多于，因为 in 更简洁可读
-```
-
-### 3.2 需要位置信息时根据场景选择 find 或 index
-
-**使用 find 的场景**：
-- 子串可能不存在，且这是正常情况
-- 需要通过返回值 -1 来区分不同情况
-- 想要避免异常处理的开销
+### 3.2 推荐 vs 不推荐写法
 
 ```python
-# find 适用场景：处理用户输入，可能不存在
-user_input = input("请输入搜索关键词（直接回车跳过）:")
-pos = user_input.find("python")
-if pos != -1:
-    print(f"关键词在位置 {pos} 处找到")
-else:
-    print("未找到关键词")
-```
+# ---- 验证格式 ----
 
-**使用 index 的场景**：
-- 假定子串一定存在（如果不存在就是错误）
-- 希望快速失败以便调试
-- 需要使用异常来处理不同的错误情况
+# 推荐：fullmatch 验证整体格式
+if re.fullmatch(r'1[3-9]\d{9}', phone):
+    print("有效")
 
-```python
-# index 适用场景：解析固定格式的数据
-config = "timeout=30"
-try:
-    key, value = config.split("=", 1)
-    # 或者直接查找
-    eq_pos = config.index("=")
-    key = config[:eq_pos]
-    value = config[eq_pos+1:]
-    print(f"键: {key}, 值: {value}")
-except ValueError:
-    print("配置格式错误：缺少 = 分隔符")
-```
+# 不推荐：match + $ 效果相同但语义不如 fullmatch 直观
+if re.match(r'1[3-9]\d{9}$', phone):
+    print("有效")
 
-### 3.3 使用 rfind/rindex 找最后一个匹配
+# ---- 提取多个匹配 ----
 
-当需要找子串最后一次出现的位置时，使用 rfind 或 rindex，而不是反向遍历。
+# 推荐：findall 简洁
+emails = re.findall(r'[\w.]+@[\w.]+\.\w+', text)
 
-```python
-# ❌ 低效：从头找到最后，然后继续找更多
-def find_last_naive(text, sub):
-    pos = -1
-    while True:
-        next_pos = text.find(sub, pos + 1)
-        if next_pos == -1:
-            return pos
-        pos = next_pos
-
-# ✅ 高效：直接使用 rfind
-def find_last(text, sub):
-    return text.rfind(sub)
-
-text = "apple banana apple cherry apple"
-print(find_last_naive(text, "apple"))  # 26
-print(find_last(text, "apple"))        # 26
-```
-
-### 3.4 避免同时使用 find/in 和 index/这些冗余操作
-
-有时初学者会写出冗余的代码，同时使用多种检查方式。
-
-```python
-# ❌ 冗余：先检查存在，再查找位置
-if "Python" in text:
-    pos = text.index("Python")
-    print(f"Found at {pos}")
-
-# ✅ 简洁：直接使用 find 或直接查找后检查
-pos = text.find("Python")
-if pos != -1:
-    print(f"Found at {pos}")
-
-# 或者直接捕获异常（如果这是正常流程）
-try:
-    pos = text.index("Python")
-except ValueError:
-    # 处理未找到的情况
-    pass
-```
-
-### 3.5 使用 startswith/endswith 处理前缀后缀检查
-
-这两个方法比使用 find 或 index 进行边界检查更清晰、更高效。
-
-```python
-# ❌ 不推荐：使用 find 检查前缀
-filename = "document.pdf"
-if filename.find(".") == 0:  # 总是检查位置 0，但这不是 startswith 的本意
-    ...
-
-# ✅ 推荐：使用 startswith 明确表达意图
-if filename.startswith("."):
-    ...
-
-# startswith/endswith 还支持元组参数，这是很有用的特性
-def get_file_type(filename):
-    """根据文件扩展名判断文件类型"""
-    if filename.endswith(('.png', '.jpg', '.jpeg', '.gif')):
-        return 'image'
-    elif filename.endswith(('.mp4', '.avi', '.mov')):
-        return 'video'
-    elif filename.endswith(('.txt', '.md', '.doc')):
-        return 'document'
-    else:
-        return 'unknown'
-
-print(get_file_type("photo.jpg"))      # image
-print(get_file_type("video.mp4"))      # video
-print(get_file_type("readme.md"))      # document
-```
-
-### 3.6 注意 find/index 对参数边界的处理
-
-虽然 find/index 方法在参数越界时不会抛出异常（而是自动调整或返回 -1），但编写代码时仍应该显式地处理边界情况，以提高代码的可读性和可维护性。
-
-```python
-text = "Hello"
-
-# 明确传递有效的参数
-pos = text.find("o", 0, len(text))
-
-# 而不是依赖自动调整
-pos = text.find("o", 0, 100)  # 也能工作，但不明确
-```
-
-### 3.7 在循环中查找所有位置时使用正确的模式
-
-```python
-# ❌ 错误模式：在每次迭代中调用 find 但不移动开始位置
-text = "apple apple apple"
-positions = []
-for _ in range(10):  # 假设不确定循环次数
-    pos = text.find("apple", 0)  # 总是从 0 开始，永远找到同一个位置
-    positions.append(pos)
-print(f"错误结果: {positions}")  # [0, 0, 0, ...]
-
-# ✅ 正确模式：每次从上一次找到的位置之后开始查找
-positions = []
-start = 0
-for _ in range(10):
-    pos = text.find("apple", start)
-    if pos == -1:
+# 不推荐：手动 find + 循环
+pos = 0
+emails = []
+while True:
+    m = re.search(r'[\w.]+@[\w.]+\.\w+', text[pos:])
+    if not m:
         break
-    positions.append(pos)
-    start = pos + 1
-print(f"正确结果: {positions}")  # [0, 6, 12]
+    emails.append(m.group())
+    pos += m.end()
+
+# ---- 重复使用同一正则 ----
+
+# 推荐：compile 编译复用
+digit_re = re.compile(r'\d+')
+for line in lines:
+    digits = digit_re.findall(line)
+
+# 不推荐：每次都重新编译
+for line in lines:
+    digits = re.findall(r'\d+', line)
+
+# ---- 提取成对标记内容 ----
+
+# 推荐：非贪婪 .*?
+re.findall(r'<div>(.*?)</div>', html)
+
+# 不推荐：贪婪 .* 跨越多个标签
+re.findall(r'<div>(.*)</div>', html)
+
+# ---- 只分组不分得内容时 ----
+
+# 推荐：非捕获组 (?:...)
+re.findall(r'(?:\d{4})-(?:\d{2})', text)  # 返回完整匹配
+
+# 不推荐：普通分组 (...)
+re.findall(r'(\d{4})-(\d{2})', text)  # 返回分组元组而非完整匹配
 ```
 
----
+### 3.3 综合推荐 vs 不推荐对照表
+
+| 场景 | 推荐写法 | 不推荐写法 | 原因 |
+|------|---------|-----------|------|
+| 验证手机号 | `re.fullmatch(r'1\d{10}', phone)` | 手动检查 `len(phone) == 11 and phone.isdigit()` | 正则一行搞定 |
+| 提取数字 | `re.findall(r'\d+', text)` | 字符遍历 + 累积字符 | 正则简洁 |
+| 替换敏感词 | `re.sub(pattern, '***', text)` | 逐个 replace | 正则支持模式 |
+| 复杂分割 | `re.split(r'[,;|\s]+', text)` | 多次 `str.split` | 一次分割所有 |
+| 重复正则 | `re.compile(pattern)` | 每次调用 `re.search` | 编译复用更快 |
+| 复杂正则可读性 | `re.X` 标志 + 注释 | 单行紧凑正则 | 注释更易维护 |
+
+### 3.4 常见错误与注意事项
+
+**`re.match` 不匹配非开头内容**
+
+```python
+# 误解：以为 match 会搜索整个字符串
+result = re.match(r'World', 'Hello World')
+print(result)  # None
+
+# match 只从开头匹配，搜索任意位置用 search
+re.search(r'World', 'Hello World')  # 匹配成功
+```
+
+**`findall` 的分组陷阱**
+
+```python
+# 期望返回完整匹配，但因为有分组返回了分组内容
+re.findall(r'(\d{4})-(\d{2})', '2024-01')
+# [('2024', '01')]  ← 返回元组而非完整匹配
+
+# 如果不需要分组内容，用非捕获组
+re.findall(r'(?:\d{4})-(?:\d{2})', '2024-01')
+# ['2024-01']  ← 完整匹配
+```
+
+**正则特殊字符需要转义**
+
+```python
+# . 在正则中是"任意字符"
+re.findall(r'price.txt', 'price.txt priceXtxt')
+# ['price.txt', 'priceXtxt']  ← . 匹配了任意字符
+
+# 转义 . 后只匹配字面量
+re.findall(r'price\.txt', 'price.txt priceXtxt')
+# ['price.txt']  ← 只匹配 . 本身
+```
+
+**反斜杠在原始字符串中的处理**
+
+```python
+# 正则中的 \b 需要用原始字符串 r''
+re.findall(r'\bcat\b', 'cat catfish')  # ['cat']
+
+# 不加 r 前缀，\b 被 Python 先解释为退格符
+re.findall('\bcat\b', 'cat catfish')  # []  ← 错误！
+```
+
+**贪婪模式导致的过度匹配**
+
+```python
+# 贪婪 .* 匹配过多
+re.findall(r'"(.*)"', '"a":"b","c":"d"')
+# ['a":"b","c":"d']  ← 一口气匹配到最后
+
+# 非贪婪 .*? 正确提取
+re.findall(r'"(.*?)"', '"a":"b","c":"d"')
+# ['a', 'b', 'c', 'd']
+```
 
 ## 4. 原理
 
-### 4.1 find 方法的底层实现
+### 4.1 正则引擎的工作方式
 
-理解 find 方法的工作原理有助于更好地使用它以及诊断潜在问题。
+Python 的 `re` 模块使用回溯（backtracking）正则引擎。它从字符串的起始位置开始，逐字符尝试匹配模式。当遇到量词时，引擎优先匹配尽可能多的字符（贪婪），如果后续模式匹配失败，就回退（回溯）减少量词匹配量，再次尝试。
 
-在 CPython（Python 的主流实现）中，字符串的 find 方法使用了高效的字符串匹配算法。基本的实现原理如下：
+![示例图片](../images/base/202609232030.svg)
 
-```python
-# 简化的 find 算法（概念层面的伪代码）
-def naive_find(s, sub, start=0, end=None):
-    if end is None:
-        end = len(s)
-    
-    sub_len = len(sub)
-    if sub_len == 0:
-        return start  # 空子串返回 start
-    
-    # 检查边界
-    if start < 0:
-        start = 0
-    if end > len(s):
-        end = len(s)
-    
-    # 简单的暴力匹配算法
-    for i in range(start, end - sub_len + 1):
-        match = True
-        for j in range(sub_len):
-            if s[i + j] != sub[j]:
-                match = False
-                break
-        if match:
-            return i
-    
-    return -1  # 未找到
-```
+回溯的本质是"试错"——先尝试最贪婪的匹配，失败再退回重来。这导致某些模式下性能很差（回溯爆炸），如 `r'(a+)+b'` 匹配不包含 `b` 的超长字符串。
 
-实际上，CPython 使用了更高效的算法（如 Boyer-Moore 或其变体）来加速查找，特别是对于较长的字符串。即使如此，find 方法的时间复杂度在最坏情况下仍然是 O(n*m)，其中 n 是主字符串长度，m 是子串长度。
+### 4.2 非贪婪的回溯行为
 
-### 4.2 index 方法的实现
+非贪婪模式的回溯方向相反——先匹配尽可能少的字符，后续模式失败时增加量词匹配量：
 
-index 方法的内部实现与 find 方法几乎完全相同，唯一的区别在于返回值的处理：
+![示例图片](../images/base/202609232031.svg)
+
+非贪婪不是"更快"，而是"更早停止"——当后续模式能匹配时就不再增加量词匹配量。在提取成对标记时，非贪婪能在第一个闭合标记处停止，避免跨越多个标记。
+
+### 4.3 re.compile 的缓存机制
+
+`re` 模块内部维护了一个正则缓存（`_cache`），`re.findall` 等函数调用时会先查缓存。缓存大小有限（默认 512 条），频繁使用不同正则时缓存可能被淘汰。`re.compile` 创建的 `Pattern` 对象不受缓存淘汰影响——它一直持有编译后的结果。
 
 ```python
-# index 方法的简化逻辑
-def index(s, sub, start=0, end=None):
-    result = s.find(sub, start, end)  # 内部调用 find
-    if result == -1:
-        raise ValueError("substring not found")
-    return result
+# re.findall 内部流程
+def findall(pattern, string):
+    compiled = _cache.get(pattern)
+    if compiled is None:
+        compiled = _compile(pattern)
+        _cache[pattern] = compiled
+    return compiled.findall(string)
+
+# re.compile 内部流程
+pattern_obj = _compile(pattern)  # 编译一次，永久持有
+pattern_obj.findall(string)       # 直接调用，无缓存查找
 ```
 
-这就是为什么常说"index 方法就是 find 方法 + 异常处理"——它们的核心算法相同，只是对"未找到"情况的处理不同。
+当同一个正则被使用多次时，`re.compile` 略快——省去了缓存查找的开销。但性能差异通常不大（缓存命中时仅省一次字典查找），日常代码中编译的主要价值是代码可读性——将正则定义和使用分离。
 
-### 4.3 rfind/rindex 的实现原理
+### 4.4 零宽断言为什么"不消耗字符"
 
-rfind（reverse find）从字符串的右侧开始查找，其基本原理有两种可能：
+正则引擎维护一个"当前位置指针"。普通匹配（如 `\d+`）会移动这个指针——匹配后指针跳到匹配结束处。零宽断言（如 `(?=...)`）只检查当前指针位置是否满足条件，**不移动指针**——检查完指针仍在原位。
 
-1. **从右向左扫描**：从字符串末尾开始向左扫描，找到第一个匹配
-2. **正向扫描 + 记录**：执行普通的 find，记录每次找到的位置，直到不再找到
+![示例图片](../images/base/202609232032.svg)
 
-CPython 的实现通常采用更聪明的方式，但核心思路是类似的。值得注意的是，rfind 和 rfind 的性能通常与 find 相当。
-
-```python
-# rfind 的简化实现思路
-def rfind(s, sub, start=0, end=None):
-    if end is None:
-        end = len(s)
-    
-    # 方法：从 end 位置开始反向扫描
-    sub_len = len(sub)
-    for i in range(end - sub_len, start - 1, -1):
-        match = True
-        for j in range(sub_len):
-            if s[i + j] != sub[j]:
-                match = False
-                break
-        if match:
-            return i
-    
-    return -1
-```
-
-### 4.4 复杂度分析
-
-理解这些方法的时间复杂度有助于在编写代码时做出更好的选择。
-
-```python
-# 时间复杂度
-# 
-# find, index, rfind, rindex:
-#   - 最佳情况：O(1)（子串在开头）
-#   - 最坏情况：O(n*m)（子串不存在或在末尾）
-#   - 平均情况：O(n)（通常的文本匹配场景）
-#
-# count:
-#   - 始终是 O(n*m)（需要扫描整个字符串）
-#
-# startswith, endswith:
-#   - O(m)，其中 m 是检查的前缀/后缀长度
-#
-# 这些复杂度在大多数实际场景中都不是问题，因为：
-# 1. 字符串通常较短
-# 2. Python 的 C 实现做了很多优化
-# 3. O(n) 复杂度对于大多数应用来说足够快
-```
-
----
+这就是为什么 `(?=元)` 提取的数字不包含"元"——"元"只是当前位置的判断条件，不是匹配内容。
 
 ## 5. 总结
 
-### 5.1 本文内容回顾
+本文围绕 Python 字符串与正则表达式展开，主要介绍了以下内容：
 
-- **find() 方法**：在字符串中正向查找子串，返回首次出现的位置索引，未找到时返回 `-1`。支持可选的 start 和 end 参数限定查找范围。
-- **index() 方法**：与 find 基本相同，但未找到子串时抛出 `ValueError` 异常，而不是返回 -1。这使得 index 适用于"子串必须存在"的场景。
-- **rfind() / rindex() 方法**：从字符串的右侧开始查找，返回最后一次出现的位置。未找到时：rfind 返回 -1，rindex 抛出异常。
-- **count() 方法**：统计子串在字符串中出现的次数，未找到返回 0（不抛异常）。
-- **startswith() / endswith() 方法**：检查字符串是否以指定子串开头或结尾，返回布尔值。支持元组参数，可同时检查多个前缀/后缀。
-- **最佳实践**：只需要存在性检查时使用 in 运算符，需要位置信息时根据场景选择 find 或 index，需要最后一个匹配时使用 rfind/rindex，使用 startswith/endswith 处理前缀后缀检查更清晰。
-
-### 5.2 读完本文你应能掌握
-
-- 说明 find 方法与 index 方法的核心差异（返回值 vs 抛异常），能根据场景选择合适的方法。
-- 使用 find 方法查找子串位置，理解其返回 -1 表示未找到的含义。
-- 使用 index 方法查找子串位置，理解其未找到时抛出异常的机制，并正确处理这种异常。
-- 使用 rfind/rindex 方法查找子串最后一次出现的位置。
-- 使用 startswith/endswith 方法检查字符串的前缀和后缀，理解其支持元组参数的优势。
-- 说明 find/index 方法的内部实现原理，理解其时间复杂度（最佳 O(1)，最坏 O(n*m)，平均 O(n)）。
-
-### 5.3 延伸方向
-
-- **正则表达式**：对于复杂的模式匹配需求，使用 `re` 模块的 `search`、`findall`、`match` 等函数。
-- **字符串查找算法**：深入学习 Boyer-Moore、Knuth-Morris-Pratt 等字符串匹配算法，了解它们在不同场景下的性能特点。
-- **其他数据结构**：对于需要在大量文本中进行多次查找的场景，考虑使用后缀数组、Trie 树、或专门的文本索引库（如 `whoosh`）。
-- **bytes 类型**：Python 的 `bytes` 类型也有相同的 find/index/rfind/rindex 方法，用于二进制数据处理。
-- **内存视图与性能**：对于极端性能要求的场景，了解 Python 的内存视图（memoryview）和 NumPy 等库在处理大规模字符串数据时的优势。
+- **re 模块核心函数**：`re.match` 从开头匹配、`re.search` 任意位置搜索、`re.fullmatch` 完全匹配；`re.findall` 找到所有匹配（无分组返回字符串列表，有分组返回元组列表）、`re.finditer` 返回 Match 对象迭代器
+- **正则元字符**：`.` 任意字符、`\d` 数字、`\w` 字母数字下划线、`\s` 空白、`\b` 单词边界、`^` 开头、`$` 结尾、`[]` 字符集合、`|` 或运算
+- **量词**：`*` 0 次或多次、`+` 1 次或多次、`?` 0 次或 1 次、`{n}` 恰好 n 次、`{n,m}` n 到 m 次；量词后加 `?` 变为非贪婪
+- **分组与断言**：捕获组 `()` 提取分组内容、命名分组 `(?P<name>)` 用名称引用、非捕获组 `(?:)` 不提取内容、反向引用 `\1` 或 `(?P=name)` 检查重复、零宽断言 `(?=)` `(?!)` `(?<=)` `(?<!)` 检查边界不消耗字符
+- **贪婪与非贪婪**：默认贪婪尽可能多匹配，非贪婪 `*?` `+?` `??` 尽可能少匹配；提取成对标记内容用非贪婪
+- **re.compile 编译**：编译为 Pattern 对象复用，标志 `re.I` 忽略大小写、`re.S` 点匹配换行、`re.M` 多行模式、`re.X` 允许注释
+- **re.sub 替换**：支持反向引用 `\1` 和函数替换；`re.subn` 额外返回替换次数
+- **re.split 分割**：按正则分割，分组会保留分隔符在结果中
+- **最佳实践**：验证格式用 `fullmatch`、重复正则用 `compile`、提取成对内容用非贪婪、不需分得内容用非捕获组
+- **底层原理**：回溯引擎贪婪优先、非贪婪反向回溯；零宽断言不移动位置指针、只做条件检查
