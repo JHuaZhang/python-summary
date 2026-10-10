@@ -125,6 +125,7 @@ ssh zjh@111.230.115.143 'ls /home/zjh/project/apps/python-summary/prod/ | head -
 | `Deploy with scp` 阶段报错 | 构建产物含冒号文件名，scp 将其误判为 `host:path` | 「Clean Invalid Filenames」步骤会自动改名处理，确认该步骤位于 scp 之前且未被改动 |
 | `pages build and deployment`（github-pages[bot] 触发）报 Liquid 错误 | GitHub Pages 处于"从分支部署"模式，Jekyll 把笔记中 Python 的 `{{`（f-string 字面大括号）当成模板变量解析 | 与服务器部署无关，无需改笔记内容；Settings → Pages → Source 改为 **None** 关闭 Pages 即可 |
 | `Install Dependencies` 报 `ERR_PNPM_INVALID_WORKSPACE_CONFIGURATION` | CI 的 pnpm（v8）与本地环境脱节：`pnpm-lock.yaml`（`lockfileVersion 9.0`）和 `pnpm-workspace.yaml`（`allowBuilds`）都是 pnpm 11 生成的，v8 读不懂 | deploy.yml 的 `version` 对齐本地 `pnpm --version` 大版本（当前 **11**）、`node-version` 对齐本地 `node --version` 大版本（当前 **22**） |
+| `Clean Target Directory` / `Deploy with scp` 报 `Permission denied` | 旧部署产物归 root 所有（Jenkins 容器时代以 root 写入 volume），CI 登录用户无权删除或覆盖这些文件 | 服务器上一次性处理：`sudo rm -rf /home/zjh/project/apps/python-summary/prod` → `sudo mkdir -p /home/zjh/project/apps/python-summary/prod` → `sudo chown -R <SERVER_USER> /home/zjh/project/apps/python-summary`（此后 CI 写入的文件都归它自己，不会再撞权限） |
 
 ### 5. 复用到其他前端项目
 

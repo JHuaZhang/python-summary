@@ -94,6 +94,7 @@ jobs:
       - name: Clean Target Directory
         run: |
           ssh -o BatchMode=yes "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}" "
+            set -e
             if [ -d '${{ secrets.TARGET_PATH }}' ]; then
               rm -rf '${{ secrets.TARGET_PATH }}'/*
               echo '🧹 目标目录已清空: ${{ secrets.TARGET_PATH }}'
