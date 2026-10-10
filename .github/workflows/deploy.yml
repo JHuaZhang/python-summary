@@ -91,24 +91,28 @@ jobs:
           ssh -o BatchMode=yes "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}" \
             "echo '✅ SSH 连接成功 (\$(whoami)@\$(hostname))'"
 
-      - name: Clean Target Directory
+      - name: Prepare Target Directory
         run: |
           ssh -o BatchMode=yes "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}" "
-            set -e
-            if [ -d '${{ secrets.TARGET_PATH }}' ]; then
-              rm -rf '${{ secrets.TARGET_PATH }}'/*
-              echo '🧹 目标目录已清空: ${{ secrets.TARGET_PATH }}'
-            else
-              mkdir -p '${{ secrets.TARGET_PATH }}'
-              echo '📁 目标目录已创建: ${{ secrets.TARGET_PATH }}'
-            fi
+            mkdir -p '${{ secrets.TARGET_PATH }}'
+            echo '📁 目标目录就绪: ${{ secrets.TARGET_PATH }}'
           "
 
-      - name: Deploy with scp
+      # 差量同步（跨境链路调优）：runner 在海外 → 国内服务器，必须避免逐文件网络往返
+      # --size-only  按"文件名+大小"判断变化：在文件列表阶段一次性完成，零逐文件往返
+      #              （-c/--checksum 要对每个文件单独协商，跨境几百文件=几分钟纯协商，禁用；
+      #               CI 每次构建 mtime 全新，默认按时间戳判断会退化成全量，同样不可用）
+      # --whole-file 变化的文件整体传输，跳过 rsync delta 块协商（高延迟链路标准做法）
+      # --delete     目标端多出的旧文件自动清理（旧 hash 产物不堆积）
+      # ⚠️ 源路径 ./dist/ 的尾斜杠不能少：不带斜杠会把 dist 目录本身塞进目标，变成 prod/dist/
+      - name: Deploy with rsync
         run: |
-          echo "🚀 开始上传到 ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.TARGET_PATH }}"
-          scp -r ./dist/* "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.TARGET_PATH }}/"
-          echo "📤 文件传输完成"
+          echo "🚀 rsync 差量同步到 ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.TARGET_PATH }}/"
+          rsync -az --size-only --whole-file --delete --stats \
+            -e "ssh -o BatchMode=yes" \
+            ./dist/ \
+            "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.TARGET_PATH }}/"
+          echo '📤 同步完成'
 
       - name: Verify Deployment
         run: |

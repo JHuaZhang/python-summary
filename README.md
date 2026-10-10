@@ -12,7 +12,7 @@
 代码推送到 `main` 分支后，[GitHub Actions](.github/workflows/deploy.yml) 自动完成：
 
 ```
-push main → 构建（BASE_PATH=/apps/python-summary/）→ 清理冒号文件名 → SSH + scp 上传 → nginx 直接服务
+push main → 构建（BASE_PATH=/apps/python-summary/）→ 清理冒号文件名 → SSH + rsync 差量同步（--delete 自动清理旧文件）→ nginx 直接服务
 ```
 
 - 服务器：`handn.fun`（IP：`111.230.115.143`）
@@ -92,7 +92,7 @@ chown -R zjh:zjh /home/zjh/project/apps/python-summary
 
 少复制首尾行、或私钥带了 passphrase，都会在「Test SSH Connection」步骤报 `Permission denied`。
 
-**`TARGET_PATH` 说明**：这是流水线「清理目录 + scp 上传」的目标，必须与 nginx 通用路由对齐：
+**`TARGET_PATH` 说明**：这是流水线「rsync 差量同步」的目标目录，必须与 nginx 通用路由对齐：
 
 ```
 URL：https://handn.fun/apps/python-summary/
@@ -103,10 +103,34 @@ URL：https://handn.fun/apps/python-summary/
 
 > 四个 Secrets 都配好后，workflow 中通过 `${{ secrets.X }}` 引用。任何一个缺失，Actions 第一步「Validate Required Secrets」会直接报出缺哪个的名称。
 
-### 3. 验证部署
+### 3. 首次全量 seed（本地电脑执行）
+
+GitHub Actions 的 runner 在海外，到国内服务器的跨境上行带宽很窄（常不足 100 KB/s），而构建产物包含 docs 的全部图片（约 40MB+），**全量通过 CI 上传会耗时十几分钟**。因此全量场景（首次部署 / 目录被清空重建）一律在本地做——本地到服务器是国内对国内，快几个数量级：
+
+```bash
+# 1. 本地构建（与 CI 完全一致）
+pnpm install && pnpm run nav
+BASE_PATH=/apps/python-summary/ pnpm run build
+
+# 2. 冒号文件名清理（与 CI 一致）
+find dist -depth -name '*:*' | while read item; do mv "$item" "$(echo "$item" | tr ':' '_')"; done
+
+# 3. 全量同步（1~2 分钟；此后的 CI 差量以此为基准）
+rsync -az --whole-file --size-only --delete --stats \
+  -e "ssh -i ~/.ssh/deploy_key_nopass" \
+  ./dist/ zjh@111.230.115.143:/home/zjh/project/apps/python-summary/prod/
+```
+
+seed 完成后，日常 push 触发的 CI rsync 只传"文件名或大小变化"的文件（通常几十 KB，十几秒完成）。
+
+> 极端情况：若"内容改了但字节数恰好相同"导致个别页面未更新（`--size-only` 的理论盲区），本地跑一遍
+> `rsync -az --checksum --delete -e "ssh -i ~/.ssh/deploy_key_nopass" ./dist/ zjh@111.230.115.143:/home/zjh/project/apps/python-summary/prod/`
+> 强制按内容对齐。
+
+### 4. 验证部署
 
 1. 将改动推送到 `main` 分支（Actions 自动触发；也可在 Actions 页面手动 Run workflow）
-2. 确认流水线 14 步全绿，重点看：`Test SSH Connection` → `Clean Target Directory` → `Deploy with scp` → `Verify Deployment`
+2. 确认流水线 14 步全绿，重点看：`Test SSH Connection` → `Prepare Target Directory` → `Deploy with rsync` → `Verify Deployment`（rsync 步骤日志里的 `--stats` 会显示本次实际传输的文件数，可直观看到差量效果）
 3. 浏览器访问：<https://handn.fun/apps/python-summary/>
 4. 服务器侧抽查（可选）：
 
@@ -114,7 +138,7 @@ URL：https://handn.fun/apps/python-summary/
 ssh zjh@111.230.115.143 'ls /home/zjh/project/apps/python-summary/prod/ | head -10'
 ```
 
-### 4. 常见问题排查
+### 5. 常见问题排查
 
 | 现象 | 原因 | 处理 |
 |---|---|---|
@@ -122,12 +146,15 @@ ssh zjh@111.230.115.143 'ls /home/zjh/project/apps/python-summary/prod/ | head -
 | `Test SSH Connection` 报 Permission denied | 公钥没进服务器 `authorized_keys`，或私钥不完整 | 重跑 `ssh-copy-id`；检查私钥是否含首尾行 |
 | 流水线全绿但页面 404 | `TARGET_PATH` 填错 | 改成 `/home/zjh/project/apps/python-summary/prod` |
 | 页面能开但样式、图片 404 | 构建缺少 base 路径，资源请求指向了 `/static/...` | 确认 Build 步骤带 `BASE_PATH=/apps/python-summary/`（deploy.yml 已内置） |
-| `Deploy with scp` 阶段报错 | 构建产物含冒号文件名，scp 将其误判为 `host:path` | 「Clean Invalid Filenames」步骤会自动改名处理，确认该步骤位于 scp 之前且未被改动 |
+| `Deploy with rsync` 阶段报错 | 构建产物含冒号文件名，rsync 与 scp 一样会把带冒号的文件名误判为 `host:path` | 「Clean Invalid Filenames」步骤会自动改名处理，确认它位于传输步骤之前且未被改动 |
 | `pages build and deployment`（github-pages[bot] 触发）报 Liquid 错误 | GitHub Pages 处于"从分支部署"模式，Jekyll 把笔记中 Python 的 `{{`（f-string 字面大括号）当成模板变量解析 | 与服务器部署无关，无需改笔记内容；Settings → Pages → Source 改为 **None** 关闭 Pages 即可 |
 | `Install Dependencies` 报 `ERR_PNPM_INVALID_WORKSPACE_CONFIGURATION` | CI 的 pnpm（v8）与本地环境脱节：`pnpm-lock.yaml`（`lockfileVersion 9.0`）和 `pnpm-workspace.yaml`（`allowBuilds`）都是 pnpm 11 生成的，v8 读不懂 | deploy.yml 的 `version` 对齐本地 `pnpm --version` 大版本（当前 **11**）、`node-version` 对齐本地 `node --version` 大版本（当前 **22**） |
-| `Clean Target Directory` / `Deploy with scp` 报 `Permission denied` | 旧部署产物归 root 所有（Jenkins 容器时代以 root 写入 volume），CI 登录用户无权删除或覆盖这些文件 | 服务器上一次性处理：`sudo rm -rf /home/zjh/project/apps/python-summary/prod` → `sudo mkdir -p /home/zjh/project/apps/python-summary/prod` → `sudo chown -R <SERVER_USER> /home/zjh/project/apps/python-summary`（此后 CI 写入的文件都归它自己，不会再撞权限） |
+| `Deploy with rsync` 报 `Permission denied` | 旧部署产物归 root 所有（Jenkins 容器时代以 root 写入 volume），CI 登录用户无权删除或覆盖这些文件 | 服务器上一次性处理：`sudo rm -rf /home/zjh/project/apps/python-summary/prod` → `sudo mkdir -p /home/zjh/project/apps/python-summary/prod` → `sudo chown -R <SERVER_USER> /home/zjh/project/apps/python-summary`（此后 CI 写入的文件都归它自己，不会再撞权限） |
+| rsync 后服务器产物路径变成了 `prod/dist/...` | 源路径少了尾斜杠：`./dist` 会把 dist 目录本身同步进目标，`./dist/`（带斜杠）才是同步"目录内容" | deploy.yml 中 rsync 源路径必须写 `./dist/`，改完重跑 |
+| rsync 步骤报 `rsync: command not found` | 服务器未安装 rsync（GitHub runner 自带，无需处理） | 服务器执行 `sudo apt install rsync`，重跑流水线 |
+| rsync/scp 步骤十几分钟仍未完成 | runner 在海外，到国内服务器跨境上行带宽极窄（常不足 100 KB/s），而产物含 docs 全部图片（约 40MB+），全量传输必然慢 | 全量场景在本地 seed（见第 3 节）；日常 CI 只跑差量；挂着的全量 run 直接 **Cancel workflow** |
 
-### 5. 复用到其他前端项目
+### 6. 复用到其他前端项目
 
 同一台服务器、同一套思路，只需把 `python-summary` 换成新应用的 appId：
 
