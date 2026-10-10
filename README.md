@@ -124,6 +124,7 @@ ssh zjh@111.230.115.143 'ls /home/zjh/project/apps/python-summary/prod/ | head -
 | 页面能开但样式、图片 404 | 构建缺少 base 路径，资源请求指向了 `/static/...` | 确认 Build 步骤带 `BASE_PATH=/apps/python-summary/`（deploy.yml 已内置） |
 | `Deploy with scp` 阶段报错 | 构建产物含冒号文件名，scp 将其误判为 `host:path` | 「Clean Invalid Filenames」步骤会自动改名处理，确认该步骤位于 scp 之前且未被改动 |
 | `pages build and deployment`（github-pages[bot] 触发）报 Liquid 错误 | GitHub Pages 处于"从分支部署"模式，Jekyll 把笔记中 Python 的 `{{`（f-string 字面大括号）当成模板变量解析 | 与服务器部署无关，无需改笔记内容；Settings → Pages → Source 改为 **None** 关闭 Pages 即可 |
+| `Install Dependencies` 报 `ERR_PNPM_INVALID_WORKSPACE_CONFIGURATION` | CI 的 pnpm（v8）与本地环境脱节：`pnpm-lock.yaml`（`lockfileVersion 9.0`）和 `pnpm-workspace.yaml`（`allowBuilds`）都是 pnpm 11 生成的，v8 读不懂 | deploy.yml 的 `version` 对齐本地 `pnpm --version` 大版本（当前 **11**）、`node-version` 对齐本地 `node --version` 大版本（当前 **22**） |
 
 ### 5. 复用到其他前端项目
 
