@@ -1,40 +1,44 @@
-name: Deploy Docs to GitHub Pages & Server
+name: Deploy Docs to Server
 
 on:
   push:
     branches: [main]
   workflow_dispatch:
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
 concurrency:
-  group: pages
+  group: deploy-server
   cancel-in-progress: true
 
 jobs:
-  build:
+  build-and-deploy:
+    name: Build & Deploy to Server
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 8
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'pnpm'
+
       - name: Install Dependencies
         run: pnpm install
+
       - name: Generate Config & Knowledge
         run: pnpm run nav
+
+      # 服务器按 /apps/<appId>/ 通用规则服务，构建必须使用对应 base 路径
       - name: Build Documentation Site
-        run: pnpm run build
+        run: BASE_PATH=/apps/python-summary/ pnpm run build
+
+      # dist 中带冒号的文件会让 scp 识别成 host:path 导致传输失败
       - name: Clean Invalid Filenames
         run: |
           echo "🔧 清理文件名中的冒号..."
@@ -45,35 +49,72 @@ jobs:
             echo "❌ 仍有包含冒号的文件"
             exit 1
           fi
+
       - name: Verify Build Output
         run: |
-          if [ ! -d 'dist' ]; then
-            echo '❌ Build output directory dist not found!'
+          if [ ! -f 'dist/index.html' ]; then
+            echo '❌ Build output dist/index.html not found!'
             exit 1
           fi
-      - name: Setup GitHub Pages
-        uses: actions/configure-pages@v4
-      - name: Upload Artifact for GitHub Pages
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist
-      - name: Upload Build Artifact for Server
-        uses: actions/upload-artifact@v4
-        with:
-          name: site-dist
-          path: dist/
-          retention-days: 1
+          echo "✅ 构建完成，共 $(find dist -type f | wc -l) 个文件"
 
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    permissions:
-      pages: write
-      id-token: write
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Validate Required Secrets
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          TARGET_PATH: ${{ secrets.TARGET_PATH }}
+        run: |
+          : "${SSH_PRIVATE_KEY:?❌ 缺少 Secret: SSH_PRIVATE_KEY（在 Settings → Secrets and variables → Actions 中配置）}"
+          : "${SERVER_HOST:?❌ 缺少 Secret: SERVER_HOST}"
+          : "${SERVER_USER:?❌ 缺少 Secret: SERVER_USER}"
+          : "${TARGET_PATH:?❌ 缺少 Secret: TARGET_PATH（推荐 /home/zjh/project/apps/python-summary/prod）}"
+          if [ "$TARGET_PATH" = "/" ]; then
+            echo '❌ TARGET_PATH 不能是 /'
+            exit 1
+          fi
+          echo '✅ Secrets 校验通过'
+
+      # ==================== 部署到服务器 ====================
+
+      - name: Setup SSH Connection
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H "${{ secrets.SERVER_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Test SSH Connection
+        run: |
+          ssh -o BatchMode=yes "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}" \
+            "echo '✅ SSH 连接成功 (\$(whoami)@\$(hostname))'"
+
+      - name: Clean Target Directory
+        run: |
+          ssh -o BatchMode=yes "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}" "
+            if [ -d '${{ secrets.TARGET_PATH }}' ]; then
+              rm -rf '${{ secrets.TARGET_PATH }}'/*
+              echo '🧹 目标目录已清空: ${{ secrets.TARGET_PATH }}'
+            else
+              mkdir -p '${{ secrets.TARGET_PATH }}'
+              echo '📁 目标目录已创建: ${{ secrets.TARGET_PATH }}'
+            fi
+          "
+
+      - name: Deploy with scp
+        run: |
+          echo "🚀 开始上传到 ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.TARGET_PATH }}"
+          scp -r ./dist/* "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.TARGET_PATH }}/"
+          echo "📤 文件传输完成"
+
+      - name: Verify Deployment
+        run: |
+          ssh -o BatchMode=yes "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}" "
+            echo '========== 部署验证 =========='
+            echo '目标目录: '${{ secrets.TARGET_PATH }}
+            echo '文件数量: '\$(find '${{ secrets.TARGET_PATH }}' -type f | wc -l)
+            echo '目录大小: '\$(du -sh '${{ secrets.TARGET_PATH }}' | cut -f1)
+            echo 'index.html: '\$([ -f '${{ secrets.TARGET_PATH }}/index.html' ] && echo OK || echo '❌ 缺失')
+            echo '部署时间: '\$(date '+%Y-%m-%d %H:%M:%S')
+            echo '=============================='
+          "
