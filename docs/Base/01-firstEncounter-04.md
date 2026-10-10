@@ -576,6 +576,75 @@ python-dotenv                 # 不指定版本（一般不推荐）
 git+https://github.com/org/repo.git@v1.0  # git 来源
 ```
 
+**清单从哪来：生成 requirements.txt 的三种途径**：拿到一个项目要生成这份文件时，按信息来源分三种主流做法——从环境导出、从代码扫描反推、从人工维护起步。
+
+**途径一：pip freeze 全量导出——以环境为准**：
+
+```bash
+python3 -m pip freeze > requirements.txt
+```
+
+这条命令把**当前环境的全部已装包**（含传递依赖）逐个精确锁定。它导出的本质是"环境快照"，所以适用前提是：**当前虚拟环境就是本项目的专用环境**，里面没混入实验性的无关包——环境脏，导出的清单就脏。另外 Windows PowerShell 有个经典陷阱：`>` 重定向默认写出 UTF-16 编码的文件，pip 读取这种文件会解析失败，需要改用管道并显式指定编码：
+
+```powershell
+python3 -m pip freeze | Out-File -Encoding utf8 requirements.txt
+```
+
+macOS / Linux 与 Windows 的 cmd 环境没有此问题。
+
+**途径二：pipreqs 按代码扫描——以代码为准**：代码先写了一堆才想起补清单，或环境装得太乱不敢 freeze 时，可以扫描源码里的 `import` 语句反推真实依赖，这要用到第三方工具 pipreqs：
+
+```bash
+# 安装 pipreqs（一次性操作，它是个独立的命令行工具）
+python3 -m pip install pipreqs
+
+# 在项目根目录执行，扫描所有 .py 文件的 import 语句
+pipreqs ./ --encoding=utf8
+```
+
+**预期输出**：
+
+```text
+INFO: Found packages: flask, requests, sqlalchemy
+INFO: Saved results in requirements.txt
+```
+
+生成的清单只包含代码里真正 import 过的**顶层包**，而不受当前环境影响：
+
+```text
+flask==3.0.0
+requests==2.31.0
+sqlalchemy==2.0.23
+```
+
+版本号的匹配规则：包在本地环境已安装，用本地版本号；只 import 了但从未 `pip install` 过的包，pipreqs 会查询 PyPI 的最新版。常用参数如下：
+
+| 参数 | 作用 | 说明 |
+|------|------|------|
+| `--encoding=utf8` | 指定源码扫描编码 | Windows 下源码多为 GBK 编码，省略会报 `UnicodeDecodeError`，都加上最稳 |
+| `--force`（`-f`） | 目标文件已存在时强制覆盖 | 默认检测到 `requirements.txt` 存在就直接报错退出，防止误覆盖 |
+| `--ignore <目录>` | 跳过指定目录不扫描 | 如 `--ignore=".venv,build,tests"`，排除虚拟环境与测试代码的干扰 |
+| `--savepath <路径>` | 自定义输出文件 | 想先输出到临时文件名看效果、不动现有清单时用 |
+
+**两条局限必须心里有数**：
+
+- 只认**显式 import**。动态导入（如 `importlib.import_module("xxx")`）、配置文件声明的包（如 Web 项目的 gunicorn、celery worker）、运行期隐式使用但从不 import 的包，都扫不出来。
+- 偶尔会认错包名。比如代码里 `import cv2`，PyPI 上真实的包名是 `opencv-python`，人工核对更稳。
+
+所以 pipreqs 的正确定位是"生成初稿"，标准动作是：**生成初稿 → 人工核对补漏 → 在干净的虚拟环境里 `pip install -r requirements.txt` 完整跑一遍项目**——能跑通，这份清单才算真正合格。
+
+**途径三：手工维护——以人为准**：像编辑普通文本一样编辑清单，只写顶层依赖并锁定版本，还能随手加注释说明每个包的用途。清单最简洁、信息密度最高，适合从项目第一天就开始维护。代价是要保持"每装一个包就同步一行"的自律。
+
+**三种途径对比与选型**：
+
+| 途径 | 信息来源 | 清单内容 | 优势 | 风险/代价 | 适用场景 |
+|------|---------|---------|------|----------|---------|
+| `pip freeze` | 当前环境 | 环境全部包（含传递依赖与无关包） | 一条命令完成，完整锁定 | 环境脏则清单脏 | 干净的专用 venv |
+| `pipreqs` | 源码 import | 项目实际用到的顶层包 | 环境再乱也能生成干净清单 | 动态/隐式依赖会漏，需人工核对 | 已有代码、事后补清单 |
+| 手工维护 | 人工判断 | 顶层依赖 | 简洁、可注释、完全可控 | 靠自觉，漏更难发现 | 新项目从零开始 |
+
+三种途径不是互斥而是接力关系：**新项目用手工维护起步；代码写了半路没清单，用 pipreqs 生成初稿再核对；环境可信且要完整固化时，用 freeze 锁定**。
+
 **安装清单**：
 
 ```bash
@@ -583,6 +652,72 @@ python3 -m pip install -r requirements.txt
 ```
 
 pip 逐行解析并安装，自动处理依赖关系与版本约束。
+
+**把新装的依赖合并进已有清单**：清单是活的文档——开发过程中不断 `pip install` 新包，每个新依赖都要及时合并进去，否则清单与真实环境很快脱节。按变动规模选择策略：
+
+**单包追加（日常最常用）**：装了新包后，查出它的精确版本，追加到清单末尾：
+
+```bash
+# macOS / Linux：从 freeze 输出里过滤出目标包
+python3 -m pip freeze | grep -i celery
+# 输出 celery==5.3.6，把这行粘贴进 requirements.txt
+```
+
+```bash
+# Windows（cmd）：用 findstr 做同样的事
+python3 -m pip freeze | findstr /i celery
+```
+
+macOS / Linux 上还有更省事的一步到位写法：
+
+```bash
+python3 -m pip freeze | grep -i -E "^(celery|redis)==" >> requirements.txt
+```
+
+两个细节必须小心：`>>` 是**追加**、`>` 是**覆盖**，手滑把清单整个冲掉就是单个 `>` 干的好事；追加不会查重，同一包出现多行时 pip 按最后出现的为准执行，但清单应保持干净，追加后手动整理去重。
+
+**全量重导（批量变动多时）**：一口气装了一批包，懒得逐个追加，直接重新导出覆盖，让环境当唯一真相源：
+
+```bash
+python3 -m pip freeze > requirements.txt
+```
+
+代价是清单里原有的注释、分组、`-r` 引用全部丢失，且把全部传递依赖一并带入。对本来就用 freeze 生成的清单，这是自然动作；对精心手写维护的清单，这是破坏性操作，慎用。
+
+**pip-compile 增量编译（工程化标准作法）**：清单更新频繁、多人协作的项目，会把"顶层声明"与"锁定结果"拆成两个文件，用 pip-tools 工具维护：
+
+```text
+# requirements.in——手工维护，只写顶层依赖
+flask==3.0.0
+requests==2.31.0
+```
+
+```bash
+# 安装 pip-tools
+python3 -m pip install pip-tools
+
+# 编译：解析整个依赖树，生成含全部传递依赖、逐个锁版本的 requirements.txt
+pip-compile requirements.in
+```
+
+之后日常新增依赖只两步：往 `requirements.in` 加一行声明，再重新编译一次：
+
+```bash
+pip-compile requirements.in
+```
+
+pip-compile 的关键价值是**锁定稳定**：重复编译时，已锁定的包保持原版本不动（除非显式要求升级），新增的依赖只做增量合并，不会牵连其他包跳版本。两个文件各司其职：`.in` 是给人看的顶层声明，`requirements.txt` 是给机器执行的完整锁定结果。
+
+**多清单之间用引用合并成"虚拟总表"**：项目存在生产、开发、部署等多份需求文件时，优先用 `-r` 引用组织它们，而不是物理拼接成一个大文件——被引用的清单更新后自动生效，不用多处同步。
+
+**环境与清单的一致性自查**：怀疑清单与环境脱节（装了包忘了同步、卸载没清干净），冻结当前环境对比一下立刻见分晓（macOS / Linux）：
+
+```bash
+python3 -m pip freeze > /tmp/current-state.txt
+diff requirements.txt /tmp/current-state.txt
+```
+
+diff 没有输出说明环境与清单完全一致；有输出则逐行甄别：该补进清单的补进去，该清理环境的清理掉。定期自查，清单才不会烂尾。
 
 **开发依赖与生产依赖分离**：项目常把"运行必需"与"开发/测试必需"分开：
 
@@ -767,6 +902,7 @@ python3 -m pip install -r requirements.txt       # 部署
 | 装了多个包后有版本冲突 | 包之间的依赖版本约束互斥 | 升级某包到兼容版本；或 pin 住冲突包版本；复杂项目用 pip-tools/poetry |
 | 卸载某包后残留大量无用依赖 | `pip uninstall` 不删依赖 | 定期审视 `pip list`；或用 `pip-autoremove` 工具自动清理 |
 | `pip config set` 不生效 | 配置级别优先级覆盖问题 | 检查 `pip config list` 确认当前生效值；注意 `--venv` > `--user` > `--global` 优先级 |
+| 接手的旧项目没有 `requirements.txt` | 原作者从未维护依赖清单 | 用 `pipreqs` 扫描代码生成初稿，人工核对补漏后在干净环境完整验证 |
 
 ### 4.4 发布包到 PyPI（了解）
 
@@ -825,7 +961,7 @@ twine upload dist/*
 - **安装与配置**：推荐 `python3 -m pip` 确保绑定当前解释器；升级 pip 自身用 `pip install --upgrade pip`；国内配镜像源加速；`pip config` 管理全局配置（index-url、timeout、trusted-host）。
 - **核心命令**：`install`（版本指定语法 `==`/`>=`/`<`/`~=`/`!=`）、`uninstall`（不删依赖）、`list`/`show`/`freeze`（查看与导出）、`install -e`（开发模式）、`cache`/`download`（缓存与离线安装）。
 - **安装来源**：PyPI（默认）、本地压缩包/目录、git 仓库、私有索引，覆盖各种非标准安装场景。
-- **依赖管理**：`requirements.txt` 语法与生产/开发分离、环境标记条件安装、约束文件、哈希校验保证完整性。
+- **依赖管理**：`requirements.txt` 语法、三种生成途径（`pip freeze` 导出环境快照、`pipreqs` 扫描代码反推、手工维护顶层依赖）、新装依赖合并策略（单包追加、全量重导、`pip-compile` 增量编译）、环境与清单漂移自查、生产/开发依赖分离、环境标记条件安装、约束文件、哈希校验保证完整性。
 - **依赖解析**：`pipdeptree` 查看依赖树、冲突识别与解决、新版解析器报 `ResolutionImpossible`。
 - **wheel 与 sdist**：预编译 wheel 快、源码 sdist 需编译，pip 优先 wheel；平台标签决定跨平台兼容。
 - **工具生态**：pip-tools（锁定增强）、Poetry（一体化）、uv（极快）、conda（科学计算）的定位与选型。
