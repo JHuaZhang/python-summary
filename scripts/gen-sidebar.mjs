@@ -269,8 +269,9 @@ export default defineConfig({
   base: basePath,
   outDir: 'dist',
 
-  // 关闭 SSG（不预渲染 HTML），浏览器端渲染，内存大降
-  ssg: false,
+  // SSG 预渲染全量 HTML：构建发生在 GitHub Actions / 本地，服务器只由 nginx 发静态文件，无内存压力
+  // （早年 ssg:false 是因为构建跑在服务器 Jenkins 容器里内存扛不住，该场景已不存在）
+  ssg: true,
 
   themeConfig: {
     nav: ${navStr},
