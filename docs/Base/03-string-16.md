@@ -912,20 +912,7 @@ print(f"差异: {t2/t1:.1f}x")
 
 ### 3.4 方法选择决策
 
-```text
-你要判断什么？
-  ├── 字母是否全大写？
-  │     → isupper()
-  │     （非字母字符不影响，需有至少一个字母）
-  │
-  ├── 字母是否全小写？
-  │     → islower()
-  │     （非字母字符不影响，需有至少一个字母）
-  │
-  └── 是否符合标题格式（每个词首字母大写）？
-        → istitle()
-        （词边界由非字母字符定义）
-```
+![示例图片](../images/base/202610130040.svg)
 
 ## 4. 原理
 
@@ -941,17 +928,7 @@ print(f"差异: {t2/t1:.1f}x")
 | `islower()` | `Lowercase = Yes` | 所有字母字符都是小写 |
 | `istitle()` | `Lt` (Letter, titlecase) 或满足 title 规则 | 每个词首字母大写，其余小写 |
 
-```text
-isupper() 的 CPython 判断流程：
-
-1. 遍历字符串的每个码点
-2. 查询 UCD：该字符是否是 "cased" 字符（有大小写属性的字母）
-3. 如果是 cased 字符：
-   → 检查它是否是大写
-   → 如果不是大写 → 立即返回 False（短路优化）
-4. 如果至少有一个 cased 字符且全部为大写 → 返回 True
-5. 如果没有任何 cased 字符（如纯数字、纯中文）→ 返回 False
-```
+![示例图片](../images/base/202610130041.svg)
 
 用 `unicodedata` 模块验证字符的 Unicode 属性：
 
@@ -998,20 +975,7 @@ for char, label in chars:
 
 理解 `isupper()` 和 `islower()` 的关键概念是 **cased character**（有大小写的字符）。只有 cased 字符才会影响判断结果：
 
-```text
-字符串 = "ABC123"
-  → 字符 A: cased, 且是 uppercase → 通过检查
-  → 字符 B: cased, 且是 uppercase → 通过检查
-  → 字符 C: cased, 且是 uppercase → 通过检查
-  → 字符 1: 非 cased → 跳过
-  → 字符 2: 非 cased → 跳过
-  → 字符 3: 非 cased → 跳过
-  → 至少有一个 cased 字符，且全部大写 → isupper() 返回 True
-
-字符串 = "123"
-  → 字符 1,2,3: 全部非 cased → 没有 cased 字符
-  → isupper() 返回 False（没有可判断的字母）
-```
+![示例图片](../images/base/202610130042.svg)
 
 ```python
 # 验证：有 cased 字符 vs 无 cased 字符
@@ -1051,73 +1015,17 @@ for text, label in cases:
 
 `istitle()` 的判断比 `isupper()` 和 `islower()` 更复杂——它需要识别"词"的边界。CPython 的实现逻辑如下：
 
-```text
-istitle() 判断流程：
-
-1. 遍历字符串中每个连续的"字母序列"（由非字母字符分隔）
-2. 对每个字母序列：
-   → 第一个字符必须是 cased 且是大写
-   → 其余字符必须是 cased 且是小写
-   → 如果不符合 → 立即返回 False
-3. 所有字母序列都满足条件 → 返回 True
-4. 没有任何 cased 字符 → 返回 False
-```
+![示例图片](../images/base/202610130043.svg)
 
 可视化 `"Hello, World!"` 的判断过程：
 
-```text
-字符串: H e l l o ,   W o r l d !
-        ↑             ↑
-        字母序列1     字母序列2
-        Hello         World
-
-字母序列1 "Hello":
-  H: cased + uppercase → 通过（首字母大写）
-  e: cased + lowercase → 通过
-  l: cased + lowercase → 通过
-  l: cased + lowercase → 通过
-  o: cased + lowercase → 通过
-  → 序列1 通过
-
-字母序列2 "World":
-  W: cased + uppercase → 通过
-  o: cased + lowercase → 通过
-  r: cased + lowercase → 通过
-  l: cased + lowercase → 通过
-  d: cased + lowercase → 通过
-  → 序列2 通过
-
-所有序列通过 → istitle() 返回 True
-```
-
-对比 `"Hello world"` 的判断过程：
-
-```text
-字符串: H e l l o   w o r l d
-        ↑             ↑
-        字母序列1     字母序列2
-        Hello         world
-
-字母序列2 "world":
-  w: cased + lowercase → 首字母不是大写 → 不通过
-  → 返回 False
-```
+![示例图片](../images/base/202610130045.svg)
 
 ### 4.4 CPython 实现效率
 
 三个方法在 CPython 中都由 C 实现，直接操作码点数组，不创建中间 Python 对象：
 
-```text
-s.isupper() 的 CPython 执行流程：
-
-1. 遍历字符串的每个码点（code point）
-2. 查询 Unicode 字符数据库，判断该码点是否是 cased 字符
-3. 如果是 cased 字符：
-   → 检查它是否是大写
-   → 如果不是大写 → 立即返回 False（短路优化）
-4. 全部 cased 字符都满足条件 → 返回 True
-5. 空字符串或无 cased 字符 → 返回 False
-```
+![示例图片](../images/base/202610130046.svg)
 
 短路优化使得在第一个不满足条件的字符处就立即返回，不需要扫描完整个字符串。对于大文本，如果第一个字符就不满足条件，时间复杂度接近 O(1)。
 
