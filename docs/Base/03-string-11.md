@@ -3,1068 +3,649 @@ group:
   title: 【03】字符串介绍
   order: 3
 order: 11
-title: 字符串长度与成员判断
+title: len 函数与字符串长度
 nav:
   title: Python基础
   order: 1
 ---
 
-# 字符串长度与成员判断
+# len 函数与字符串长度
 
 ## 1. 介绍
 
-### 1.1 什么是字符串长度与成员判断
+### 1.1 知识点定义
 
-字符串长度与成员判断是字符串操作中最基础也最高频的两类操作：
+`len()` 是 Python 的内置函数，接收一个对象，返回它的"长度"。对字符串而言，长度就是**字符的个数**——准确地说，是 **Unicode 码点的个数**。返回值类型是 `int`。
 
-- **字符串长度**：获取字符串中包含多少个字符，用 `len()` 函数实现
-- **成员判断**：判断某个字符或子串是否存在于字符串中，用 `in` / `not in` 运算符实现
+| 维度 | 说明 |
+|------|------|
+| 所属 | 内置函数（不属于任何类型的方法） |
+| 语法 | `len(obj)`，无任何可选参数 |
+| 返回 | `int`，字符（码点）个数 |
+| 计数口径 | Unicode 码点：中文、英文、标点一视同仁，各算 1 |
+| 耗时 | O(1)，读的是字符串自带的长度字段 |
 
-这两类操作看似简单，但在实际开发中无处不在——校验用户输入长度、搜索关键词是否匹配、判断文件扩展名、过滤敏感词……几乎所有涉及字符串处理的场景都会用到它们。
+它解决的核心问题是：**"这段文本里到底有多少个字符"**——短信字数限制、用户名长度校验、分页标题截断，都需要先把"长度"这一最基本的事实量出来。
 
-```python
-# 字符串长度
-text = "Hello, Python!"
-print(len(text))  # 14
+与临近工具的关系先建立一个大图景：
 
-# 成员判断
-print("Python" in text)      # True
-print("Java" not in text)    # True
-```
-
-**运行结果**：
-
-```text
-13
-True
-True
-```
+- `len()`——数"有多少个"，返回整数
+- `in` / `not in`——判断"有没有"，返回布尔值
+- 两者一个管数量、一个管存在，合起来覆盖文本校验的两大类需求
 
 ### 1.2 最简示例
 
-用一个用户注册校验的例子来展示这两个操作的典型用法：
-
-```python
-username = "张三"
-
-# 用 len() 检查长度
-if len(username) < 2:
-    print("用户名太短")
-else:
-    print(f"用户名长度合法: {len(username)} 个字符")
-
-# 用 in 检查是否包含非法字符
-illegal_chars = "@#$% "
-has_illegal = any(c in username for c in illegal_chars)
-print(f"包含非法字符: {has_illegal}")
-```
-
-**运行结果**：
-
-```text
-用户名长度合法: 2 个字符
-包含非法字符: False
-```
-
-### 1.3 相关方法速览
-
-除了 `len()` 和 `in` 运算符，Python 字符串还提供了一组查找与判断方法，它们与成员判断密切相关：
-
-| 方法 / 运算符 | 作用 | 返回值 |
-|--------------|------|--------|
-| `len(s)` | 获取字符串长度 | `int` |
-| `x in s` | 判断子串是否存在 | `bool` |
-| `x not in s` | 判断子串是否不存在 | `bool` |
-| `s.find(sub)` | 查找子串首次出现位置 | `int`（找不到返回 -1） |
-| `s.rfind(sub)` | 从右侧查找子串位置 | `int`（找不到返回 -1） |
-| `s.index(sub)` | 查找子串位置（找不到报错） | `int` |
-| `s.count(sub)` | 统计子串出现次数 | `int` |
-| `s.startswith(prefix)` | 判断是否以指定前缀开头 | `bool` |
-| `s.endswith(suffix)` | 判断是否以指定后缀结尾 | `bool` |
-
-## 2. 核心内容
-
-### 2.1 len()：获取字符串长度
-
-#### 2.1.1 基本用法
-
-`len()` 是 Python 内置函数，返回字符串中的字符个数。它不需要通过字符串对象调用，而是直接把字符串作为参数传入：
+先用最简单的代码直观感受这个函数：
 
 ```python
 text = "Hello, World!"
+
 length = len(text)
-print(f"字符串: {text}")
-print(f"长度: {length}")
-print(f"类型: {type(length)}")
+print(length)
+print(type(length))
 ```
 
-**运行结果**：
+运行结果：
 
 ```text
-字符串: Hello, World!
-长度: 13
-类型: <class 'int'>
+13
+<class 'int'>
 ```
 
-`len()` 返回的是一个 `int` 整数，表示字符串中 Unicode 字符的个数。注意是**字符个数**，不是字节个数。
-
-几种边界情况：
-
-```python
-# 空字符串
-print(f"空字符串: {len('')}")           # 0
-
-# 只有空格
-print(f"3个空格: {len('   ')}")         # 3
-
-# 换行符（转义字符算 1 个字符）
-print(f"含换行: {len('a\\nb')}")        # 3
-```
-
-**运行结果**：
+`"Hello, World!"` 依次是 `H`、`e`、`l`、`l`、`o`、`,`、` `、`W`、`o`、`r`、`l`、`d`、`!`，数下来正好 13 个字符：
 
 ```text
-空字符串: 0
-3个空格: 3
-含换行: 3
+索引:     0    1    2    3    4    5    6    7    8    9   10   11   12
+字符:     H    e    l    l    o    ,  (空格) W    o    r    l    d    !
+                                          ↑
+                              空格也是真实字符，照常计入长度
 ```
 
-#### 2.1.2 中文字符串的长度
-
-`len()` 统计的是 **Unicode 字符个数**，中文字符和英文字符一样，每个算 1 个：
+拿到长度之后，比较与算术都是常规操作：
 
 ```python
-chinese = "你好，世界"
-print(f"中文字符串: {chinese}")
-print(f"长度: {len(chinese)}")
-
-mixed = "Python编程"
-print(f"混合字符串: {mixed}")
-print(f"长度: {len(mixed)}")
+print(len(text) > 10)
+print(20 - len(text))
 ```
 
-**运行结果**：
+运行结果：
 
 ```text
-中文字符串: 你好，世界
-长度: 5
-混合字符串: Python编程
-长度: 8
+True
+7
 ```
 
-"你好，世界"共 5 个字符（4 个汉字 + 1 个中文逗号），`len()` 返回 5。"Python编程"共 8 个字符（6 个英文 + 2 个汉字），`len()` 返回 8。
+长度是"量出来的事实"，比较是"基于事实的判断"——`len()` 负责前者，业务规则负责后者。
 
-#### 2.1.3 len() 与字节长度的区别
+## 2. 核心内容
 
-`len()` 返回的是**字符数**，不是**字节数**。一个中文字符在 UTF-8 编码下占 3 个字节，但 `len()` 仍然算 1：
+### 2.1 基本用法
+
+`len()` 数的是**全部字符**——字母、逗号、空格、感叹号一个不落。它没有任何可选参数，语法就是 `len(obj)` 一个萝卜一个坑，使用上没有变化空间；它的"变化"全部体现在不同字符串本身的差异上。
 
 ```python
-text = "你好"
-print(f"字符串: {text}")
-print(f"len() 字符数: {len(text)}")
-print(f"UTF-8 字节数: {len(text.encode('utf-8'))}")
-print(f"GBK 字节数: {len(text.encode('gbk'))}")
+cases = [
+    "Hello, World!",   # 字母 + 标点 + 空格
+    "Python编程",       # 中英混合
+    "你好，世界",       # 全角标点
+]
+for s in cases:
+    print(f"  {s!r} 的长度: {len(s)}")
 ```
 
-**运行结果**：
+运行结果：
 
 ```text
-字符串: 你好
-len() 字符数: 2
-UTF-8 字节数: 6
-GBK 字节数: 4
+  'Hello, World!' 的长度: 13
+  'Python编程' 的长度: 8
+  '你好，世界' 的长度: 5
 ```
 
-"你好"是 2 个字符，`len()` 返回 2。但如果用 UTF-8 编码后计算字节数，是 6（每个汉字 3 字节）；用 GBK 编码则是 4（每个汉字 2 字节）。
+**关键点说明**：
 
-**什么时候需要字节数？** 当你需要限制存储大小（如数据库字段长度限制按字节计算）或网络传输大小（如 HTTP 请求体限制）时，需要注意字符数和字节数的区别。
+- `"Python编程"` 是 6 个英文字母加 2 个汉字，共 8 个——中英文一视同仁，每个码点算 1
+- `"你好，世界"` 里的中文逗号 `，` 也是独立的码点，照常计入
+- 中间的空格、看不见的字符都逃不过 `len()` 的清点（下一小节专门展开）
 
-#### 2.1.4 转义字符的长度
+### 2.2 空字符串、纯空白与转义字符
 
-转义字符（如 `\n`、`\t`、`\\`）在源代码中用两个字符表示，但在内存中是**一个字符**，`len()` 算 1：
+三种最典型的边界输入，`len()` 的行为各不相同：
 
 ```python
-escaped = "Hello\nWorld"
-print(f"字符串: {repr(escaped)}")
-print(f"长度: {len(escaped)}")
-
+empty = ""
+spaces = "    "
+one_line = "a\nb"
 tabbed = "a\tb\tc"
-print(f"字符串: {repr(tabbed)}")
-print(f"长度: {len(tabbed)}")
 
-backslash = "C:\\Users\\admin"
-print(f"字符串: {repr(backslash)}")
-print(f"长度: {len(backslash)}")
+print(f"空字符串的长度: {len(empty)}")
+print(f"4 个空格的长度: {len(spaces)}")
+print(f"{one_line!r} 的长度: {len(one_line)}")
+print(f"{tabbed!r} 的长度: {len(tabbed)}")
 ```
 
-**运行结果**：
+运行结果：
 
 ```text
-字符串: 'Hello\nWorld'
-长度: 11
-字符串: 'a\tb\tc'
-长度: 5
-字符串: 'C:\\Users\\admin'
-长度: 13
+空字符串的长度: 0
+4 个空格的长度: 4
+'a\nb' 的长度: 3
+'a\tb\tc' 的长度: 5
 ```
 
-`"Hello\nWorld"` 中 `\n` 是一个换行字符，所以长度是 11（5 + 1 + 5），不是 12。同理 `"a\tb\tc"` 长度是 5（3 个字母 + 2 个制表符）。
+解读：
 
-#### 2.1.5 emoji 与特殊 Unicode 字符
+- **空字符串返回 0**：`""` 是一个合法的字符串，只是里面一个字符都没有
+- **空白也是真实字符**：空格、制表符、换行符都要占位，4 个空格就是长度 4
+- **转义字符各算 1 个字符**：`\n`、`\t` 在源代码里写成两个字符的样子，但落到内存中是**一个**字符，所以 `"a\nb"` 是 3、`"a\tb\tc"` 是 5
 
-大部分 emoji 在 `len()` 中算 1 个字符：
+把这些边界情况汇成一张速查表：
+
+| 输入 | 长度 | 说明 |
+|------|------|------|
+| `""` | 0 | 空字符串，一个字符也没有 |
+| `"    "` | 4 | 4 个空格就是 4 个字符，别被"看不见"骗了 |
+| `"a\nb"` | 3 | `\n` 是 1 个字符，不是 2 个 |
+| `"a\tb\tc"` | 5 | 两个 `\t` 各算 1 个字符 |
+| `"C:\\"` | 2 | `\\` 转义后是 1 个反斜杠字符 |
+
+`repr()` 是观察不可见字符的好帮手——普通 `print` 会把 `\n` 真的换成换行，而 `repr()` 把它原样转义回来，让你看清"内存里到底存了什么"：
 
 ```python
-emoji = "Hello 😀"
-print(f"字符串: {emoji}")
-print(f"长度: {len(emoji)}")  # 7（5个字母 + 1个空格 + 1个emoji）
+path = "C:\\Users\\admin"   # 源码里写两个反斜杠，内存里只有一个
+
+print(f"repr 形式: {path!r}")
+print(f"长度: {len(path)}")
 ```
 
-**运行结果**：
+运行结果：
 
 ```text
-字符串: Hello 😀
-长度: 7
+repr 形式: 'C:\\Users\\admin'
+长度: 14
 ```
 
-但要注意**复合 emoji**——由多个 Unicode 码点组合而成的 emoji，`len()` 会返回大于 1 的值：
+这个字符串在内存中依次是 `C`、`:`、`\`、`U`、`s`、`e`、`r`、`s`、`\`、`a`、`d`、`m`、`i`、`n`，两个反斜杠各算 1 个字符，所以长度是 14。
+
+多行文本同理——换行符也是字符，照常计入总长度：
+
+```python
+report = "标题行\n第二行\n第三行"
+
+print(f"repr 形式: {report!r}")
+print(f"总长度: {len(report)}")
+```
+
+运行结果：
+
+```text
+repr 形式: '标题行\n第二行\n第三行'
+总长度: 11
+```
+
+3 行内容各有 3 个字，两个 `\n` 各占 1 个字符，3 + 3 + 3 + 2 = 11。多行文本的字符数永远不等于"肉眼行数"，这是批量统计时最常见的计数误差来源——文本量变长后，**所有不可见字符都会被老老实实地计入长度**。
+
+**实战提醒**：做"用户名长度 3~20"这类校验时，空格和不可见字符会被 `len()` 老老实实计入。如果业务上认为"前后空格不算数"，先约定是否要在计算前去掉两端空白再量长度——量之前想清楚"我要数的是什么"。
+
+### 2.3 计数本质是 Unicode 码点：中文也是 1 个
+
+Python 3 的字符串按 **Unicode 码点**组织中文本。`len()` 数的正是码点个数，所以中文、英文、全角标点一视同仁，每个码点算 1：
+
+```python
+zh = "你好，世界"
+mixed = "Python编程"
+
+print(f"'{zh}' 的长度: {len(zh)}")
+print(f"'{mixed}' 的长度: {len(mixed)}")
+```
+
+运行结果：
+
+```text
+'你好，世界' 的长度: 5
+'Python编程' 的长度: 8
+```
+
+`"你好，世界"` 是「你」「好」「，」「世」「界」5 个码点；`"Python编程"` 是 6 个英文字母加 2 个汉字，共 8 个码点。**最大的误区是拿其他语言的直觉来套**：如果你从 C 语言的 `strlen` 或 UTF-8 字节数的角度出发，会以为一个汉字算 2——在 Python 3 的字符串里不存在这回事，**"字符数"与"字节数"是两个不同的概念**，字节的角度在 2.6 节展开。
+
+再强调一遍全角标点：中文逗号 `，`、中文引号、顿号 `、` 都是**独立的码点**，各算 1 个字符。统计"短信最多 70 字"、检票闸机扫描"票号是否 15 位"、分页显示"标题限 30 字"这类需求时，`len()` 给出的就是最符合直觉的"字数"——全中文按 1 个算、中英混合也按个数算，无须任何换算。
+
+### 2.4 emoji：😀 是 1 个，"一家人"是 7 个
+
+emoji 同样按码点计数。绝大多数常见 emoji（比如 😀）在 Unicode 里是**单个码点**，于是 `len()` 数出 1：
+
+```python
+face = "😀"
+hello_face = "Hello 😀"
+
+print(f"'😀' 的码点: {hex(ord(face))}")
+print(f"len('😀') = {len(face)}")
+print(f"len('Hello 😀') = {len(hello_face)}")
+print(f"'😀' 的 UTF-8 字节数: {len(face.encode('utf-8'))}")
+```
+
+运行结果：
+
+```text
+'😀' 的码点: 0x1f600
+len('😀') = 1
+len('Hello 😀') = 7
+'😀' 的 UTF-8 字节数: 4
+```
+
+注意结果差异：`"Hello 😀"` 长度是 7（6 个字母 + 1 个 emoji 码点），而同一个 😀 转成 UTF-8 字节却是 **4 个字节**——字符与字节完全是两套计数体系，这里先埋个伏笔，2.6 节会把两套体系并排放在一起对比。
+
+真正颠覆直觉的是**复合 emoji**。手机输入法里打出"一家四口"，看上去是一个图案，实际上它由 4 个人物 emoji 和 3 个"零宽连接符"拼接而成：
 
 ```python
 family = "👨‍👩‍👧‍👦"
-print(f"家庭 emoji: {family}")
-print(f"长度: {len(family)}")
+
+print(f"len('👨‍👩‍👧‍👦') = {len(family)}")
+print(f"逐个码点: {[hex(ord(ch)) for ch in family]}")
 ```
 
-**运行结果**：
+运行结果：
 
 ```text
-家庭 emoji: 👨‍👩‍👧‍👦
-长度: 7
+len('👨‍👩‍👧‍👦') = 7
+逐个码点: ['0x1f468', '0x200d', '0x1f469', '0x200d', '0x1f467', '0x200d', '0x1f466']
 ```
 
-家庭 emoji "👨‍👩‍👧‍👦"实际上由 4 个人物 emoji + 3 个零宽连字符（ZWJ）组成，共 7 个码点，所以 `len()` 返回 7。如果需要正确计算含复合 emoji 的字符串"视觉长度"，可以使用 `unicodedata` 模块处理。
-
-#### 2.1.6 len() 参数速查
-
-`len()` 是内置函数，没有额外参数，语法非常简单：
-
-```python
-len(obj)  # obj 是任何支持 __len__ 方法的对象
-```
-
-但 `len()` 不仅适用于字符串，还适用于所有有序容器和集合：
-
-```python
-print(len([1, 2, 3]))           # 列表: 3
-print(len((1, 2, 3)))           # 元组: 3
-print(len({"a": 1, "b": 2}))    # 字典: 2
-print(len({1, 2, 3}))            # 集合: 3
-print(len(range(10)))            # range: 10
-```
-
-**运行结果**：
+它的内部结构是这样的：
 
 ```text
-3
+显示效果：👨‍👩‍👧‍👦（肉眼看是 1 个图案）
+实际结构：👨 + [ZE] + 👩 + [ZE] + 👧 + [ZE] + 👦 结构展开后共 7 个码点
+
+     👨    [ZE]    👩    [ZE]    👧    [ZE]    👦
+   0x1f468  0x200d  0x1f469  0x200d  0x1f467  0x200d  0x1f466
+   (父亲)  (连接符) (母亲)  (连接符) (女儿)  (连接符) (儿子)
+```
+
+其中 `[ZE]` 代表零宽连接符（Zero Width Joiner，码点 `0x200d`）：它把多个独立 emoji"粘"成一个视觉单元，自身也占 1 个码点。因此：
+
+- 单个 emoji（如 😀、👍、🎉）：通常 `len()` 是 1
+- ZWJ 序列（家庭、职业、情侣组合等）：`len()` 是"成员数 + 连接符数"，一家人四口是 4 + 3 = 7
+- 带肤色修饰的 emoji（如 👍🏽）：基础 emoji + 肤色修饰符，`len()` 是 2
+
+**为什么"昵称最多 8 字"的校验要留心**：用户输入一个"👨‍👩‍👧‍👦"，肉眼看是 1 个字，`len()` 却报 7。如果你的产品语义是"视觉单元数"，直接 `len()` 会误杀；如果语义就是"码点数"，就要接受复合 emoji 占多个位置的现实。**计数前先明确业务要数的是哪一层**——是"码点"、"字形"还是"字节"，这一步想清楚，比写代码本身更重要。
+
+带肤色修饰的 emoji 实测验证一下这条规则：
+
+```python
+m = "👍🏽"   # 基础 emoji + 肤色修饰符
+
+print(f"len('👍🏽') = {len(m)}")
+print(f"逐个码点: {[hex(ord(ch)) for ch in m]}")
+```
+
+运行结果：
+
+```text
+len('👍🏽') = 2
+逐个码点: ['0x1f44d', '0x1f3fd']
+```
+
+两个码点清晰可见：`0x1f44d` 是基础手势 👍，`0x1f3fd` 是肤色修饰符——它们**不会自动合成**为单个码点，`len()` 如实报 2。这再次印证同一个原则：**`len()` 数的是内存里的码点序列，不是屏幕上的视觉图案个数**。
+
+### 2.5 组合字符：长得一样，长度却不同
+
+还有一种更隐蔽的情况：**两个显示完全一样的字符串，`len()` 数出来不一样长**。以带重音的法文字母 `é` 为例，它在 Unicode 里有两种等价写法：
+
+```python
+nfc = "é"                # 单一码点形式：0xe9
+nfd = "é"                # 拆分形式：e + 组合重音符（两个码点）
+
+print(f"长度对比: {len(nfc)} vs {len(nfd)}")
+print(f"肉眼一样，== 会判定相等吗: {nfc == nfd}")
+print(f"NFC 形式的码点: {[hex(ord(ch)) for ch in nfc]}")
+print(f"NFD 形式的码点: {[hex(ord(ch)) for ch in nfd]}")
+```
+
+运行结果：
+
+```text
+长度对比: 1 vs 2
+肉眼一样，== 会判定相等吗: False
+NFC 形式的码点: ['0xe9']
+NFD 形式的码点: ['0x65', '0x301']
+```
+
+同样的一个 `é`，一种存成 1 个码点 `0xe9`，另一种存成「`e`（0x65）+ 重音符号（0x301）」两个码点拼合；`len()` 如实报出 1 和 2，连 `==` 都会告诉你它们不相等——**视觉相同、码点序列不同，是 Unicode 世界"一形多码"的真实存在**。
+
+什么情况下会遇到两种形态？
+
+- 不同输入法、不同操作系统对同一个字符可能采用不同的生成方式
+- 文本从剪贴板、浏览器、富文本编辑器流转一圈后，组合形式可能悄悄变化
+- 部分语言的本地化数据（法语、西班牙语、越南语等）天生大量使用组合字符
+
+对业务的影响集中在两个地方：
+
+- **长度校验**：用户名明明"看起来 6 个字"，`len()` 可能报 7 而被拦截，造成"莫名其妙的校验失败"
+- **去重与比对**：同一个人名以两种形态各存一份，肉眼完全一致的两个字符串 `==` 判定却是 False
+
+工程上的应对思路是**先统一形态再计数、再比较**：对文本做 Unicode 归一化，把"拆分形"收敛到"合成形"，两个看起来一致的字符串才能稳定地得到一致的长度与判定。归一化属于文本预处理的范畴，记住这条原则就够了：**当你的校验规则遇到了"长得一样却判定不同"的诡异 case，第一反应就该想到组合字符**。
+
+### 2.6 字符数不等于字节数
+
+`len()` 数的永远是**字符（码点）**，而磁盘、网络传输、数据库里实际存储的是**字节**。两套体系对同一个中文文本给出的数字不同：
+
+```python
+word = "你好"
+
+print(f"'{word}' 的字符数: {len(word)}")
+print(f"'{word}' 的 UTF-8 字节数: {len(word.encode('utf-8'))}")
+print(f"'{word}' 的 GBK 字节数: {len(word.encode('gbk'))}")
+```
+
+运行结果：
+
+```text
+'你好' 的字符数: 2
+'你好' 的 UTF-8 字节数: 6
+'你好' 的 GBK 字节数: 4
+```
+
+同一个字符串的"长度"在不同语境下有三个答案：字符数 2、UTF-8 字节数 6、GBK 字节数 4。`.encode()` 把字符串编码成字节序列后，那个结果已经不是 `str` 而是字节串类型，用 `repr()` 看一眼它的真面目：
+
+```python
+raw = "你好".encode("utf-8")
+
+print(f"类型: {type(raw)}")
+print(f"内容: {raw!r}")
+print(f"字节数: {len(raw)}")
+```
+
+运行结果：
+
+```text
+类型: <class 'bytes'>
+内容: b'\xe4\xbd\xa0\xe5\xa5\xbd'
+字节数: 6
+```
+
+`b'\xe4\xbd\xa0\xe5\xa5\xbd'` 里每个 `\x..` 是 16 进制的一个字节，每个汉字在 UTF-8 下占 3 个字节。三者关系一览：
+
+| 度量方式 | "你好"的结果 | 谁在用它 |
+|----------|--------------|----------|
+| `len(s)` 字符数 | 2 | 业务校验、界面展示、字数统计 |
+| `len(s.encode('utf-8'))` | 6 | 网络传输、文件写入、跨系统交换 |
+| `len(s.encode('gbk'))` | 4 | 部分遗留系统的中文编码场景 |
+
+**容易踩的坑**是拿字节直觉做字符校验：短信"70 字"限制数的是字符；数据库"VARCHAR(20)"在部分引擎中数字节（中文可能存不下 20 个）；HTTP 报文头的长度校验数字节。**写校验前先确认对方的"长度"是字符还是字节**，两套体系选错了，测试环境一切正常、中文数据一上线就翻车。
+
+### 2.7 len() 并非字符串专属
+
+`len()` 是通用内置函数，一切"有长度概念"的对象都能数：
+
+```python
+print(len([10, 20, 30]))
+print(len((1, 2)))
+print(len({"name": "Alen", "age": 18}))
+```
+
+运行结果：
+
+```text
 3
 2
-3
-10
+2
 ```
 
-### 2.2 in 运算符：判断子串是否存在
+列表数元素个数、元组数元素个数、字典数键值对数——它们的共同点是都实现了 `__len__()` 这个协议方法，`len()` 在背后逐一调用它（这正是第 4 章原理部分的内容）。对字符串来说不必关心协议细节：记住 `len()` 返回的是该类型最自然意义上的"个数"——对字符串而言，就是字符数，这一点足够支撑全部日常用法。
 
-#### 2.2.1 基本用法
+**关键点说明**：这个通用性有一个工程推论——写"统计项数"的通用函数时，`len()` 可以无差别地作用于字符串、列表、字典等一切容器；反过来，遇到"某个对象能不能被 len"的问题，判断标准就是它有没有实现 `__len__` 协议。
 
-`in` 是 Python 的运算符，用于判断一个字符串是否是另一个字符串的子串。返回 `True` 或 `False`：
+反向验证一下这个协议的存在感——没有"长度概念"的对象，`len()` 会直接拒绝：
 
 ```python
-text = "Hello, Python World"
-print(f"字符串: {text}")
-
-print(f"'Python' in text: {'Python' in text}")
-print(f"'Java' in text: {'Java' in text}")
-```
-
-**运行结果**：
-
-```text
-字符串: Hello, Python World
-'Python' in text: True
-'Java' in text: False
-```
-
-`in` 区分大小写——`"Python"` 能找到，但 `"python"` 找不到：
-
-```python
-print(f"'python' in text: {'python' in text}")
-```
-
-**运行结果**：
-
-```text
-'python' in text: False
-```
-
-如果需要不区分大小写，先统一转换：
-
-```python
-lower_text = text.lower()
-print(f"'python' in lower_text: {'python' in lower_text}")
-```
-
-**运行结果**：
-
-```text
-'python' in lower_text: True
-```
-
-#### 2.2.2 单字符判断
-
-`in` 不仅可以判断子串，也可以判断单个字符是否存在：
-
-```python
-text = "Hello, Python World"
-char = "o"
-
-if char in text:
-    print(f"'{char}' 存在于字符串中")
-```
-
-**运行结果**：
-
-```text
-'o' 存在于字符串中
-```
-
-单字符判断的本质是长度为 1 的子串判断，用法完全一致。
-
-#### 2.2.3 空字符串的特殊行为
-
-空字符串 `""` 是任何字符串的"子串"——`in` 运算总是返回 `True`：
-
-```python
-text = "Hello"
-print(f"'' in 'Hello': {'' in text}")    # True
-print(f"'' in '': {'' in ''}")           # True
-```
-
-**运行结果**：
-
-```text
-'' in 'Hello': True
-'' in '': True
-True
-```
-
-这是因为空字符串可以被视为存在于任何位置。在实际编码中一般不会故意检查空字符串，但理解这个行为有助于避免逻辑错误——比如不要用 `if substring in text` 来检查 `substring` 本身是否为空。
-
-#### 2.2.4 结合条件表达式
-
-`in` 运算符最常用于 `if` 条件判断中：
-
-```python
-comment = "这个产品真的很好用，推荐购买"
-banned_words = ["垃圾", "骗人", "差评"]
-
-has_banned = any(word in comment for word in banned_words)
-
-if has_banned:
-    print("评论包含敏感词，需要审核")
-else:
-    print("评论正常，直接通过")
-```
-
-**运行结果**：
-
-```text
-评论正常，直接通过
-```
-
-`any(word in comment for word in banned_words)` 是一个常见的惯用写法——遍历敏感词列表，只要有一个出现在评论中就返回 `True`。
-
-#### 2.2.5 多关键词匹配
-
-从一组候选关键词中找出哪些出现在目标字符串中：
-
-```python
-query = "Python 数据分析教程"
-keywords = ["Python", "Java", "Go", "Rust"]
-matched = [kw for kw in keywords if kw in query]
-print(f"查询: {query}")
-print(f"匹配到的关键词: {matched}")
-```
-
-**运行结果**：
-
-```text
-查询: Python 数据分析教程
-匹配到的关键词: ['Python']
-```
-
-列表推导式 `[kw for kw in keywords if kw in query]` 过滤出所有出现在 `query` 中的关键词。
-
-### 2.3 not in 运算符：判断子串是否不存在
-
-`not in` 是 `in` 的反义运算符——判断子串是否**不存在**于字符串中：
-
-```python
-text = "Hello, Python World"
-print(f"'Java' not in text: {'Java' not in text}")
-print(f"'Python' not in text: {'Python' not in text}")
-```
-
-**运行结果**：
-
-```text
-'Java' not in text: True
-'Python' not in text: False
-```
-
-`not in` 等价于 `not (x in s)`，但使用 `not in` 更符合自然语言习惯，可读性更好：
-
-```python
-# 推荐写法
-if "Java" not in text:
-    print("不包含 Java")
-
-# 等价但不推荐的写法
-if not ("Java" in text):
-    print("不包含 Java")
-```
-
-**运行结果**：
-
-```text
-不包含 Java
-不包含 Java
-```
-
-**典型场景**——判断文件不是某种类型：
-
-```python
-filename = "report.pdf"
-if ".exe" not in filename and ".bat" not in filename:
-    print(f"{filename} 不是可执行文件，可以安全下载")
-```
-
-**运行结果**：
-
-```text
-report.pdf 不是可执行文件，可以安全下载
-```
-
-### 2.4 find()：查找子串位置
-
-#### 2.4.1 基本用法
-
-`find()` 返回子串**首次出现**的索引位置，找不到时返回 `-1`（不报错）：
-
-```python
-text = "Hello, Python! I love Python."
-print(f"字符串: {text}")
-
-pos = text.find("Python")
-print(f"find('Python'): {pos}")
-
-not_found = text.find("Java")
-print(f"find('Java'): {not_found}")
-```
-
-**运行结果**：
-
-```text
-字符串: Hello, Python! I love Python.
-find('Python'): 7
-find('Java'): -1
-```
-
-"Python" 首次出现在索引 7 的位置（从 0 开始计数）。找不到时返回 -1，这是 `find()` 区别于 `index()` 的关键特征。
-
-#### 2.4.2 指定查找范围
-
-`find()` 支持指定查找的起始和结束位置：
-
-```python
-text = "Hello, Python! I love Python."
-
-# 从索引 10 开始查找
-pos2 = text.find("Python", 10)
-print(f"find('Python', 10): {pos2}")
-
-# 在 [0, 10) 范围内查找
-pos3 = text.find("Python", 0, 10)
-print(f"find('Python', 0, 10): {pos3}")
-```
-
-**运行结果**：
-
-```text
-find('Python', 10): 22
-find('Python', 0, 10): -1
-```
-
-从索引 10 开始查找，"Python" 第二次出现在索引 22。在 `[0, 10)` 范围内查找，找不到（"Python" 在索引 7 开始，但结束位置是 10，需要到索引 13 才结束），返回 -1。
-
-**`find()` 完整签名**：
-
-```text
-s.find(sub[, start[, end]])
-```
-
-| 参数 | 含义 | 默认值 |
-|------|------|--------|
-| `sub` | 要查找的子串 | 必填 |
-| `start` | 查找起始位置 | 0 |
-| `end` | 查找结束位置（不含） | len(s) |
-
-#### 2.4.3 用 find() 实现多次查找
-
-`find()` 只返回第一次出现的位置。要找到所有出现位置，需要用循环配合 `start` 参数：
-
-```python
-text = "abracadabra"
-sub = "abra"
-positions = []
-start = 0
-
-while True:
-    pos = text.find(sub, start)
-    if pos == -1:
-        break
-    positions.append(pos)
-    start = pos + len(sub)
-
-print(f"字符串: {text}")
-print(f"'{sub}' 出现位置: {positions}")
-```
-
-**运行结果**：
-
-```text
-字符串: abracadabra
-'abra' 出现位置: [0, 7]
-```
-
-每次找到后，把 `start` 移到找到位置 + 子串长度，继续向后查找，直到返回 -1。
-
-### 2.5 rfind()：从右侧查找
-
-`rfind()` 与 `find()` 用法完全一样，区别是从字符串**右侧**开始查找，返回子串**最后一次出现**的索引：
-
-```python
-text = "Hello, Python! I love Python."
-print(f"字符串: {text}")
-
-print(f"find('Python'): {text.find('Python')}")    # 7（第一次）
-print(f"rfind('Python'): {text.rfind('Python')}")   # 22（最后一次）
-```
-
-**运行结果**：
-
-```text
-字符串: Hello, Python! I love Python.
-find('Python'): 7
-rfind('Python'): 22
-```
-
-`rfind()` 同样支持 `start` 和 `end` 参数，也返回 -1 表示找不到：
-
-```python
-print(f"rfind('Java'): {text.rfind('Java')}")  # -1
-```
-
-**运行结果**：
-
-```text
-rfind('Java'): -1
-```
-
-**典型场景**——提取文件扩展名中的最后一个点：
-
-```python
-path = "/home/user/report.backup.pdf"
-dot_pos = path.rfind(".")
-extension = path[dot_pos + 1:]
-print(f"文件路径: {path}")
-print(f"扩展名: {extension}")
-```
-
-**运行结果**：
-
-```text
-文件路径: /home/user/report.backup.pdf
-扩展名: pdf
-```
-
-文件名中可能有多个 `.`，用 `rfind(".")` 找到最后一个点，就能正确提取扩展名。
-
-### 2.6 index() 与 rindex()：查找位置（找不到报错）
-
-`index()` 和 `rindex()` 与 `find()` / `rfind()` 功能相同，唯一区别是——**找不到时抛出 `ValueError` 异常**，而不是返回 -1：
-
-```python
-text = "Hello, Python!"
-
-# 找得到时，index 和 find 行为一致
-print(f"index('Python'): {text.index('Python')}")
-print(f"find('Python'): {text.find('Python')}")
-```
-
-**运行结果**：
-
-```text
-index('Python'): 7
-find('Python'): 7
-```
-
-```python
-# 找不到时，find 返回 -1，index 抛异常
-print(f"find('Java'): {text.find('Java')}")
-
 try:
-    text.index("Java")
-except ValueError as e:
-    print(f"index('Java') 报错: {e}")
+    len(42)
+except TypeError as e:
+    print(f"TypeError: {e}")
 ```
 
-**运行结果**：
+运行结果：
 
 ```text
-find('Java'): -1
-index('Java') 报错: substring not found
+TypeError: object of type 'int' has no len()
 ```
 
-**选择建议**：
-
-| 场景 | 推荐 | 原因 |
-|------|------|------|
-| 不确定子串是否存在 | `find()` | 返回 -1 不中断流程，可以 `if pos != -1` 判断 |
-| 确定子串一定存在 | `index()` | 如果不存在说明是 bug，应该抛异常暴露问题 |
-| 需要异常处理来控制流程 | `index()` | 用 try/except 捕获 |
-
-### 2.7 count()：统计子串出现次数
-
-`count()` 返回子串在字符串中出现的次数，找不到时返回 0：
+错误消息写得明明白白：`int` 没有 len——因为它没有实现 `__len__` 协议。顺带一提，有些对象"看似没有长度"却可以数，比如惰性的 `range`：
 
 ```python
-text = "Hello, Python! I love Python."
-print(f"字符串: {text}")
-
-print(f"count('Python'): {text.count('Python')}")
-print(f"count('o'): {text.count('o')}")
-print(f"count('Java'): {text.count('Java')}")
+print(f"len(range(10)) = {len(range(10))}")
 ```
 
-**运行结果**：
+运行结果：
 
 ```text
-字符串: Hello, Python! I love Python.
-count('Python'): 2
-count('o'): 4
-count('Java'): 0
+len(range(10)) = 10
 ```
 
-`count()` 也支持指定查找范围 `[start, end)`：
-
-```python
-# 只在 [0, 10) 范围内统计 'o' 出现次数
-print(f"count('o', 0, 10): {text.count('o', 0, 10)}")
-```
-
-**运行结果**：
-
-```text
-count('o', 0, 10): 1
-```
-
-**注意**：`count()` 统计的是**不重叠**的子串出现次数：
-
-```python
-text = "aaaa"
-print(f"count('aa'): {text.count('aa')}")  # 2，不是 3
-```
-
-**运行结果**：
-
-```text
-count('aa'): 2
-```
-
-"aaaa" 中 "aa" 出现 2 次（位置 0-1 和 2-3），而不是 3 次。`count()` 不会重叠统计——每次匹配后跳过整个子串长度继续查找。
-
-### 2.8 startswith()：判断前缀
-
-#### 2.8.1 基本用法
-
-`startswith()` 判断字符串是否以指定前缀开头，返回布尔值：
-
-```python
-filename = "test_report.py"
-print(f"{filename} 以 'test_' 开头: {filename.startswith('test_')}")
-
-url = "https://www.example.com"
-print(f"{url} 以 'https' 开头: {url.startswith('https')}")
-```
-
-**运行结果**：
-
-```text
-test_report.py 以 'test_' 开头: True
-https://www.example.com 以 'https' 开头: True
-```
-
-#### 2.8.2 多前缀判断
-
-`startswith()` 接受**元组**参数，可以一次判断多个前缀，只要匹配任意一个就返回 `True`：
-
-```python
-files = ["report.pdf", "photo.jpg", "data.csv", "script.py"]
-for f in files:
-    if f.startswith(("report", "data")):
-        print(f"  {f} 是文档类文件")
-```
-
-**运行结果**：
-
-```text
-  report.pdf 是文档类文件
-  data.csv 是文档类文件
-```
-
-注意参数必须是**元组**（用括号），不能是列表：
-
-```python
-# 正确：元组
-filename.startswith(("report", "data"))
-
-# 错误：列表会报错
-# filename.startswith(["report", "data"])  # TypeError
-```
-
-#### 2.8.3 指定起始位置
-
-`startswith()` 也支持指定起始和结束位置：
-
-```python
-url = "https://www.example.com"
-print(f"从索引8开始以 'www' 开头: {url.startswith('www', 8)}")
-```
-
-**运行结果**：
-
-```text
-从索引8开始以 'www' 开头: True
-```
-
-`startswith('www', 8)` 检查从索引 8 开始的子串是否以 "www" 开头。URL 中索引 0-7 是 "https://"，索引 8 开始正好是 "www"。
-
-### 2.9 endswith()：判断后缀
-
-`endswith()` 与 `startswith()` 对称——判断字符串是否以指定后缀结尾：
-
-```python
-files = ["report.pdf", "photo.jpg", "data.csv", "script.py"]
-for f in files:
-    if f.endswith((".py", ".sh")):
-        print(f"  {f} 是脚本文件")
-    elif f.endswith((".pdf", ".doc")):
-        print(f"  {f} 是文档文件")
-    elif f.endswith((".jpg", ".png", ".gif")):
-        print(f"  {f} 是图片文件")
-```
-
-**运行结果**：
-
-```text
-  report.pdf 是文档文件
-  photo.jpg 是图片文件
-  script.py 是脚本文件
-```
-
-`endswith()` 同样支持元组多后缀判断和指定位置参数：
-
-```python
-# 指定结束位置
-text = "filename.txt.bak"
-print(f"到索引12为止以 '.txt' 结尾: {text.endswith('.txt', 0, 12)}")
-```
-
-**运行结果**：
-
-```text
-到索引12为止以 '.txt' 结尾: True
-```
-
-`endswith('.txt', 0, 12)` 检查 `text[0:12]`（即 "filename.txt"）是否以 ".txt" 结尾——结果为 True。注意切片右端不含索引 12 本身。
-
-### 2.10 find / index / in / count 方法对比
-
-这些方法都涉及"查找子串"，但行为和返回值不同：
-
-| 方法 | 返回值 | 找不到时 | 典型用途 |
-|------|--------|---------|---------|
-| `in` | `bool` | `False` | 只需知道是否存在 |
-| `not in` | `bool` | `True` | 只需知道是否不存在 |
-| `find()` | `int`（索引） | `-1` | 需要知道位置，且可能找不到 |
-| `rfind()` | `int`（索引） | `-1` | 需要知道最后一次出现位置 |
-| `index()` | `int`（索引） | `ValueError` | 确定存在，需要位置 |
-| `count()` | `int`（次数） | `0` | 需要知道出现几次 |
-| `startswith()` | `bool` | `False` | 判断前缀 |
-| `endswith()` | `bool` | `False` | 判断后缀 |
-
-**选择决策树**：
-
-![示例图片](../images/base/202609241310.svg)
-
-### 2.11 综合对比示例
-
-用一个字符串把所有方法串联起来演示：
-
-```python
-s = "abracadabra"
-print(f"字符串: {s}")
-print(f"长度: {len(s)}")
-print(f"'abra' in s: {'abra' in s}")
-print(f"'xyz' not in s: {'xyz' not in s}")
-print(f"find('abra'): {s.find('abra')}")
-print(f"rfind('abra'): {s.rfind('abra')}")
-print(f"index('abra'): {s.index('abra')}")
-print(f"count('abra'): {s.count('abra')}")
-print(f"count('a'): {s.count('a')}")
-print(f"startswith('ab'): {s.startswith('ab')}")
-print(f"endswith('ra'): {s.endswith('ra')}")
-```
-
-**运行结果**：
-
-```text
-字符串: abracadabra
-长度: 11
-'abra' in s: True
-'xyz' not in s: True
-find('abra'): 0
-rfind('abra'): 7
-index('abra'): 0
-count('abra'): 2
-count('a'): 5
-startswith('ab'): True
-endswith('ra'): True
-```
-
-"abracadabra" 长度 11，"abra" 出现 2 次（开头和结尾），字母 "a" 出现 5 次，以 "ab" 开头、以 "ra" 结尾。
+`range` 支持长度预测，返回的是推算出来的项数。**判断标准自始至终只有一条：对象有没有实现 `__len__`**。
 
 ## 3. 最佳实践
 
-### 3.1 推荐 vs 不推荐写法
+### 3.1 判空：推荐布尔写法，不推荐 len 绕弯
 
-| 场景 | 不推荐 | 推荐 | 原因 |
-|------|--------|------|------|
-| 判断是否存在子串 | `text.find(sub) != -1` | `sub in text` | `in` 更简洁直观 |
-| 判断是否不存在 | `not (sub in text)` | `sub not in text` | `not in` 更符合语言习惯 |
-| 获取位置且可能找不到 | `text.index(sub)`（需 try/except） | `text.find(sub)` | find 返回 -1 更易处理 |
-| 获取位置且一定存在 | `text.find(sub)` + `if != -1` | `text.index(sub)` | 一定存在时 index 语义更明确 |
-| 判断多个后缀 | `f.endswith('.py') or f.endswith('.sh')` | `f.endswith(('.py', '.sh'))` | 元组一次判断更简洁 |
-| 判断文件类型 | `".py" in filename` | `filename.endswith(".py")` | `in` 可能误匹配中间的 .py |
-| 统计字符出现次数 | 手动循环计数 | `text.count(char)` | 内置方法更高效 |
-| 检查长度范围 | `if 3 <= len(s) <= 20` | `if 3 <= len(s) <= 20` | 链式比较已经是最优写法 |
-| 遍历所有出现位置 | 反复调用 `find` 手动管理 | 用循环 + `find` 配合 start 参数 | 这是标准模式 |
+"字符串是否为空"这一判断有两种常见写法，功能等价，但语义层次完全不同：
 
-### 3.2 常见错误模式
+| 语义 | 推荐写法 | 不推荐写法 | 原因 |
+|------|----------|------------|------|
+| 判断空串 | `if not s:` | `if len(s) == 0:` | 空串本身就是假值，布尔判断最直接 |
+| 判断非空 | `if s:` | `if len(s) > 0:` | 同上，少一层函数调用的心智负担 |
 
-**错误1：用 `in` 判断文件扩展名**
+用行为对照看清两者：
 
 ```python
-# 不推荐：".py" 可能出现在文件名中间
-filename = "copy.py.bak.txt"
-if ".py" in filename:
-    print("是 Python 文件")  # 误判！
+note = ""
 
-# 推荐：用 endswith 精确判断后缀
-if filename.endswith(".py"):
-    print("是 Python 文件")
+# 不推荐：用 len 拐弯判空
+if len(note) == 0:
+    print("为空（len 写法）")
+
+# 推荐：直接利用字符串的布尔语义——空串是假值
+if not note:
+    print("为空（布尔写法）")
+
+# 判断非空同理：if data 比 len(data) > 0 直白
+data = "abc"
+if data:
+    print(f"非空（布尔写法），长度 {len(data)}")
 ```
 
-**错误2：忽略 `find()` 返回 -1 的情况**
-
-```python
-text = "Hello World"
-pos = text.find("Python")
-# 不推荐：直接用 pos，没检查是否为 -1
-print(text[pos:])  # 会输出整个字符串（因为 -1 表示最后一个字符）
-
-# 推荐：先检查
-pos = text.find("Python")
-if pos != -1:
-    print(text[pos:])
-else:
-    print("未找到")
-```
-
-**运行结果**：
+运行结果：
 
 ```text
-未找到
+为空（len 写法）
+为空（布尔写法）
+非空（布尔写法），长度 3
 ```
 
-**错误3：用 `count()` 判断是否存在后直接使用位置**
+两种写法结果一致，但语义层次不同：`len(note) == 0` 要先取长度、再比较数字，读者在脑中走两步；`if not note` 一步到位——**"字符串有没有内容"本来就是布尔问题，就按布尔问题表达**。
+
+函数级对比更能体现读代码时的负担差异：
 
 ```python
-text = "Hello World"
-# count > 0 不代表你知道位置
-if text.count("o") > 0:
-    # 不能直接用 text.index("o")，因为可能有多个
-    pos = text.find("o")
-    print(f"第一个 'o' 在位置 {pos}")
+def check_username_len_style(username):
+    if len(username) == 0:
+        return "用户名不能为空"
+    return "收到用户名"
+
+
+def check_username_bool_style(username):
+    if not username:
+        return "用户名不能为空"
+    return "收到用户名"
+
+
+print(check_username_len_style(""))
+print(check_username_bool_style(""))
 ```
 
-### 3.3 性能注意事项
+运行结果：
 
-**`in` 运算符的效率**：Python 的 `in` 运算符底层使用高效的字符串匹配算法（CPython 中基于 Boyer-Moore-Horspool 的变体），对于普通字符串查找非常快。不需要手动实现查找逻辑。
+```text
+用户名不能为空
+用户名不能为空
+```
 
-**`count()` vs 手动循环**：`count()` 是 C 实现的内置方法，比手动循环计数快得多：
+`len` 版本把"用户输入了一个空值"表达成"一个整数值等于零"，语义绕了一层；布尔版本直接表达"没有内容"。Python 的惯例是把空容器（空串、空列表、空字典）当假值处理，团队风格统一后，这类条件句几乎不会被误读。**分工原则：判空归布尔，计数归 `len()`**——长度信息该出场的地方（区间校验、显示字数）留给 `len()`，各司其职。
+
+### 3.2 长度校验的工程场景
+
+`len()` 在业务里的主战场是**区间校验**：用户名 3~12 位、密码至少 8 位、手机号恰好 11 位。先看一个最小可用的校验函数形态：
 
 ```python
-text = "a" * 1000000 + "b"
+def check_length(name):
+    """只做长度区间校验：返回 None 表示通过，字符串表示错误原因"""
+    if not (3 <= len(name) <= 12):
+        return f"长度需在 3~12 之间（当前 {len(name)}）"
+    return None
 
-# 推荐：内置方法
-count = text.count("a")  # 快
 
-# 不推荐：手动循环
-count = sum(1 for c in text if c == "a")  # 慢很多
+for username in ["Alen", "张三", "ok_user_2026", "cat"]:
+    error = check_length(username)
+    if error:
+        print(f"不通过: {username!r}（len={len(username)}） -> {error}")
+    else:
+        print(f"通过: {username!r}（len={len(username)}）")
 ```
 
-**链式调用避免重复查找**：如果需要同时判断存在性和获取位置，不要先 `in` 再 `find`，直接用 `find` 一次搞定：
+运行结果：
+
+```text
+通过: 'Alen'（len=4）
+不通过: '张三'（len=2） -> 长度需在 3~12 之间（当前 2）
+通过: 'ok_user_2026'（len=12）
+通过: 'cat'（len=3）
+```
+
+三个实现细节值得沉淀：
+
+- **区间用链式比较**：`3 <= len(name) <= 12` 是 Python 特有的链式写法，等价于 `3 <= len(name) and len(name) <= 12`，一次读出"下限到上限"的完整语义
+- **错误信息携带当前值**：把 `当前 {len(name)}` 打进消息，用户看到"当前 2"立刻知道差在哪，比干巴巴一句"长度不合法"体验好得多
+- **返回值语义统一**：`None` 表示通过、字符串表示拒绝原因，调用方用同一个 `if error:` 处理所有规则——这个模式在多条规则聚合时尤其划算，每条规则独立检查、独立报告，不因前一条违规就提前退出
+
+实际的用户名校验往往是多规则聚合（长度、字符、保留字各自独立），错误信息累加列出——长度规则在其中就承担"数量关"。
+
+长度校验之外，另一个高频场景是**截断显示**：列表页标题超长时裁掉尾部并补省略号。`len()` 在这里承担"超出预算"的判断：
 
 ```python
-# 不推荐：查找两次
-if "Python" in text:
-    pos = text.find("Python")  # 重复查找
+title = "Python 并发编程实战指南从入门到精通再到大型项目实践"
+budget = 20   # 显示预算：最多显示 20 个字符
 
-# 推荐：查找一次
-pos = text.find("Python")
-if pos != -1:
-    print(f"在位置 {pos} 找到")
+display = title if len(title) <= budget else title[:budget] + "..."
+print(f"原始长度: {len(title)}")
+print(f"显示形式: {display!r}")
+print(f"显示长度: {len(display)}")
 ```
+
+运行结果：
+
+```text
+原始长度: 29
+显示形式: 'Python 并发编程实战指南从入门到精...'
+显示长度: 23
+```
+
+三个细节：
+
+- **三元表达式按长度分流**：不超预算原样显示；超了就切前 20 个字符再补 `...`
+- **注意 23 这个数字**：截断后的总长度是 20 + 3（省略号），如果业务要求"显示总长不超过 20"，切片应该写 `title[:budget - 3]`——**先想清楚预算里扣不扣省略号**，这是截断需求最常见的规格歧义
+- **截断与校验分工**：类似场景经常还要配合"长度区间校验"——先判断能不能过审（3.2 开头的校验模板），过审后再考虑怎么显示（这里的截断模板），两步各有各的模板
+
+### 3.3 性能要点：O(1) 放心调用
+
+`len()` 的耗时是**常数级**：无论字符串多长，调用成本都一样。用 `timeit` 分别对 1 字符串与一千万字符串各调用一百万次：
+
+```python
+import timeit
+
+short = "a"
+huge = "a" * 10_000_000
+
+t_short = timeit.timeit(lambda: len(short), number=1_000_000)
+t_huge = timeit.timeit(lambda: len(huge), number=1_000_000)
+print(f"len 短串（1 字符）x 百万次: {t_short:.4f} 秒")
+print(f"len 长串（千万字符）x 百万次: {t_huge:.4f} 秒")
+```
+
+运行结果：
+
+```text
+len 短串（1 字符）x 百万次: 0.0201 秒
+len 长串（千万字符）x 百万次: 0.0604 秒
+```
+
+长度相差**一千万倍**，耗时只差约 3 倍——且这 3 倍主要来自内存访问的缓存效应，不是任何"扫描成本"。**`len()` 只是读取字符串对象头部的一个内部字段**（第 4 章展示这个机制），与字符串多长无关。
+
+工程结论：调用 `len()` 前不需要任何犹豫，也不需要把长度"缓存起来省调用"——这本身就是一次字段读取，缓存它反而是自找麻烦。
+
+### 3.4 需求决策速查
+
+| 需求 | 首选写法 |
+|------|----------|
+| 判断空串 / 判断非空 | `if not s:` / `if s:` |
+| 长度区间校验 | `3 <= len(s) <= 20` |
+| 显示当前字数 | `len(s)`，返回值直接就是字数 |
+| 统计多行文本总字符数 | `len(多行字符串)`，换行符照常计入 |
+| 统计字节数（传输/存储口径） | `len(s.encode("utf-8"))` |
+| 统计列表、字典、元组的项数 | `len(container)`，协议统一 |
+
+使用心法一句话：**看清需求量的是"字符"还是"字节"、是"个数"还是"空不空"**——四个象限对号入座，`len()` 永远只负责其中"字符个数"这一格，别的象限有各自的专用工具。
 
 ## 4. 原理
 
-### 4.1 len() 为什么是 O(1)
+用法与最佳实践解决"怎么用"，本章回答"为什么 `len()` 数得多快都不担心"。答案在字符串对象的内存结构里。
 
-在 Python 中，`len()` 获取字符串长度的时间复杂度是 **O(1)**——无论字符串有多长，都花费常数时间。
+### 4.1 len() 为什么是 O(1)：字符串自带长度字段
 
-这是因为 Python 字符串对象在内部维护了一个长度字段。字符串创建时就把字符数存好了，`len()` 只需要读取这个字段：
-
-![示例图片](../images/base/202609241311.svg)
-
-`len(text)` 实际上等价于调用 `text.__len__()`，而 `__len__()` 只是直接返回 `length` 字段的值——不需要遍历整个字符串来数字符。
-
-```python
-# 验证：无论字符串多长，len() 都是 O(1)
-import time
-
-short = "a"
-long = "a" * 10_000_000
-
-t1 = time.perf_counter()
-_ = len(short)
-t2 = time.perf_counter()
-
-t3 = time.perf_counter()
-_ = len(long)
-t4 = time.perf_counter()
-
-print(f"短字符串 len(): {t2 - t1:.9f} 秒")
-print(f"长字符串 len(): {t4 - t3:.9f} 秒")
-```
-
-**运行结果**：
+CPython 的字符串对象在**创建的那一刻**就把自己的字符数写进了对象头部的固定字段。`len()` 的全部工作就是**读取这个字段**，与字符串本身多大毫无关系，更没有"从头到尾数一遍"的扫描过程：
 
 ```text
-短字符串 len(): 0.000000100 秒
-长字符串 len(): 0.000000100 秒
+CPython 内部的字符串对象（示意）：
+
+┌──────────────┬───────────────────────────────┐
+│   对象头部    │        变长的字符数据区          │
+│              │                               │
+│ length = 13  │  H  e  l  l  o  ,     W  o ... │
+│              │  ← 创建字符串时写好，之后不再变   │
+└──────────────┴───────────────────────────────┘
+        ↑
+len(text) 读的就是这里 —— 一次字段访问，不碰数据区
 ```
 
-两次调用的时间几乎相同——这正是 O(1) 的体现。
+这个设计还有一个关键前提：**字符串不可变**。正是因为 `str` 一经创建内容就永远不改，头部那个长度字段才能"一次写好、终身有效"——不存在"字符串变长/变短后字段过期"的问题，`len()` 才敢放心做 O(1) 的字段读取。
 
-### 4.2 in 运算符的匹配机制
-
-`in` 运算符在 CPython 中使用 **Boyer-Moore-Horspool** 算法的变体进行字符串匹配。核心思想是——在匹配失败时不仅仅是后移一位，而是利用已匹配的信息跳过不可能匹配的位置：
-
-![示例图片](../images/base/202609241312.svg)
-
-这使得 `in` 运算在最坏情况下也是 O(n×m)（n 是文本长度，m 是模式长度），但平均情况下接近 O(n)，非常适合日常使用。
-
-对于单字符查找，Python 会进一步优化为简单的逐字符扫描，效率极高。
-
-### 4.3 startswith / endswith 的实现
-
-`startswith()` 和 `endswith()` 不需要像 `find()` 那样扫描整个字符串——它们只需要比较**特定位置**的字符：
-
-- `startswith("abc")` → 比较 `s[0:3]` 是否等于 "abc"
-- `endswith("xyz")` → 比较 `s[-3:]` 是否等于 "xyz"
-
-因此它们的时间复杂度是 **O(k)**，其中 k 是前缀/后缀的长度，与字符串总长度无关：
+内置 `len()` 与对象方法之间通过 `__len__` 协议衔接：
 
 ```python
-# startswith/endswith 只需比较头部/尾部几个字符
-# 即使字符串很长，判断前缀也很快
-long_text = "https://" + "a" * 10_000_000 + ".com"
-print(long_text.startswith("https://"))  # 只比较前 8 个字符
-print(long_text.endswith(".com"))        # 只比较后 4 个字符
+text = "hello"
+
+print(len(text))
+print(text.__len__())   # 内置 len() 背后就是调用它
 ```
 
-**运行结果**：
+运行结果：
 
 ```text
-True
-True
+5
+5
 ```
 
-### 4.4 字符串不可变与查找效率
-
-Python 字符串是不可变对象（immutable）。这意味着所有查找方法（`find`、`index`、`count` 等）都不会修改原字符串，而是返回新的值。
-
-不可变性带来的好处是：
-
-1. **线程安全**：多个线程可以同时读取字符串而不会互相干扰
-2. **可哈希**：字符串可以作为字典 key 或集合元素
-3. **内存共享**：相同的字符串字面量在内存中只存一份（interning 机制）
-
-```python
-# 字符串 intern 机制：相同字面量共享同一个对象
-a = "hello"
-b = "hello"
-print(f"a is b: {a is b}")  # True，同一个对象
-
-# 所有查找方法都不改变原字符串
-text = "Hello World"
-pos = text.find("World")
-print(f"查找后原字符串: {text}")  # 不变
-```
-
-**运行结果**：
-
-```text
-a is b: True
-查找后原字符串: Hello World
-```
-
-正是因为字符串不可变，`len()` 的 O(1) 才有保证——字符串创建后长度不会改变，所以可以放心缓存。
+两个写法结果相同，但日常代码一律用 `len(s)`——双下划线方法是协议细节，是留给自定义类型实现"长度"时用的接口；你写的任何类只要实现了 `__len__`，内置 `len()` 就能直接对它工作，这正是字符串、列表、字典、元组都能被 `len()` 统一计数的机制来源。实测早已证明 `len()` 的耗时与字符串大小无关，背后没有隐藏的扫描成本，你可以放心大胆地在任何热路径里调用它。
 
 ## 5. 总结
 
-本文围绕字符串长度与成员判断展开，主要介绍了以下内容：
+本文围绕 `len()` 函数与字符串长度展开，主要介绍了以下内容：
 
-- `len()` 函数返回字符串的 Unicode 字符个数（不是字节数），时间复杂度 O(1)
-- 中文字符 `len()` 每个算 1 个字符，与编码后的字节数不同；转义字符（`\n`、`\t`）算 1 个字符
-- `in` 运算符判断子串是否存在，`not in` 判断是否不存在，均区分大小写
-- 空字符串 `""` 是任何字符串的子串，`"" in s` 恒为 `True`
-- `find()` 返回子串首次出现索引，找不到返回 -1；`rfind()` 从右侧查找
-- `index()` / `rindex()` 与 `find()` / `rfind()` 功能相同，但找不到时抛 `ValueError`
-- `count()` 统计子串出现次数，统计不重叠，找不到返回 0
-- `startswith()` 判断前缀，`endswith()` 判断后缀，均支持元组多值判断
-- 判断文件类型用 `endswith()` 而非 `in`，避免中间字符误匹配
-- `find()` 返回 -1 后直接用于切片会产生错误（-1 表示倒数第一个字符），需先检查
-- `len()` 的 O(1) 来源于字符串对象内部缓存了长度字段；`in` 使用 BMH 算法实现高效匹配
-- 字符串不可变性保证了 `len()` 的 O(1) 和线程安全
+- `len()` 是内置函数，对字符串返回**字符（Unicode 码点）个数**，类型是 `int`；无任何可选参数，语法就是 `len(obj)`
+- 计数口径是 Unicode 码点：中英文一视同仁各算 1；空串返回 0；空格、制表符、换行符全是真实字符；转义字符 `\n`、`\t` 落到内存中各算 1
+- 多行文本的总长永远计入换行符——"肉眼行数"不等于字符数，批量统计时这是最常见的误差来源；`repr()` 是观察不可见字符的好帮手
+- 计数有陷阱：复合 emoji（ZWJ 序列）"一家四口"占 7 个码点；带肤色修饰的 emoji 占 2 个；组合字符（如 `é` 的一形多码）会让"看起来一样"的两个串长度不同、判定不同——计数前先明确业务要数的是"码点、字形还是字节"
+- 字符数与字节数是两套体系：`len("你好")` 是 2，UTF-8 编码后是 6 字节、GBK 编码后是 4 字节——写校验前先确认对方的"长度"口径是字符还是字节
+- `len()` 并非字符串专属：列表、元组、字典都能数，背后是 `__len__` 协议在统一支撑
+- 判空不归 `len()` 管：空串是假值，`if not s` / `if s` 是唯一推荐写法；`len(s) == 0` 功能正确但语义绕路——判空归布尔、计数归 `len()`
+- 长度校验的工程模板：链式比较 `3 <= len(s) <= 20` 划区间、错误信息携带当前长度、多规则聚合独立报告
+- 性能与原理：`len()` 是 O(1) 的字段读取——字符串创建时长度就写进对象头部，不可变性保证字段终身有效；长度相差一千万倍，耗时只差缓存效应的 3 倍，任何热路径放心调用

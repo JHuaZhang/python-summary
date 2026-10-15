@@ -3,974 +3,817 @@ group:
   title: 【03】字符串介绍
   order: 3
 order: 23
-title: partition 与 rpartition 方法
+title: removeprefix 与 removesuffix 方法
 nav:
   title: Python基础
   order: 1
 ---
 
-# partition 与 rpartition 方法
+# removeprefix 与 removesuffix 方法
 
 ## 1. 介绍
 
 ### 1.1 知识点定义
 
-`partition` 和 `rpartition` 是 Python 字符串的分割方法，它们将字符串在**指定分隔符处分割为三部分**，返回一个三元组 `tuple[str, str, str]`。
+`str.removeprefix()` 与 `str.removesuffix()` 是 Python 3.9 新增的**字面前后缀剥离方法**：给定一段字符串参数，如果它恰好出现在字符串的开头（`removeprefix`）或结尾（`removesuffix`），就把这段剥掉并返回剩余部分；**如果不匹配，原样返回，不报错、不截断、不做任何猜测**。"恰好是这段、恰好剥一次、不匹配就不动"——三句话概完两个方法的全部性格。
 
-| 方法 | 签名 | 分割方向 |
-|------|------|---------|
-| `str.partition(sep)` | 返回 `tuple[str, str, str]` | 从左端第一处分隔符 |
-| `str.rpartition(sep)` | 返回 `tuple[str, str, str]` | 从右端最后一处分隔符 |
+| 维度 | `removeprefix()` | `removesuffix()` |
+|------|------|------|
+| 所属 | `str` 的内置实例方法 | `str` 的内置实例方法 |
+| 语法 | `s.removeprefix(prefix)` | `s.removesuffix(suffix)` |
+| 参数 | 一个字符串（字面前缀，大小写敏感） | 一个字符串（字面后缀，大小写敏感） |
+| 方向 | 只检查开头 | 只检查结尾 |
+| 匹配规则 | 整段字面匹配，命中才动手 | 同左 |
+| 剥离次数 | **恰好一次**，绝不重复 | 同左 |
+| 不匹配时 | **原样返回**（无异常、无哨兵值） | 同左 |
+| 引入版本 | Python 3.9（PEP 616） | 同左 |
 
-返回的三元组结构为 `(分隔符前的部分, 分隔符本身, 分隔符后的部分)`。
-
-与 `split` 的区别在于：`partition` 总是返回三个元素（包含分隔符本身），且分隔符不存在时有明确的"空字符串"标记——这使得它非常适合"键值对提取""按分隔符解析结构化字符串"等场景，可以安全地解包而无需担心元素数量不匹配。
+这两个方法要解决的核心问题只有一个：**"把字符串开头/结尾的那段已知装饰字面去掉，且只去掉它"**。文件名去掉扩展名、URL 去掉协议头、版本号去掉 `-beta` 标记、备份文件去掉 `.bak`——需求都是"剥掉那段已知字面"，而不是"剥掉某类字符"。在这两个方法出现之前（Python 3.8 及以前），这个看似简单的需求只有两类写法可选：`strip(chars)` 的**字符集合**语义会误伤正文，而 `startswith` 检查加切片的手工写法又长出了一个流传多年的经典空串陷阱（2.5 节重演全程）。Python 3.9 用两个语义自明的方法把这件事画上句号——**方法的名字就是它的全部语义，恰好做一件事**。
 
 ### 1.2 最简示例
 
-先用最简单的代码直观感受这两个方法：
+五行代码看全两个方法的基本性格：
 
 ```python
-# partition：从左端第一处分隔符分割
-result = "key=value=extra".partition("=")
-print(result)
-# ('key', '=', 'value=extra')
+s = "https://example.com/"
 
-# rpartition：从右端最后一处分隔符分割
-result = "key=value=extra".rpartition("=")
-print(result)
-# ('key=value', '=', 'extra')
+print(f"原串:      {s!r}")
+print(f"去协议头:  {s.removeprefix('https://')!r}")
+print(f"去尾斜杠:  {s.removesuffix('/')!r}")
+print(f"双端联手:  {s.removeprefix('https://').removesuffix('/')!r}")
+print(f"不命中:    {'ftp://example.com'.removeprefix('https://')!r}")
 ```
 
 运行结果：
 
 ```text
-('key', '=', 'value=extra')
-('key=value', '=', 'extra')
+原串:      'https://example.com/'
+去协议头:  'example.com/'
+去尾斜杠:  'https://example.com'
+双端联手:  'example.com'
+不命中:    'ftp://example.com'
 ```
 
-使用解包语法优雅地提取三部分：
+前四行是命中的走向：开头恰好是 `https://` 就剥掉、结尾恰好是 `/` 就剥掉、两个方法链起来双端干净。最后一行是不命中的走向：开头是 `ftp://`，参数对不上，**原样返回**——没有异常、没有 -1、没有报错，拿回来的还是原来的串。这个"不命中即原样"的性格是两个方法最实用的设计，批量处理时不需要任何前置判断。
 
-```python
-key, sep, value = "name=Alice".partition("=")
-print(f"key={key}, sep={sep!r}, value={value}")
-# key=name, sep='=', value=Alice
-```
+### 1.3 字符串裁剪工具体系中的定位
 
-### 1.3 在字符串方法体系中的位置
-
-`partition` 和 `rpartition` 属于"字符串拆分与连接"类操作：
+字符串"去掉一些内容"的方法分几路，两个新方法占据"按字面剥前后缀"的生态位：
 
 ```text
-字符串方法体系
-├── 查找类：find / rfind / index / count / in
-├── 判断类：isalpha / isdigit / isupper / islower ...
-├── 拆分与连接类（本篇）：
-│   ├── split / rsplit          ← 按分隔符拆分为列表
-│   ├── splitlines              ← 按行拆分
-│   ├── partition / rpartition   ← 按分隔符拆分为三元组（本篇）
-│   └── join                    ← 将列表合并为字符串
-├── 替换类：replace / translate / maketrans
-├── 大小写转换类：upper / lower / title / capitalize / swapcase / casefold
-├── 对齐填充类：ljust / rjust / center / zfill
-└── 清洗类：strip / lstrip / rstrip / removeprefix / removesuffix
+字符串"去掉一些内容"的几种方式
+│
+├── 按集合剥两端 —— strip / lstrip / rstrip
+│     └── 剥什么由"字符集合"决定: 端点是集合成员就剥, 遇非成员即停
+│
+├── 按字面剥前后缀 —— removeprefix / removesuffix (本篇, Python 3.9+)
+│     └── 剥什么由"一段字面字符串"决定: 端点整段对上才剥, 剥恰好一次
+│
+├── 全局替换 —— replace
+│     └── 不分位置, 中间的也照换, 而且默认全部换
+│
+└── 切割 —— split / partition
+      └── 不是"去掉", 是"切开成几段"
 ```
 
-`partition` 的核心特点：
-
-- **返回三元组**——总是三个元素 `(前, 分隔符, 后)`，不多不少
-- **包含分隔符本身**——第二个元素就是分隔符字符串，不是去除后的结果
-- **分隔符不存在时也不报错**——返回 `(原串, '', '')` 或 `('', '', 原串)`，始终是三个元素
-- **解包安全**——因为始终三个元素，`before, sep, after = s.partition(x)` 永远不会报 ValueError
-- **只分割一处**——不像 `split` 那样按所有分隔符分割成列表
+最容易混淆的依旧是与 strip 家族的边界：同样处理"去掉扩展名"这个需求，`s.strip('.txt')` 的语义是"把两端凡是 `.`、`t`、`x` 的字符统统剥掉"——正文里以这些字符开头或结尾的部分会被误伤；`s.removesuffix('.txt')` 的语义才是"结尾恰好是 `.txt` 这一段才剥"。两类语义的分岔在 2.4 节正面展开，判断口诀先行奉上：**要剥的是"一类字符"找 strip，要剥的是"一段字面"找 removeprefix/removesuffix**。
 
 ## 2. 核心内容
 
-### 2.1 str.partition()
+### 2.1 语义总纲：命中剥一次，不命中原样返回
 
-#### 2.1.1 方法签名
+#### 2.1.1 命中与不命中：两条基本走向
 
-```python
-str.partition(sep) -> tuple[str, str, str]
-```
-
-`partition` 接收一个必需参数：
-
-- **sep**：分隔符字符串。可以是单个字符，也可以是多字符字符串。不能为空字符串（会抛出 `ValueError`）
-
-返回值是一个三元组 `(head, sep, tail)`：
-
-- **head**：第一个分隔符之前的部分
-- **sep**：分隔符本身（找到时）或空字符串（未找到时）
-- **tail**：第一个分隔符之后的部分（包含剩余所有分隔符和内容）
-
-#### 2.1.2 基本分割
+两个方法的世界只有两条走向。开头（或结尾）恰好是参数这一段——命中，剥掉返回剩余；否则——不命中，原样返回：
 
 ```python
-s = "key=value"
-result = s.partition("=")
-print(f"  {s!r}.partition('=') = {result}")
-print(f"  类型: {type(result).__name__}")
-print(f"  前部分: {result[0]!r}")
-print(f"  分隔符: {result[1]!r}")
-print(f"  后部分: {result[2]!r}")
+prefix_cases = [
+    ("prefix_data", "prefix_"),   # 命中: 开头恰好是 prefix_
+    ("interesting", "prefix_"),   # 不命中: 开头不是
+    ("v2_data", "V2_"),           # 大小写不同 -> 不匹配 -> 不命中
+]
+
+for s, p in prefix_cases:
+    print(f"{s!r}.removeprefix({p!r}) -> {s.removeprefix(p)!r}")
+
+suffix_cases = [
+    ("report.txt.bak", ".bak"),   # 命中: 结尾恰好是 .bak
+    ("report", ".bak"),           # 不命中: 结尾不是
+]
+
+for s, q in suffix_cases:
+    print(f"{s!r}.removesuffix({q!r}) -> {s.removesuffix(q)!r}")
 ```
 
 运行结果：
 
 ```text
-  'key=value'.partition('=') = ('key', '=', 'value')
-  类型: tuple
-  前部分: 'key'
-  分隔符: '='
-  后部分: 'value'
+'prefix_data'.removeprefix('prefix_') -> 'data'
+'interesting'.removeprefix('prefix_') -> 'interesting'
+'v2_data'.removeprefix('V2_') -> 'v2_data'
+'report.txt.bak'.removesuffix('.bak') -> 'report.txt'
+'report'.removesuffix('.bak') -> 'report'
 ```
 
-**关键点说明**：
+五条结果里藏着三条判读：
 
-- 返回类型是 `tuple`（不是 `list`），三元组结构固定
-- 第二个元素是分隔符本身 `'='`，不是被去除后的结果
-- 第三个元素 `'value'` 是分隔符后方的完整内容
+- 命中后返回的是**剩余部分**——`'data'`，不带任何标记说明"剥掉过东西"；
+- 不命中返回的是**与原串内容一致的串**——肉眼分不出"命中剥过"还是"本来就这样"，这既是这两个方法最被称道的安全性（批量处理无需预判），也意味着**剥离操作天然幂等**（3.3 节展开）；
+- 匹配**大小写敏感**——`'V2_'` 对不上 `'v2_'`，一个字母的大小写差异就是不命中。
 
-#### 2.1.3 多个分隔符时只分割第一个
+#### 2.1.2 方向各管一端：联手使用
 
-`partition` 只在**第一个**分隔符处分割，后续的分隔符保留在后部分中。
+两个方法方向分工严明：`removeprefix` 只看开头，`removesuffix` 只看结尾。联手使用是常规姿势——以 URL 清理为例：
+
+```python
+urls = [
+    "https://example.com/",
+    "example.com",
+]
+
+for url in urls:
+    host = url.removeprefix("https://").removesuffix("/")
+    print(f"{url!r} -> {host!r}")
+```
+
+运行结果：
+
+```text
+'https://example.com/' -> 'example.com'
+'example.com' -> 'example.com'
+```
+
+第二个 URL 本来就没有协议头也没有尾斜杠，两个方法接力依次"不命中"两回，原样穿过——管线代码对两种输入完全一致，**不需要给"已清理过的数据"开小灶**。
+
+#### 2.1.3 整段匹配才算命中：中间出现不算
+
+参数必须**整段出现在端点**才算命中——出现在中间、出现在另一端，都不算：
 
 ```python
 cases = [
-    ("a=b=c", "="),
-    ("2024-01-15", "-"),
-    ("path/to/file/name.txt", "/"),
-    ("hello world foo bar", " "),
+    ("a.b.c", ".b", "结尾是 .c, .b 在中间 -> 不剥"),
+    ("data.tar.gz", "data", "data 在开头, 但 removesuffix 只看结尾 -> 不剥"),
+    ("data.tar.gz", ".tar.gz", "结尾恰好是 .tar.gz -> 剥"),
 ]
-for s, sep in cases:
-    result = s.partition(sep)
-    print(f"  {s!r}.partition({sep!r}) = {result}")
+
+for s, q, verdict in cases:
+    print(f"{s!r}.removesuffix({q!r}) -> {s.removesuffix(q)!r}   ({verdict})")
 ```
 
 运行结果：
 
 ```text
-  'a=b=c'.partition('=') = ('a', '=', 'b=c')
-  '2024-01-15'.partition('-') = ('2024', '-', '01-15')
-  'path/to/file/name.txt'.partition('/') = ('path', '/', 'to/file/name.txt')
-  'hello world foo bar'.partition(' ') = ('hello', ' ', 'world foo bar')
+'a.b.c'.removesuffix('.b') -> 'a.b.c'   (结尾是 .c, .b 在中间 -> 不剥)
+'data.tar.gz'.removesuffix('data') -> 'data.tar.gz'   (data 在开头, 但 removesuffix 只看结尾 -> 不剥)
+'data.tar.gz'.removesuffix('.tar.gz') -> 'data'   (结尾恰好是 .tar.gz -> 剥)
 ```
 
-**关键点说明**：
+第一行与第二行共同说明：**"包含这段字面"不等于"命中"**——`'a.b.c'` 里确实有 `.b`，但不在结尾；`'data'` 确实在 `data.tar.gz` 里，但 `removesuffix` 不看开头。第三行命中：结尾的 `.tar.gz` 整段被剥掉，剩下 `'data'`。**判断单位是"一段"**——要么整段在端点上（整段全剥），要么整段不在（整段全不动），不存在"剥一半"的中间状态。
 
-- `"a=b=c".partition("=")` 只分割第一个 `=`——后部分 `'b=c'` 中的 `=` 保留原样
-- 这与 `split("=", maxsplit=1)` 的分割位置相同，但 `partition` 额外包含了分隔符本身
+### 2.2 单次剥离：命中也只剥一次
 
-#### 2.1.4 解包语法
+#### 2.2.1 一种需求，三种工具
 
-`partition` 的三元组结构非常适合用解包语法提取三部分：
+"把 `'aaa'` 剥掉**开头的那个** `a`"——这个精确的需求把三种工具的性格差一口气照全：
+
+```python
+s = "aaa"
+
+print(f"removeprefix 思路: {s.removeprefix('a')!r}   <- 恰好一次")
+print(f"lstrip 思路:       {s.lstrip('a')!r}        <- 连续成员全剥光")
+print(f"replace 思路:      {s.replace('a', '', 1)!r} <- 手工限定换一次才能对")
+```
+
+运行结果：
+
+```text
+removeprefix 思路: 'aa'   <- 恰好一次
+lstrip 思路:       ''        <- 连续成员全剥光
+replace 思路:      'aa' <- 手工限定换一次才能对
+```
+
+三种结果两种答案：`removeprefix` 与"手动限额"的 `replace` 拿到 `'aa'`，`lstrip('a')` 因为 `a` 是集合成员而一路剥到空。**"恰好一次"是 removeprefix/removesuffix 与 strip 家族最本质的行为分水岭**——strip 的扫描是"遇非成员即停"，连续成员就连续剥；而这两个方法满足于一次命中，命中即收工，剩下的交给调用方。
+
+#### 2.2.2 重复模式与链式重复剥离
+
+连续重复的模式最能暴露"单次"定位——`'ababab'` 只剥掉开头的一次：
+
+```python
+s = "ababab"
+print(f"{s!r}.removeprefix('ab') -> {s.removeprefix('ab')!r}")
+```
+
+运行结果：
+
+```text
+'ababab'.removeprefix('ab') -> 'abab'
+```
+
+剩下的 `'abab'` 原样保留。**想剥几次就调用几次**——"要几层、写几行"的直白逻辑：
+
+```python
+print(f"剥一次: {'prepre_fixed'.removeprefix('pre')!r}")
+print(f"剥两次: {'prepre_fixed'.removeprefix('pre').removeprefix('pre')!r}")
+print(f"双剥后缀: {'data.log.log'.removesuffix('.log').removesuffix('.log')!r}")
+```
+
+运行结果：
+
+```text
+剥一次: 'pre_fixed'
+剥两次: '_fixed'
+双剥后缀: 'data'
+```
+
+链式调用每一环剥一层：剥一次 `'pre'` 得 `'pre_fixed'`，再剥一次得 `'_fixed'`；`'data.log.log'` 两刀下去只剩 `'data'`。相比"自动剥光"的 strip，这里的**剥几层完全由代码结构决定**——读者数一遍调用次数，就知道剥掉了几层。
+
+#### 2.2.3 端点保护：中间与另一端分毫不动
+
+单次剥离的精确性还体现在"边界感"上——方法只对命中端点的那一段动手，**中间出现的相同内容与另一端受绝对保护**：
 
 ```python
 cases = [
-    ("name=Alice", "="),
-    ("host:8080", ":"),
-    ("C:\\Users\\admin", "\\"),
+    ("a.txta", "a"),            # 结尾的 a 被剥, 开头的 a 分毫不动
+    ("env.config.env", ".env"),  # 结尾的 .env 被剥, 开头的 env 分毫不动
 ]
-for s, sep in cases:
-    before, sep_char, after = s.partition(sep)
-    print(f"  {s!r}: before={before!r}, sep={sep_char!r}, after={after!r}")
+
+for s, q in cases:
+    print(f"{s!r}.removesuffix({q!r}) -> {s.removesuffix(q)!r}")
 ```
 
 运行结果：
 
 ```text
-  'name=Alice': before='name', sep='=', after='Alice'
-  'host:8080': before='host', sep=':', after='8080'
-  'C:\\Users\\admin': before='C:', sep='\\', after='Users\\admin'
+'a.txta'.removesuffix('a') -> 'a.txt'
+'env.config.env'.removesuffix('.env') -> 'env.config'
 ```
 
-解包语法的好处在于代码简洁——一行就提取了三部分，无需用索引访问。
+`removesuffix` 只看右端：`'a.txta'` 剥掉**结尾的** `a`，开头的 `a` 虽是同一个字面却毫发无损；`'env.config.env'` 剥掉结尾的 `.env`，开头的 `env`（连点号都不带）安然无恙。**方向就是边界**——不存在"顺手把另一端也处理了"的黑箱行为，行为可以完全从方法名推导出来。
 
-#### 2.1.5 多字符分隔符
+### 2.3 边界行为四件套
 
-`partition` 的 `sep` 参数可以是任意长度的字符串：
+#### 2.3.1 空串参数：剥掉"零个字符"
+
+空串参数被定义为"永远命中、剥掉零个字符"——效果上等于什么都没发生：
 
 ```python
-cases = [
-    ("start==>end", "==>"),
-    ("key::value", "::"),
-    ("name: Alice, age: 30", ": "),
-]
-for s, sep in cases:
-    result = s.partition(sep)
-    print(f"  {s!r}.partition({sep!r}) = {result}")
+s = "hello"
+
+r1 = s.removeprefix("")
+r2 = s.removesuffix("")
+
+print(f"{s!r}.removeprefix('') -> {r1!r}, is 同一对象: {r1 is s}")
+print(f"{s!r}.removesuffix('') -> {r2!r}, is 同一对象: {r2 is s}")
 ```
 
 运行结果：
 
 ```text
-  'start==>end'.partition('==>') = ('start', '==>', 'end')
-  'key::value'.partition('::') = ('key', '::', 'value')
-  'name: Alice, age: 30'.partition(': ') = ('name', ': ', 'Alice, age: 30')
+'hello'.removeprefix('') -> 'hello', is 同一对象: True
+'hello'.removesuffix('') -> 'hello', is 同一对象: True
 ```
 
-#### 2.1.6 空字符串分隔符报错
+两个值得留意的细节：其一，`removeprefix("")` 语义上"命中"（开头"确实"是空串）但剥掉零个字符——**参数来自变量且恰为空串时无需特判**；其二，`is` 的 `True` 说明 CPython 在这种情况下直接返回原串对象、不做拷贝——这只是实现优化，语义上把它理解为"得到一个相等的串"就足够，**别在代码里依赖原对象身份**。
 
-`sep` 不能是空字符串——因为空字符串无法确定分割位置：
+#### 2.3.2 不命中返回：最平和的失败形式
+
+"不命中"是这两个方法唯一的"失败"，而它的表达方式是**原样返回**——同样是 CPython 直接返回原对象引用：
+
+```python
+s = "hello"
+r = s.removeprefix("xyz")
+
+print(f"{s!r}.removeprefix('xyz') -> {r!r}, is 同一对象: {r is s}")
+```
+
+运行结果：
+
+```text
+'hello'.removeprefix('xyz') -> 'hello', is 同一对象: True
+```
+
+把字符串方法家族的失败表达方式排成光谱，`removeprefix`/`removesuffix` 的选择位于最温和的一端：
+
+| 方法族 | 目标不成立时的表达 | 面向场景 |
+|------|------|------|
+| `index` / `rindex` | 抛 `ValueError` | 分隔符缺失即数据错误，要求当场暴露 |
+| `find` / `rfind` | 返回 `-1` | 缺失是正常状态，调用方自判 |
+| `removeprefix` / `removesuffix` | **原样返回** | 没有可剥的就等于"已经干净"，结果即答案 |
+
+`-1` 还需要调用方处理一个特殊返回值；抛异常需要一个 `try` 接住；而**"原样返回"让失败路径与成功路径无缝合流**——处理一批文件名，有的带 `.tmp` 有的不带，一行 `removesuffix('.tmp')` 对两类输入都直接给出正确结果，无需任何分支预判。
+
+#### 2.3.3 空串自身
+
+空串没有端点，任何非空参数都匹配不上，剥完还是空串：
+
+```python
+print(f"''.removeprefix('abc')  -> {''.removeprefix('abc')!r}")
+print(f"''.removesuffix('.txt') -> {''.removesuffix('.txt')!r}")
+```
+
+运行结果：
+
+```text
+''.removeprefix('abc')  -> ''
+''.removesuffix('.txt') -> ''
+```
+
+"没有端点"与"端点不匹配"殊途同归——都走原样返回。空串在这个方法的语义里没有任何特殊情况，不需要单独记忆。
+
+#### 2.3.4 参数个数纪律
+
+两个方法都要求**恰好一个**参数——不给或多给都直接 `TypeError`：
 
 ```python
 try:
-    "hello".partition("")
-except ValueError as e:
-    print(f"  'hello'.partition('') -> ValueError: {e}")
+    "a".removeprefix()
+except TypeError as e:
+    print(f"无参数: TypeError: {e}")
+
+try:
+    "a".removesuffix(".txt", ".json")
+except TypeError as e:
+    print(f"多参数: TypeError: {e}")
 ```
 
 运行结果：
 
 ```text
-  'hello'.partition('') -> ValueError: empty separator
+无参数: TypeError: str.removeprefix() takes exactly one argument (0 given)
+多参数: TypeError: str.removesuffix() takes exactly one argument (2 given)
 ```
 
-#### 2.1.7 分隔符不存在时的行为
+没有默认值、没有变长参数——**要剥的东西必须由调用方亲手给出**，方法自己不做任何默认假设。这条纪律与 strip 家族的"可选 chars"参数形成对照：strip 允许省略参数（默认剥空白），而字面剥离没有"默认要剥的字面"可言——语法形状本身就体现了两个家族的语义差异。
 
-当字符串中不包含分隔符时，`partition` 返回 `(原串, '', '')`——原串放在第一个位置，后两个元素为空字符串：
+### 2.4 与 strip 家族的正面对照
+
+#### 2.4.1 字面语义 vs 集合语义：三组对照
+
+同样一段参数，两个家族读出两种完全不同的语义。三组典型输入把分岔从"有差异"到"灾难"的完整光谱展示出来：
 
 ```python
-cases = [
-    ("hello", "="),
-    ("no space here", ","),
-    ("12345", "-"),
+matchups = [
+    ("xxyyxx", "xx"),            # 重复模式: strip 从右端继续剥 yy
+    ("www.example.com", "www."),  # 碰巧一致: 机制完全不同
+    ("data_v2.txt", "data_"),      # 惨案: strip 误伤正文尾部
 ]
-for s, sep in cases:
-    result = s.partition(sep)
-    print(f"  {s!r}.partition({sep!r}) = {result}")
+
+for s, arg in matchups:
+    print(f"输入: {s!r}, 参数: {arg!r}")
+    print(f"  removeprefix -> {s.removeprefix(arg)!r}")
+    print(f"  strip        -> {s.strip(arg)!r}")
+    print()
 ```
 
 运行结果：
 
 ```text
-  'hello'.partition('=') = ('hello', '', '')
-  'no space here'.partition(',') = ('no space here', '', '')
-  '12345'.partition('-') = ('12345', '', '')
+输入: 'xxyyxx', 参数: 'xx'
+  removeprefix -> 'yyxx'
+  strip        -> 'yy'
+
+输入: 'www.example.com', 参数: 'www.'
+  removeprefix -> 'example.com'
+  strip        -> 'example.com'
+
+输入: 'data_v2.txt', 参数: 'data_'
+  removeprefix -> 'v2.txt'
+  strip        -> 'v2.tx'
 ```
 
-**关键点说明**：
+三组判读：
 
-- 分隔符不存在时，`partition` 始终返回三个元素——不会报错，不会减少元素数量
-- 原串放在第一个位置（`head`），`sep` 和 `tail` 都为空字符串
-- 这使得 `before, sep, after = s.partition(x)` 解包永远安全——即使分隔符不存在也不会 ValueError
+- **第一组（行为分岔）**：`removeprefix('xx')` 剥恰好一次得 `'yyxx'`；`strip('xx')` 的集合是 `{x}`，从左剥两刀后**又从右端把右边的 `xx` 也剥了**，得 `'yy'`。需求若是"只去开头一段"，strip 直接越界。
+- **第二组（碰巧一致）**：`'www.example.com'` 两个结果看似相同，机制却是两回事——`removeprefix` 整段剥掉 `www.`；strip 从左剥 `wwww.` 中在集合的字符、又从右剥掉 `com` 的 `c`、`o`、`m`（全在集合 `{w, ., c, o, m, z}`……本例传的是 `'www.'`，集合只有 `{w, .}`，右端的 `m` 不在集合所以停）。**碰巧一致的结果是最危险的榜样**——换个数据、结局立刻改写。
+- **第三组（惨案）**：`'data_v2.txt'` 的正确答案是 `'v2.txt'`，strip 却给出 `'v2.tx'`——**正文尾部的 `t` 被削走了**，文件名损坏。下一小节拆解。
 
-### 2.2 str.rpartition()
-
-#### 2.2.1 方法签名
+#### 2.4.2 惨案拆解：data_v2.txt
 
 ```python
-str.rpartition(sep) -> tuple[str, str, str]
-```
+s = "data_v2.txt"
+arg = "data_"
 
-`rpartition` 的参数与 `partition` 完全相同。唯一区别是：`rpartition` 在**最后一个**分隔符处分割，而 `partition` 在**第一个**分隔符处分割。
-
-#### 2.2.2 从右端分割
-
-```python
-s = "key=value=extra"
-result = s.rpartition("=")
-print(f"  {s!r}.rpartition('=') = {result}")
-print(f"  前部分: {result[0]!r}")
-print(f"  分隔符: {result[1]!r}")
-print(f"  后部分: {result[2]!r}")
+print(f"strip('data_') 的集合成员: {sorted(set(arg))}")
+print(f"removeprefix 的正确结果: {s.removeprefix(arg)!r}")
+print(f"strip 的实际结果:        {s.strip(arg)!r}")
 ```
 
 运行结果：
 
 ```text
-  'key=value=extra'.rpartition('=') = ('key=value', '=', 'extra')
-  前部分: 'key=value'
-  分隔符: '='
-  后部分: 'extra'
+strip('data_') 的集合成员: ['_', 'a', 'd', 't']
+removeprefix 的正确结果: 'v2.txt'
+strip 的实际结果:        'v2.tx'
 ```
 
-**关键点说明**：
+两条扫描线的轨迹还原：
 
-- `rpartition` 从右端找到最后一个 `=` 进行分割
-- 前部分 `'key=value'` 保留了前面所有的 `=`
-- 后部分 `'extra'` 是最后一个 `=` 之后的内容
+```text
+s = 'data_v2.txt',   strip('data_') 的集合 = {d, a, t, _}
 
-#### 2.2.3 在最后一个分隔符处分割
+左端: d(在) a(在) t(在) a(在) _(在) -> v 不在集合, 停   <- 前缀部分碰巧剥对了
+右端: t(在!) -> 剥掉, x 不在集合, 停                  <- '.txt' 被削成 '.tx'
+
+removeprefix('data_'): 只看开头, 整段 'data_' 命中 -> 'v2.txt'
+                       尾部? 它连看都不看
+```
+
+惨案的根源在于**参数字符与正文端点的重叠**：`'data_'` 里的 `t` 恰好也是 `'.txt'` 的成员，strip 的右扫描线一视同仁地把正文尾部的 `t` 剥掉。而 `removeprefix` 的判定单位是"整段"——参数这段字面在开头对不上就完事，**连右端看都不看**。一字之差，安全与危险就此分野：
+
+| 维度 | `removeprefix('data_')` | `strip('data_')` |
+|------|------|------|
+| 判定单位 | 整段字面 | 单个字符 |
+| 扫描范围 | 只看开头一端 | 两端各一条扫描线 |
+| 误伤可能 | 无——正文受绝对保护 | 参数字符入正文端点即误伤 |
+| 结果正确性 | 由语义保证 | 由数据运气决定 |
+
+#### 2.4.3 需求分岔判定
+
+选型问题最终归结为一个判定："要剥的东西，在语义上是**一段特定的字面**，还是**一类没有确定排列的字符**？"
+
+| 需求语义 | 前缀/后缀是什么 | 正确工具 |
+|------|------|------|
+| 去扩展名 `.txt`、去协议头 `https://`、去标记 `-beta` | 一段确定的字面 | `removesuffix` / `removeprefix` |
+| 去两端空白、去零填充、剥装饰字符集合 | 一类字符 | `strip` 家族 |
+| 去中间或全局的某段 | 无位置约束 | `replace` |
+
+**先回答"一段还是一类"，工具名自动浮现**——这也是这两个方法加入标准库的意义：让"一段"这个此前没有专用工具的需求，从此拥有不会答错的方法名。
+
+### 2.5 历史填坑：3.9 之前的写法与空串陷阱
+
+#### 2.5.1 旧写法：检查 + 切片
+
+在 3.9 之前，字面前后缀剥离只能"检查 + 切片"手工拼装：
 
 ```python
+s = "prefix_data"
+t = "report.txt"
+
+old_prefix = s[len("prefix_"):] if s.startswith("prefix_") else s
+old_suffix = t[: -len(".txt")] if t.endswith(".txt") else t
+
+print(f"前缀写法: {old_prefix!r}")
+print(f"后缀写法: {old_suffix!r}")
+```
+
+运行结果：
+
+```text
+前缀写法: 'data'
+后缀写法: 'report'
+```
+
+两个样例都得到了正确结果，但这段代码的问题藏在**每一次调用里**：条件表达式要写对（`startswith` 还是 `in`）、切片方向要写对（`s[len(p):]` 还是 `s[: len(p)]`）、空参量情况要想到——三个细节每一个都出过真实事故。更糟的是这种写法**没有方法名**——code review 时，`s[len(x):] if s.startswith(x) else s` 需要读者逐字解析才能确认意图。
+
+#### 2.5.2 空串后缀陷阱重演
+
+旧后缀写法 `s[:-len(suffix)]` 埋着一颗著名的雷——**suffix 恰好是空串**时，`len('')` 是 `0`，`-0` 是 `0`，切片 `s[:0]` 截取的是"开头空段"而不是"去掉结尾"：
+
+```python
+s = "data.txt"
+suffix = ""       # 假设后缀来自外部变量, 恰好为空串
+
+if s.endswith(suffix):              # endswith('') 恒为 True, 条件被"骗过"
+    old_way = s[: -len(suffix)]      # s[:-0] == s[:0]
+    print(f"旧写法: {old_way!r}")
+
+print(f"新方法: {s.removesuffix(suffix)!r}")
+```
+
+运行结果：
+
+```text
+旧写法: ''
+新方法: 'data.txt'
+```
+
+两行输出一个天上一个地下：旧写法**整串被切没**（返回空串）——`endswith('')` 恒为 `True`，条件防线形同虚设；切片又因为 `-0 == 0` 静默失败——两层防线同时塌方；新方法 `removesuffix('')` 按"剥掉零个字符"的语义原样返回，什么都没发生。**参数是变量的真实代码里，这颗雷的引信无限长**——平时都好，某天后缀变量恰好为空串，数据无声损坏。
+
+#### 2.5.3 陷阱根源：-0 == 0
+
+把雷拆开看，根源在于**"从右往左数"的负数索引体系里，没有 `0` 的位置**：
+
+```python
+s = "abc"
+
+print(f"len('')      -> {len('')}")
+print(f" -len('')    -> {-len('')}")
+print(f" s[:-len('')] -> {s[:-len('')]!r}   <- == s[:0], 开头空段")
+print(f" s[:-1]       -> {s[:-1]!r}    <- 正常的从右数一位")
+```
+
+运行结果：
+
+```text
+len('')      -> 0
+ -len('')    -> 0
+ s[:-len('')] -> ''   <- == s[:0], 开头空段
+ s[:-1]       -> 'ab'    <- 正常的从右数一位
+```
+
+`-1`、`-2` 这些负数索引在切片里表达"从右数"，但 `0` **不是负数**——`-0` 在整数运算里就是 `0`，`s[:-0]` 于是变成 `s[:0]`，语义从"从右端剥零个字符"意外变成"取开头零个字符"。**手工切片表达"去后缀"在数学上就有这个结构性缺陷**，这不是粗心能防住的——只有换掉表达方式才除根。
+
+#### 2.5.4 兼容 fallback：把陷阱一起修掉的版本
+
+3.9 之前的运行环境需要保留旧写法时，用这份"陷阱修复版"fallback：
+
+```python
+def removeprefix_compat(s, prefix):
+    return s[len(prefix):] if s.startswith(prefix) else s
+
+def removesuffix_compat(s, suffix):
+    # 关键: suffix 为空串时直接原样返回, 绕开 s[: -0] 切片陷阱
+    return s[: len(s) - len(suffix)] if suffix and s.endswith(suffix) else s
+
 cases = [
-    ("key=value=extra", "="),
-    ("2024-01-15 10:30:45", ":"),
-    ("path/to/file/name.txt", "/"),
-    ("a.b.c.d.txt", "."),
-    ("hello world foo bar", " "),
+    ("prefix_data", "prefix_", ".bak"),
+    ("data.txt", "", ".txt"),
+    ("x", "prefix_", ""),
 ]
-for s, sep in cases:
-    result = s.rpartition(sep)
-    print(f"  {s!r}.rpartition({sep!r}) = {result}")
+
+for s, p, q in cases:
+    print(f"({s!r}: 前缀={p!r} -> {removeprefix_compat(s, p)!r}, "
+          f"后缀={q!r} -> {removesuffix_compat(s, q)!r})")
 ```
 
 运行结果：
 
 ```text
-  'key=value=extra'.rpartition('=') = ('key=value', '=', 'extra')
-  '2024-01-15 10:30:45'.rpartition(':') = ('2024-01-15 10:30', ':', '45')
-  'path/to/file/name.txt'.rpartition('/') = ('path/to/file', '/', 'name.txt')
-  'a.b.c.d.txt'.rpartition('.') = ('a.b.c.d', '.', 'txt')
-  'hello world foo bar'.rpartition(' ') = ('hello world foo', ' ', 'bar')
+('prefix_data': 前缀='prefix_' -> 'data', 后缀='.bak' -> 'prefix_data')
+('data.txt': 前缀='' -> 'data.txt', 后缀='.txt' -> 'data')
+('x': 前缀='prefix_' -> 'x', 后缀='' -> 'x')
 ```
 
-#### 2.2.4 分隔符不存在时的行为
-
-当字符串中不包含分隔符时，`rpartition` 返回 `('', '', 原串)`——原串放在**第三个**位置（`tail`），前两个元素为空字符串：
-
-```python
-cases = [
-    ("hello", "="),
-    ("no space here", ","),
-    ("12345", "-"),
-]
-for s, sep in cases:
-    result = s.rpartition(sep)
-    print(f"  {s!r}.rpartition({sep!r}) = {result}")
-```
-
-运行结果：
-
-```text
-  'hello'.rpartition('=') = ('', '', 'hello')
-  'no space here'.rpartition(',') = ('', '', 'no space here')
-  '12345'.rpartition('-') = ('', '', '12345')
-```
-
-**关键点说明**：
-
-- `rpartition` 分隔符不存在时，原串放在**第三个位置**（`tail`）
-- 这与 `partition` 的 `(原串, '', '')`（原串在 `head`）方向相反
-- 设计逻辑：`partition` 从左端开始找，找不到时原串在左端；`rpartition` 从右端开始找，找不到时原串在右端
-
-### 2.3 partition 与 rpartition 的方向差异
-
-#### 2.3.1 分割方向对比
-
-当字符串中有多个分隔符时，`partition` 和 `rpartition` 的分割位置不同：
-
-```python
-cases = [
-    ("key=value=extra", "="),
-    ("a/b/c/d", "/"),
-    ("2024-01-15", "-"),
-    ("hello world foo bar", " "),
-]
-for s, sep in cases:
-    p = s.partition(sep)
-    r = s.rpartition(sep)
-    match = "相同" if p == r else "不同"
-    print(f"  {s!r}, sep={sep!r}:")
-    print(f"    partition()  = {p}  <- 从左端第一处分割")
-    print(f"    rpartition() = {r}  <- 从右端最后一处分割")
-    print(f"    [{match}]")
-```
-
-运行结果：
-
-```text
-  'key=value=extra', sep='=':
-    partition()  = ('key', '=', 'value=extra')  <- 从左端第一处分割
-    rpartition() = ('key=value', '=', 'extra')  <- 从右端最后一处分割
-    [不同]
-  'a/b/c/d', sep='/':
-    partition()  = ('a', '/', 'b/c/d')  <- 从左端第一处分割
-    rpartition() = ('a/b/c', '/', 'd')  <- 从右端最后一处分割
-    [不同]
-  '2024-01-15', sep='-':
-    partition()  = ('2024', '-', '01-15')  <- 从左端第一处分割
-    rpartition() = ('2024-01', '-', '15')  <- 从右端最后一处分割
-    [不同]
-  'hello world foo bar', sep=' ':
-    partition()  = ('hello', ' ', 'world foo bar')  <- 从左端第一处分割
-    rpartition() = ('hello world foo', ' ', 'bar')  <- 从右端最后一处分割
-    [不同]
-```
-
-#### 2.3.2 分割方向图解
-
-```text
-原始：'1-2-3-4-5'
-
-partition 从左端第一处分割：
-  ('1', '-', '2-3-4-5')
-  ← 保留右侧所有内容
-
-rpartition 从右端最后一处分割：
-  ('1-2-3-4', '-', '5')
-              → 保留左侧所有内容
-
-只有一个分隔符时：
-  '1-2'
-  partition  → ('1', '-', '2')
-  rpartition → ('1', '-', '2')   ← 结果相同
-```
-
-#### 2.3.3 只有一个分隔符时两者相同
-
-当字符串中只有一个分隔符时，`partition` 和 `rpartition` 的结果完全相同——因为第一个和最后一个分隔符是同一个：
-
-```python
-cases = [
-    ("key=value", "="),
-    ("a/b", "/"),
-    ("hello world", " "),
-]
-for s, sep in cases:
-    p = s.partition(sep)
-    r = s.rpartition(sep)
-    print(f"  {s!r}: partition={p}, rpartition={r}, 相同={p == r}")
-```
-
-运行结果：
-
-```text
-  'key=value': partition=('key', '=', 'value'), rpartition=('key', '=', 'value'), 相同=True
-  'a/b': partition=('a', '/', 'b'), rpartition=('a', '/', 'b'), 相同=True
-  'hello world': partition=('hello', ' ', 'world'), rpartition=('hello', ' ', 'world'), 相同=True
-```
-
-### 2.4 边界行为汇总
-
-#### 2.4.1 分隔符不存在时的方向差异
-
-```python
-s = "hello"
-sep = "="
-p = s.partition(sep)
-r = s.rpartition(sep)
-print(f"  原始: {s!r}, 分隔符: {sep!r}")
-print(f"  partition():  {p}  <- ('hello', '', '')  原串在左侧")
-print(f"  rpartition(): {r}  <- ('', '', 'hello')  原串在右侧")
-```
-
-运行结果：
-
-```text
-  原始: 'hello', 分隔符: '='
-  partition():  ('hello', '', '')  <- ('hello', '', '')  原串在左侧
-  rpartition(): ('', '', 'hello')  <- ('', '', 'hello')  原串在右侧
-```
-
-| 分隔符不存在 | head | sep | tail | 说明 |
-|-------------|------|-----|------|------|
-| `partition(sep)` | 原串 | `''` | `''` | 原串在前面（因为没有找到分隔符，前面所有内容就是原串） |
-| `rpartition(sep)` | `''` | `''` | 原串 | 原串在后面（因为没有找到分隔符，后面所有内容就是原串） |
-
-#### 2.4.2 空字符串
-
-```python
-p = "".partition("=")
-r = "".rpartition("=")
-print(f"  ''.partition('=')   = {p}")
-print(f"  ''.rpartition('=')  = {r}")
-```
-
-运行结果：
-
-```text
-  ''.partition('=')   = ('', '', '')
-  ''.rpartition('=')  = ('', '', '')
-```
-
-两者都返回 `('', '', '')`——空字符串不包含任何分隔符，三个元素都为空。
-
-#### 2.4.3 分隔符在开头
-
-```python
-cases = [
-    ("=value", "="),
-    (",Alice,30", ","),
-    ("/usr/local", "/"),
-]
-for s, sep in cases:
-    p = s.partition(sep)
-    r = s.rpartition(sep)
-    print(f"  {s!r}.partition({sep!r})  = {p}")
-    print(f"  {s!r}.rpartition({sep!r}) = {r}")
-```
-
-运行结果：
-
-```text
-  '=value'.partition('=')  = ('', '=', 'value')
-  '=value'.rpartition('=') = ('', '=', 'value')
-  ',Alice,30'.partition(',')  = ('', ',', 'Alice,30')
-  ',Alice,30'.rpartition(',') = (',Alice', ',', '30')
-  '/usr/local'.partition('/')  = ('', '/', 'usr/local')
-  '/usr/local'.rpartition('/') = ('/usr', '/', 'local')
-```
-
-**关键点说明**：
-
-- 分隔符在开头时，`partition` 的 `head` 为空字符串
-- 如果只有一个分隔符（如 `"=value"`），两者结果相同
-- 如果有多个分隔符（如 `",Alice,30"`），结果不同
-
-#### 2.4.4 分隔符在末尾
-
-```python
-cases = [
-    ("value=", "="),
-    ("Alice,", ","),
-    ("path/to/", "/"),
-]
-for s, sep in cases:
-    p = s.partition(sep)
-    r = s.rpartition(sep)
-    print(f"  {s!r}.partition({sep!r})  = {p}")
-    print(f"  {s!r}.rpartition({sep!r}) = {r}")
-```
-
-运行结果：
-
-```text
-  'value='.partition('=')  = ('value', '=', '')
-  'value='.rpartition('=') = ('value', '=', '')
-  'Alice,'.partition(',')  = ('Alice', ',', '')
-  'Alice,'.rpartition(',') = ('Alice', ',', '')
-  'path/to/'.partition('/')  = ('path', '/', 'to/')
-  'path/to/'.rpartition('/') = ('path/to', '/', '')
-```
-
-**关键点说明**：
-
-- 分隔符在末尾时，`tail` 为空字符串
-- 如果只有一个分隔符（如 `"value="`），两者结果相同
-- 如果有多个分隔符（如 `"path/to/"`），`rpartition` 的 `head` 包含了前面的所有分隔符
-
-#### 2.4.5 连续分隔符
-
-```python
-cases = [
-    ("a==b", "="),
-    ("a,,b", ","),
-    ("a==b==c", "=="),
-]
-for s, sep in cases:
-    p = s.partition(sep)
-    r = s.rpartition(sep)
-    print(f"  {s!r}.partition({sep!r})  = {p}")
-    print(f"  {s!r}.rpartition({sep!r}) = {r}")
-```
-
-运行结果：
-
-```text
-  'a==b'.partition('=')  = ('a', '=', '=b')
-  'a==b'.rpartition('=') = ('a=', '=', 'b')
-  'a,,b'.partition(',')  = ('a', ',', ',b')
-  'a,,b'.rpartition(',') = ('a,', ',', 'b')
-  'a==b==c'.partition('==')  = ('a', '==', 'b==c')
-  'a==b==c'.rpartition('==') = ('a==b', '==', 'c')
-```
-
-**关键点说明**：
-
-- `partition` 从左端找到第一个分隔符，后面保留
-- `rpartition` 从右端找到最后一个分隔符，前面保留
-- 连续分隔符的行为方向差异在这里体现得很明显
-
-### 2.5 partition vs split 对比
-
-#### 2.5.1 返回类型差异
-
-```python
-s = "key=value=extra"
-sep = "="
-p = s.partition(sep)
-sp = s.split(sep, maxsplit=1)
-print(f"  {s!r}, sep={sep!r}:")
-print(f"    partition()           = {p}   类型={type(p).__name__}")
-print(f"    split(maxsplit=1)      = {sp}  类型={type(sp).__name__}")
-```
-
-运行结果：
-
-```text
-  'key=value=extra', sep='=':
-    partition()           = ('key', '=', 'value=extra')   类型=tuple
-    split(maxsplit=1)      = ['key', 'value=extra']  类型=list
-```
-
-| 维度 | `partition(sep)` | `split(sep, maxsplit=1)` |
-|------|-----------------|------------------------|
-| 返回类型 | `tuple` | `list` |
-| 元素数量 | 3 | 1 或 2 |
-| 包含分隔符 | 是（第 2 个元素） | 否 |
-| 不存在时 | `(原串, '', '')` | `[原串]` |
-
-#### 2.5.2 解包安全性的关键差异
-
-`partition` 始终返回三个元素，解包永远安全。`split(sep, maxsplit=1)` 在分隔符不存在时只返回一个元素，解包会报错：
-
-```python
-pairs = ["name=Alice", "no_separator", "formula=y=mx+b"]
-sep = "="
-
-print("  partition 解包（始终安全）:")
-for pair in pairs:
-    before, mid, after = pair.partition(sep)
-    print(f"    {pair!r}: before={before!r}, mid={mid!r}, after={after!r}")
-
-print()
-print("  split 解包（分隔符不存在时报错）:")
-for pair in pairs:
-    try:
-        before, after = pair.split(sep, maxsplit=1)
-        print(f"    {pair!r}: before={before!r}, after={after!r}")
-    except ValueError as e:
-        print(f"    {pair!r}: ValueError - {e}")
-```
-
-运行结果：
-
-```text
-  partition 解包（始终安全）:
-    'name=Alice': before='name', mid='=', after='Alice'
-    'no_separator': before='no_separator', mid='', after=''
-    'formula=y=mx+b': before='formula', mid='=', after='y=mx+b'
-
-  split 解包（分隔符不存在时报错）:
-    'name=Alice': before='name', after='Alice'
-    'no_separator': ValueError - not enough values to unpack (expected 2, got 1)
-    'formula=y=mx+b': before='formula', after='y=mx+b'
-```
-
-**关键点说明**：
-
-- `partition` 解包时即使分隔符不存在也不会报错——`before` 是原串，`mid` 和 `after` 是空字符串
-- `split(sep, maxsplit=1)` 解包时分隔符不存在会 ValueError——因为列表只有一个元素，无法解包成两个变量
-- 这是 `partition` 在"键值对解析"场景下比 `split` 更安全的核心原因
-
-#### 2.5.3 结果重建原字符串
-
-`partition` 的结果可以直接拼接重建原字符串——因为分隔符被保留在第二个元素中：
-
-```python
-cases = [
-    ("key=value", "="),
-    ("a/b/c", "/"),
-    ("no_sep", ":"),
-]
-for s, sep in cases:
-    before, mid, after = s.partition(sep)
-    reconstructed = before + mid + after
-    print(f"  {s!r}.partition({sep!r}) = ({before!r}, {mid!r}, {after!r})")
-    print(f"    重建: {reconstructed!r}, 一致: {s == reconstructed}")
-```
-
-运行结果：
-
-```text
-  'key=value'.partition('=') = ('key', '=', 'value')
-    重建: 'key=value', 一致: True
-  'a/b/c'.partition('/') = ('a', '/', 'b/c')
-    重建: 'a/b/c', 一致: True
-  'no_sep'.partition(':') = ('no_sep', '', '')
-    重建: 'no_sep', 一致: True
-```
-
-**关键点说明**：
-
-- `before + mid + after` 始终等于原字符串——无论分隔符是否存在
-- 因为 `partition` 保留了分隔符本身，拼接时自然还原
-- `split` 的结果不包含分隔符，无法直接拼接还原
-
-#### 2.5.4 完整对比表
-
-| 维度 | `partition(sep)` | `rpartition(sep)` | `split(sep, maxsplit=1)` |
-|------|-----------------|------------------|------------------------|
-| 返回类型 | `tuple[str,str,str]` | `tuple[str,str,str]` | `list[str]` |
-| 元素数量 | 3 | 3 | 1 或 2 |
-| 分割方向 | 从左端第一处 | 从右端最后一处 | 从左端第一处 |
-| 包含分隔符 | 是（第 2 个元素） | 是（第 2 个元素） | 否 |
-| 不存在时 | `(原串, '', '')` | `('', '', 原串)` | `[原串]` |
-| 可解包 | 始终安全（3 元素） | 始终安全（3 元素） | 可能报错（1 元素） |
-| 空 sep | 报 `ValueError` | 报 `ValueError` | 报 `ValueError` |
-| 结果可重建 | `before+mid+after` | `head+mid+tail` | 不可以（丢失分隔符） |
+两个修复点值得记住：其一，后缀写法改为 `s[: len(s) - len(suffix)]`——**用正数从左算**，从根上避开负数索引；其二，`suffix and s.endswith(suffix)` 里让空串短路走原样返回，双保险。三组样例包含空串参数、空串后缀两组地雷位，fallback 全部给出与新方法一致的结果。**能升级就升级，必须兼容时用这份修复版**——千万别把 `s[:-len(suffix)]` 的原样写法复制进新代码。
 
 ## 3. 最佳实践
 
-### 3.1 键值对提取
+### 3.1 字面前后缀的默认选择：不是 strip
 
-**推荐写法**
+需求沉底成一句话："把开头/结尾的**那段已知字面**去掉"。写法选型的对照直接落到代码上：
 
 ```python
-# 推荐：partition 安全解包，值中可含分隔符
-key, sep, value = "formula=y=mx+b".partition("=")
-if sep:
-    print(f"key={key}, value={value}")
+filename = "data_v2.txt"
+
+# 不推荐: strip('data_') —— 参数被拆成字符集合 {d, a, t, _}
+#          尾部的 't' 恰在集合中, 结果 'v2.tx', 文件名损坏
+mangled = filename.strip("data_")
+
+# 推荐: removeprefix('data_') —— 整段字面命中才剥, 尾部连看都不看
+correct = filename.removeprefix("data_")
+
+print(f"strip:        {mangled!r}")
+print(f"removeprefix: {correct!r}")
 ```
 
 运行结果：
 
 ```text
-key=formula, value=y=mx+b
+strip:        'v2.tx'
+removeprefix: 'v2.txt'
 ```
 
-**不推荐写法**
+两条写法的差距在 2.4.2 节已完整拆解。这里把推荐规则压缩成选型口诀：**参数在语义上是"一段"，用 removeprefix/removesuffix；是"一类"，用 strip**。`strip('www.')` 偶尔给出正确答案（正文恰好不与集合重叠时），但那靠的是数据运气——运气不属于工程保证。
+
+### 3.2 批量处理模板：候选表逐个尝试
+
+真实数据的"装饰"往往不止一种：前缀可能来自多个编号方案，后缀可能是 `.tmp` 也可能是 `.draft`。**候选表 + 逐个尝试**是标准管线结构：
 
 ```python
-# 不推荐：split 解包在分隔符不存在时报错
-key, value = "formula=y=mx+b".split("=", maxsplit=1)  # 可能有 ValueError
-```
+CANDIDATE_PREFIXES = ("01_", "02_", "99_")
+CANDIDATE_SUFFIXES = (".tmp", ".draft")
 
-### 3.2 取文件扩展名
 
-**推荐写法**
+def normalize_name(name, prefixes=CANDIDATE_PREFIXES, suffixes=CANDIDATE_SUFFIXES):
+    """按候选表逐个剥离; 不命中的候选自动跳过。"""
+    for prefix in prefixes:
+        name = name.removeprefix(prefix)
+    for suffix in suffixes:
+        name = name.removesuffix(suffix)
+    return name
 
-```python
-# 推荐：rpartition('.') 从右端分割，处理多 . 文件名
-name, dot, ext = "report.tar.gz".rpartition(".")
-if dot:
-    print(f"name={name}, ext={dot + ext}")
-# name=report.tar, ext=.gz
-```
 
-**不推荐写法**
-
-```python
-# 不推荐：split('.', 1) 从左端分割，取到的是中间部分
-parts = "report.tar.gz".split(".", maxsplit=1)
-# ['report', 'tar.gz']  <- 不是期望的文件名和扩展名
-```
-
-### 3.3 取路径最后一段
-
-**推荐写法**
-
-```python
-# 推荐：rpartition('/') 从右端分割
-parent, slash, name = "/usr/local/bin/python3".rpartition("/")
-print(f"目录={parent}, 文件名={name}")
-# 目录=/usr/local/bin, 文件名=python3
-```
-
-### 3.4 URL 协议提取
-
-```python
-# 用 partition 提取 URL 协议
-urls = [
-    "https://example.com/page",
-    "http://localhost:8080/api",
-    "no-scheme-url",
+raw_names = [
+    "01_intro.tmp",
+    "02_chapter_one",
+    "99_appendix.draft",
+    "user_notes",       # 没有候选命中的文件
 ]
-for url in urls:
-    scheme, sep, rest = url.partition("://")
-    if sep:
-        print(f"  {url} -> 协议={scheme}, 路径={rest}")
-    else:
-        print(f"  {url} -> 无协议")
+
+for name in raw_names:
+    print(f"{name!r} -> {normalize_name(name)!r}")
 ```
 
 运行结果：
 
 ```text
-  https://example.com/page -> 协议=https, 路径=example.com/page
-  http://localhost:8080/api -> 协议=http, 路径=localhost:8080/api
-  no-scheme-url -> 无协议
+'01_intro.tmp' -> 'intro'
+'02_chapter_one' -> 'chapter_one'
+'99_appendix.draft' -> 'appendix'
+'user_notes' -> 'user_notes'
 ```
 
-### 3.5 邮箱地址解析
+模板的力量在于**"不命中自动跳过"让循环无需任何 if**：`'01_intro.tmp'` 在 `'01_'` 这一轮命中、其余轮次原样穿过；`'user_notes'` 全程没有任何命中，照样原样走到终点。六条线并行处理四种格式，管线代码完全平直。追踪单个文件在候选表里走一遭（`'99_appendix.draft'`）更直观：
+
+```text
+尝试 removeprefix('01_') (跳过): '99_appendix.draft'
+尝试 removeprefix('02_') (跳过): '99_appendix.draft'
+尝试 removeprefix('99_') (命中): 'appendix.draft'
+尝试 removesuffix('.tmp')  (跳过): 'appendix.draft'
+尝试 removesuffix('.draft')  (命中): 'appendix'
+终态: 'appendix'
+```
+
+每一步要么命中剥一段、要么原样跳过去——**步骤结果永远是合法文件名**，中途观察（日志、断点）都安全。
+
+### 3.3 幂等安全：重复处理不再变化
+
+"不命中即原样"的另一个直接馈赠：**管线天然幂等**。把 3.2 的候选表逻辑收进一个单轮函数，对同一份数据跑两遍：
 
 ```python
-emails = ["alice@example.com", "user.name+tag@mail.example.co.uk", "invalid"]
-for email in emails:
-    local, at, domain = email.partition("@")
-    if at:
-        print(f"  {email} -> local={local}, domain={domain}")
-    else:
-        print(f"  {email} -> 无 @（不合法邮箱）")
+def one_pass(name):
+    """单轮规范化: 逐个尝试候选序号前缀与临时后缀。"""
+    for prefix in ("01_", "02_", "99_"):
+        name = name.removeprefix(prefix)
+    for suffix in (".tmp", ".draft"):
+        name = name.removesuffix(suffix)
+    return name
+
+
+for name in ["01_intro.tmp", "99_appendix.draft", "user_notes"]:
+    once = one_pass(name)
+    twice = one_pass(once)
+    verdict = "不变" if once == twice else "变了!"
+    print(f"{name!r}: 一轮 -> {once!r}, 二轮 -> {twice!r} ({verdict})")
 ```
 
 运行结果：
 
 ```text
-  alice@example.com -> local=alice, domain=example.com
-  user.name+tag@mail.example.co.uk -> local=user.name+tag, domain=mail.example.co.uk
-  invalid -> 无 @（不合法邮箱）
+'01_intro.tmp': 一轮 -> 'intro', 二轮 -> 'intro' (不变)
+'99_appendix.draft': 一轮 -> 'appendix', 二轮 -> 'appendix' (不变)
+'user_notes': 一轮 -> 'user_notes', 二轮 -> 'user_notes' (不变)
 ```
 
-### 3.6 方法选择决策表
+第一轮把该剥的剥干净，第二轮面对的已经是"没有可剥装饰"的干净输入——全部不命中、全部原样、结果纹丝不动。**调用方无须关心这份数据被处理过没有**：重复执行同一管线永不产生额外损耗。数据流水线里最常见的"重复消费、二次清洗"事故（同一份数据被两个入口各处理一遍导致内容被切两次），在这两个方法的语义下先天免疫。
 
-| 场景 | 推荐方法 | 说明 |
-|------|---------|------|
-| 键值对提取（分隔符在前） | `partition('=')` | 值中可能含 `=` |
-| 取文件扩展名 | `rpartition('.')` | 处理多 `.` 文件名 |
-| 取路径最后一段 | `rpartition('/')` | 从右端分割 |
-| 取 URL 协议 | `partition('://')` | 只分割第一个 `://` |
-| 解析邮箱 | `partition('@')` | `local@domain` |
-| 需要分隔符本身 | `partition` | `split` 不保留分隔符 |
-| 分隔符可能不存在 | `partition` | 始终返回 3 元素，安全解包 |
-| 按分隔符分割为多条 | `split(sep)` | 需要多段时用 `split` |
-| 按空白分词 | `split()` | 不适用 `partition` |
+### 3.4 大小写不敏感剥离的正确姿势
+
+两个方法**大小写敏感**——`'HTTPS://example.com'` 配 `'https://'` 不命中。要处理"协议头大小写不定"的外部输入，推荐姿势是 **casefold 预检 + 按原长度切片**：
+
+```python
+def removeprefix_casefold(s, prefix):
+    """大小写不敏感地去前缀, 保留正文原始大小写。"""
+    if s.casefold().startswith(prefix.casefold()):
+        return s[len(prefix):]
+    return s
+
+
+for url, prefix in [
+    ("HTTPS://Example.com", "https://"),   # 全大写协议头, 正文也带大写
+    ("Https://example.com", "https://"),   # 混合大小写
+    ("ftp://example.com", "https://"),      # 协议真不同
+]:
+    print(f"{url!r}:")
+    print(f"  普通 removeprefix    -> {url.removeprefix(prefix)!r}")
+    print(f"  大小写不敏感辅助函数 -> {removeprefix_casefold(url, prefix)!r}")
+```
+
+运行结果：
+
+```text
+'HTTPS://Example.com':
+  普通 removeprefix    -> 'HTTPS://Example.com'
+  大小写不敏感辅助函数 -> 'Example.com'
+'Https://example.com':
+  普通 removeprefix    -> 'Https://example.com'
+  大小写不敏感辅助函数 -> 'example.com'
+'ftp://example.com':
+  普通 removeprefix    -> 'ftp://example.com'
+  大小写不敏感辅助函数 -> 'ftp://example.com'
+```
+
+三个设计细节支撑这份写法：
+
+- **用 `casefold` 判命中**（而不是 `lower`）——它对德语 `ß` 等特殊大小写对的处理更完整；
+- **切片长度用 `len(prefix)`**——命中标准与剥掉长度同源，参数怎么写结果就对；
+- **保留正文原样大小写**——`HTTPS://` 剥掉后正文 `'Example.com'` 原封不动，开头的 `E` 大写原样保留。反面教材是"先 `s.lower()` 再 removeprefix"：正文大小写被整串殃及，`'Example.com'` 变 `'example.com'`，剥离之外引入了新损伤。
+
+### 3.5 版本兼容策略
+
+`removeprefix`/`removesuffix` 是 **Python 3.9+** 的方法。兼容决策三步走：
+
+| 环境情况 | 建议 |
+|------|------|
+| 全部环境 ≥ 3.9 | 直接用方法本体，无所顾虑 |
+| 需要支持 3.8 及以下 | 引入带陷阱修复的 fallback 函数（2.5.4 节版本） |
+| fallback 只能抄一句话 | 抄 `s[len(prefix):] if s.startswith(prefix) else s`；后缀版**必须**带空串短路，禁止 `s[:-len(suffix)]` 裸写 |
+
+多数 3.8 环境如今已退役；fallback 这段代码的现实意义更多是**读旧代码**——在遗留仓库里看到 `if s.endswith(x): s = s[:-len(x)]` 的模式时，你能立刻认出它的意图（等价于 removesuffix）并警觉它的空串陷阱。
+
+### 3.6 方法选择决策速查表
+
+| 需求 | 首选写法 |
+|------|------|
+| 去掉开头的固定字面（协议头、编号前缀、货币符号） | `s.removeprefix('...')` |
+| 去掉结尾的固定字面（扩展名、`.bak`、行尾斜杠） | `s.removesuffix('...')` |
+| 剥掉恰好一层（一层缩进、一个换行） | 这两个方法；"剥光同类"才是 strip 的业务 |
+| 多种候选装饰逐一尝试 | 候选表 + 循环调用（3.2 模板） |
+| 剥空白或某类字符 | `strip` / `lstrip` / `rstrip` |
+| 内容在中间或全局出现 | 换 `replace`，这两个方法只认端点 |
+| 大小写不敏感地剥前缀 | casefold 辅助函数（3.4 模板） |
+| 3.9 以下环境 | 2.5.4 的修复版 fallback |
+
+使用心法一句话：**端点、一段、一次——三个关键词同时对上号，才是这两个方法的用武之地；差一个，就该换工具了**。
 
 ## 4. 原理
 
-### 4.1 partition 的查找与分割逻辑
+### 4.1 实现机制：一次比较 + 一刀切片
 
-`partition` 的内部实现基于 `find` 方法：
-
-```text
-函数 partition(s, sep):
-    if sep == '':
-        raise ValueError("empty separator")
-    pos = s.find(sep)        # 从左端查找第一个 sep 的位置
-    if pos == -1:
-        # 未找到分隔符：原串在 head
-        return (s, '', '')
-    else:
-        head = s[:pos]
-        tail_pos = pos + len(sep)
-        tail = s[tail_pos:]
-        return (head, sep, tail)
-```
-
-核心要点：
-
-1. `partition` 内部调用 `find` 从左端查找分隔符
-2. 找到后，`head` 是分隔符前的切片，`tail` 是分隔符后的切片
-3. 二元素 `sep` 被原样保留在三元组的中间位置
-4. 未找到时返回 `(s, '', '')`——原串放在 `head`
-
-### 4.2 rpartition 的反向查找逻辑
-
-`rpartition` 的内部实现基于 `rfind` 方法：
+两个方法在 CPython 中是 C 级实现，工作流程极简——**一次定位，一刀切片**：
 
 ```text
-函数 rpartition(s, sep):
-    if sep == '':
-        raise ValueError("empty separator")
-    pos = s.rfind(sep)       # 从右端查找最后一个 sep 的位置
-    if pos == -1:
-        # 未找到分隔符：原串在 tail
-        return ('', '', s)
-    else:
-        head = s[:pos]
-        tail_pos = pos + len(sep)
-        tail = s[tail_pos:]
-        return (head, sep, tail)
+s.removeprefix(p) 的两步:
+
+第一步: 端点整段比较(一条 memcmp)
+        先比长度, 再逐字符核对开头(结尾)是否恰好等于参数
+        'https://example.com' + 'https://'  -> 相等, 命中
+
+第二步: 命中 -> s[len(p):] 一次切片返回剩余部分
+        不命中 -> 直接返回原串(连切片都不做, 引用原对象)
+
+对照 strip: 两端各一条扫描线逐字符向内推进, 遇非成员停——两条线的推进次数取决于端点有多少"可剥"字符
+对照 removeprefix: 单端一次定位——比较要么整段相等, 要么不等, 没有"推进"过程
 ```
 
-核心要点：
-
-1. `rpartition` 内部调用 `rfind` 从右端查找分隔符
-2. 找到后的切片逻辑与 `partition` 相同
-3. 未找到时返回 `('', '', s)`——原串放在 `tail`（因为 `rfind` 是从右端查找的，找不到时语义上是"右侧所有内容即原串"）
-
-### 4.3 为什么 partition 返回三元组
-
-`partition` 的设计目标是"结构化拆分"——将字符串分成"前部分 + 分隔符 + 后部分"三个有意义的部分。
-
-与 `split(sep, maxsplit=1)` 返回的 2 元素列表相比，三元组有三个优势：
-
-1. **始终三个元素**——解包永远安全，不需要 `try-except` 处理元素数量不匹配
-2. **包含分隔符**——拼接 `head + sep + tail` 即可重建原字符串
-3. **分隔符不存在时有明确的空标记**——`sep` 为空字符串表示"没有找到分隔符"
-
-这种设计使得 `partition` 在"解析键值对""提取协议/路径/文件名"等场景中比 `split` 更安全和方便。
-
-### 4.4 为什么分隔符不存在时方向不同
-
-`partition` 找不到分隔符时返回 `(原串, '', '')`，`rpartition` 找不到分隔符时返回 `('', '', 原串)`——这个差异源于它们的查找方向。
-
-**`partition` 的逻辑**：从左端开始找，方法是 `find`。`find` 找不到时返回 `-1`，意味着"没有从头找到分隔符"。因此，整个字符串就是"分隔符之前的内容"（`head`），分隔符之后没有内容（`tail` 为空）。
-
-**`rpartition` 的逻辑**：从右端开始找，方法是 `rfind`。`rfind` 找不到时返回 `-1`，意味着"没有从尾找到分隔符"。因此，整个字符串就是"分隔符之后的内容"（`tail`），分隔符之前没有内容（`head` 为空）。
+机制差异带来实测差距——内建方法与"等价"的手工函数在百万次调用下对照：
 
 ```python
-# 验证方向差异
-s = "hello"
-sep = "="
-print(f"  partition:  {s.partition(sep)}   <- find 找不到，原串在 head")
-print(f"  rpartition: {s.rpartition(sep)}  <- rfind 找不到，原串在 tail")
+import timeit
+
+s = "https://example.com/data/report.txt"
+prefix = "https://"
+n = 1000000
+
+t_builtin = timeit.timeit(lambda: s.removeprefix(prefix), number=n)
+
+def manual(s, p):
+    return s[len(p):] if s.startswith(p) else s
+
+t_manual = timeit.timeit(lambda: manual(s, prefix), number=n)
+
+print(f"removeprefix          跑 {n} 次: {t_builtin:.4f}s")
+print(f"手工 startswith+切片  跑 {n} 次: {t_manual:.4f}s")
 ```
 
 运行结果：
 
 ```text
-  partition:  ('hello', '', '')   <- find 找不到，原串在 head
-  rpartition: ('', '', 'hello')  <- rfind 找不到，原串在 tail
+removeprefix          跑 1000000 次: 0.0331s
+手工 startswith+切片  跑 1000000 次: 0.0952s
 ```
 
-### 4.5 不可变性与返回新对象
+同一逻辑，内建约快 3 倍（耗时绝对值随机器浮动，倍数与量级稳定）——差距全部来自语言层：手工版每次都要执行一次 Python 函数调用、一次 `startswith` 方法分派、一次条件表达式、一次切片构造；内建版一步到位。更微妙的是命中与不命中的耗时分岔（实测约 0.033s 对 0.020s）：**不命中反而更快**——它的第二步是"直接返回原对象引用"，连切片都省了。这也解释了 2.3 节所有 `is 同一对象: True` 的实测现象。
 
-`partition` 和 `rpartition` 都不会修改原字符串，而是创建并返回一个新的 `tuple` 对象：
+### 4.2 PEP 616：这两个方法为什么会诞生
 
-```python
-original = "key=value"
-result = original.partition("=")
-print(f"  原始: {original!r}")
-print(f"  partition(): {result}")
-print(f"  原始未被修改: {original == 'key=value'}")
-print(f"  返回类型: {type(result).__name__}")
-```
+`removeprefix` 与 `removesuffix` 由 PEP 616 提案、Python 3.9 正式落地。它的动机在本篇前面各章已经"反着"展示过——三个长期的痛点：
 
-运行结果：
+| 痛点 | 之前的状况 | 本篇的证据 |
+|------|------|------|
+| strip 长期被误用为"去前后缀" | 字符集合语义刺伤正文，事故的量级大到进 PEP 的讨论 | 2.4.2 的 `data_v2.txt` 惨案 |
+| 手工写法难写难读 | `s[len(p):] if s.startswith(p) else s` 不构成方法名，语义要靠自己解析 | 2.5.1 的旧写法 |
+| 手工写法暗藏空串陷阱 | `s[:-len(suffix)]` 的 `-0 == 0` 缺陷屡屡引发静默损坏 | 2.5.2 的陷阱重演 |
 
-```text
-  原始: 'key=value'
-  partition(): ('key', '=', 'value')
-  原始未被修改: True
-  返回类型: tuple
-```
+PEP 616 的立场用一句话概括：**一个高频、明确、出错代价高的操作，理应拥有一个自带正确实现的专用方法名**。评估阶段反对者最大的顾虑之一是"两个方法做的事，用现有工具的组合也能做到"——但"能拼出来"与"拼不错"是两种境界，`removesuffix('.bak')` 与 `s[:-len('.bak')] if s.endswith('.bak') else s` 的差距，恰恰是标准库存在的意义：**把最容易出错的细节固化进方法里，让调用方只表达意图**。
 
-`partition` 返回的 `tuple` 和其中的每个 `str` 元素都是新创建的切片对象——对返回值的修改不会影响原字符串（也无法影响，因为字符串和元组都不可变）。
+### 4.3 失败语义的设计：不命中为什么不抛异常
 
-### 4.6 结果重建原字符串
+"不命中"是完全可能的输入状态，这两个方法没选抛异常、也没选哨兵值，而是**原样返回**——这是深思熟虑的失败语义设计。三种失败表达方式的光谱在 2.3.2 节已列出，这里从设计视角再看一层：
 
-`partition` 的结果 `head + sep + tail` 始终等于原字符串——这使得 `partition` 可以用于"分割 -> 修改 -> 拼接"的流程中：
+| 设计选项 | 后果 | 判定 |
+|------|------|------|
+| 抛异常（index 路线） | 强迫每个调用方包一层 try/except——而"没带这个前缀"根本不是错误 | 与需求语义冲突 |
+| 返回特殊值（find 路线） | 调用方必须记得检查哨兵后再自行切片，代码回到手工时代 | 复杂度原地踏步 |
+| 原样返回（实际选择） | **失败路径与成功路径合流，结果即答案** | 唯一与"尝试性剥离"语义匹配的选项 |
 
-```python
-# 分割 -> 修改 head -> 拼接重建
-s = "prefix_middle_suffix"
-head, mid, tail = s.partition("_")
-# head='prefix', mid='_', tail='middle_suffix'
-modified = "NEW" + mid + tail
-# 'NEW_middle_suffix'
-print(f"  修改后: {modified!r}")
-```
+"原样返回"的深层含义在于：**对剥离操作而言，"没有什么可剥的"本身就是一种成功**——数据已经是目标状态。设计上这叫 fail-soft：目标不成立时不制造事故，安静地承认"无事可做"。它的红利贯穿本篇：
 
-运行结果：
+- 批量处理无需分支预判（3.2 模板的直管线）；
+- 重复调用天然幂等（3.3 的双轮验证）；
+- 空串参数、空串输入都不需要特判（2.3 的边界四件套）。
 
-```text
-  修改后: 'NEW_middle_suffix'
-```
-
-这种"分割 -> 修改 -> 拼接"的流程在实际开发中很常见——例如替换字符串的第一个匹配项：
-
-```python
-def replace_first(s, old, new):
-    head, sep, tail = s.partition(old)
-    if sep:
-        return head + new + tail
-    return s
-
-print(replace_first("hello world world", "world", "Python"))
-```
-
-运行结果：
-
-```text
-hello Python world
-```
+一层语义设计，消掉调用方一层防御代码——**好的失败语义不在于失败时说什么，而在于失败时还需要你说什么**。
 
 ## 5. 总结
 
-本文围绕 `str.partition()` 和 `str.rpartition()` 方法展开，主要介绍了以下内容：
+本文围绕 `removeprefix` 与 `removesuffix` 方法展开，主要介绍了以下内容：
 
-- `str.partition(sep)`：在第一个分隔符处将字符串分割为三元组 `(head, sep, tail)`，返回 `tuple[str, str, str]`；分隔符不存在时返回 `(原串, '', '')`
-- `str.rpartition(sep)`：在最后一个分隔符处将字符串分割为三元组 `(head, sep, tail)`，返回 `tuple[str, str, str]`；分隔符不存在时返回 `('', '', 原串)`
-- 多个分隔符时 `partition` 只分割第一处（从左端），`rpartition` 只分割最后一处（从右端）；只有一个分隔符时两者结果相同
-- 分隔符不存在时的方向差异：`partition` 把原串放在 `head`（因为 `find` 找不到时字符串全在分隔符之前），`rpartition` 把原串放在 `tail`（因为 `rfind` 找不到时字符串全在分隔符之后）
-- 空 `sep` 会触发 `ValueError`——空字符串不能作为分隔符
-- 边界行为：空字符串返回 `('', '', '')`、分隔符在开头 `head` 为空、分隔符在末尾 `tail` 为空、连续分隔符按方向分割
-- `partition` vs `split(sep, maxsplit=1)` 的核心差异：`partition` 返回 `tuple`（3 元素含分隔符，始终可解包），`split` 返回 `list`（1-2 元素不含分隔符，解包可能报错）
-- `partition` 的解包优势：`before, sep, after = s.partition(x)` 永远安全，无需 `try-except`；`split` 解包在分隔符不存在时会 `ValueError`
-- `partition` 结果可重建原字符串：`head + sep + tail == 原串`；`split` 结果不包含分隔符，无法直接重建
-- 最佳实践：键值对用 `partition('=')`、文件扩展名用 `rpartition('.')`、路径最后一段用 `rpartition('/')`、URL 协议用 `partition('://')`、邮箱解析用 `partition('@')`、需要多段分割用 `split(sep)`
-- 原理：`partition` 基于 `find` 从左端查找、`rpartition` 基于 `rfind` 从右端查找；分隔符不存在时原串位置不同是因为查找方向不同；返回三元组的设计使得解包始终安全且结果可重建
+- 两个方法是 Python 3.9（PEP 616）新增的**字面前后缀剥离方法**：`removeprefix` 管开头、`removesuffix` 管结尾；核心语法三件套——**整段字面匹配**（参数必须整段出现在端点才算命中，大小写敏感、特殊符号无正则意义）、**恰好剥离一次**（命中后立即收工，连续重复模式只剥第一段）、**不命中原样返回**（无异常、无哨兵值，CPython 直接返回原对象引用）
+- 命中返回剩余部分、不命中返回原样——两条走向合流出两个特性：批量处理无需预判格式（一行 `removesuffix('.tmp')` 对带后缀与不带后缀的输入都给出正确答案）、管线天然幂等（重复执行结果纹丝不动，重复消费事故先天免疫）
+- 单次剥离是与 strip 家族最本质的行为分水岭：`'aaa'.removeprefix('a')` 得 `'aa'`（恰好一次），`lstrip('a')` 得空串（连续成员剥光）；想剥几层就链式调用几次，剥离次数由代码结构显式表达；中间与另一端的同名内容受绝对保护
+- 边界四件套：空串参数等于"剥零个字符"原样返回；不命中同样返回原对象（`is` 实测为 True，但别依赖对象身份）；空串输入永远不命中；参数必须恰好一个，`takes exactly one argument` 的 `TypeError`——与 strip 可选 chars 参数的语法形状对照体现两个家族的语义差异
+- 与 strip 的正面对照：字面语义 vs 集合语义——`'xxyyxx'.strip('xx')` 连右端 `xx` 一起剥得 `'yy'`；`'www.example.com'` 两边碰巧同结果的机制完全不同（最危险的榜样）；`'data_v2.txt'.strip('data_')` 因 `t` 入集合把尾部削成 `'.tx'`——**参数字符与正文端点重叠时，strip 的正确性由运气决定，removeprefix 由语义保证**
+- 3.9 之前的手工写法 `s[len(p):] if s.startswith(p) else s` 可用但难读；后缀写法 `s[:-len(suffix)]` 埋着经典空串陷阱——`endswith('')` 恒真骗过条件、`-0 == 0` 让 `s[:-0]` 切成 `s[:0]` 返回空串，两层防线同时塌方；兼容环境用"正数从左算 + 空串短路"的修复版 fallback
+- 最佳实践模板四件：字面前后缀默认选这两个方法（不选 strip）；多候选装饰用候选表 + 循环尝试的批量管线（不命中自动跳过，无需 if）；大小写不敏感剥离用 casefold 预检 + 按原长度切片的辅助函数（保留正文原样大小写，别先 lower 整串）；3.9 以下环境用修复版 fallback
+- 原理上：C 实现走"一次整段比较 + 一刀切片"，命中切片、不命中直接返回引用（不命中反而更快）；百万次调用比手工 startswith+切片快约 3 倍；PEP 616 的动机是让高频、明确、易错的操作拥有自带正确实现的专用方法名；"原样返回"的 fail-soft 失败语义让失败路径与成功路径合流——**好的失败语义，让调用方在失败时无须多说一句**

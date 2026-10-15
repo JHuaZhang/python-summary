@@ -3,770 +3,714 @@ group:
   title: 【03】字符串介绍
   order: 3
 order: 13
-title: 子串位置查找
+title: startswith 与 endswith 方法
 nav:
   title: Python基础
   order: 1
 ---
 
-# 子串位置查找
+# startswith 与 endswith 方法
 
 ## 1. 介绍
 
-### 1.1 什么是子串位置查找
+### 1.1 什么是前缀与后缀判断
 
-子串位置查找，就是在字符串中搜索某个子串，返回它出现的位置索引。这是字符串操作中最基础也最高频的需求之一——解析日志、提取路径信息、定位关键词、分割字段……几乎所有涉及文本处理的场景都离不开它。
+前缀与后缀判断是字符串操作中非常高频的一类需求——检查一个字符串是否以某个特定子串**开头**或**结尾**。Python 提供了两个内置方法来完成这件事：
 
-Python 提供了四个内置方法来完成子串位置查找：
+- `startswith(prefix)`：判断字符串是否以 `prefix` 开头
+- `endswith(suffix)`：判断字符串是否以 `suffix` 结尾
 
-- `find(sub)`：从左到右查找子串首次出现的位置，找不到返回 `-1`
-- `rfind(sub)`：从右到左查找子串最后一次出现的位置，找不到返回 `-1`
-- `index(sub)`：与 `find` 类似，但找不到时抛出 `ValueError`
-- `rindex(sub)`：与 `rfind` 类似，但找不到时抛出 `ValueError`
+这两个方法看起来简单，但在实际开发中几乎无处不在——判断文件扩展名、校验 URL 协议、识别日志级别、过滤文件列表、路由请求路径……大量"分类"和"校验"场景都依赖它们。
 
 ```python
-text = "Hello, World! Hello, Python!"
+# 判断文件类型
+filename = "report.pdf"
+print(filename.endswith(".pdf"))   # True
 
-# find 返回第一次出现的位置
-print(text.find("Hello"))    # 0
-
-# rfind 返回最后一次出现的位置
-print(text.rfind("Hello"))   # 14
-
-# index 和 find 行为相同，但找不到时报错
-print(text.index("World"))   # 7
+# 判断 URL 协议
+url = "https://example.com"
+print(url.startswith("https://"))  # True
 ```
 
 **运行结果**：
 
 ```text
-0
-14
-7
+True
+True
 ```
 
 ### 1.2 最简示例
 
-用一个日志解析的场景来展示这四个方法的典型使用——`find` 从左找时间戳起始位置，`rfind` 从右找最后一个分隔符：
+用文件分发场景展示 `startswith` 和 `endswith` 的典型配合使用——前缀判断业务模块，后缀判断文件类型：
 
 ```python
-log = "[2024-01-15] INFO Server started on port 8080"
+files = ["report_q1.json", "user_list.csv", "photo_001.jpg", "script.py"]
 
-# 用 find 找到时间戳的起始和结束
-ts_start = log.find("[")
-ts_end = log.find("]")
-print(f"时间戳: {log[ts_start+1:ts_end]}")
+for f in files:
+    # 用 startswith 判断业务模块
+    if f.startswith("report"):
+        module = "报表模块"
+    elif f.startswith("user"):
+        module = "用户模块"
+    elif f.startswith("photo"):
+        module = "图片模块"
+    else:
+        module = "通用模块"
 
-# 用 find 找到日志级别
-level_start = ts_end + 2
-level_end = log.find(" ", level_start)
-print(f"日志级别: {log[level_start:level_end]}")
+    # 用 endswith 判断文件类型
+    if f.endswith(".json"):
+        ftype = "JSON"
+    elif f.endswith(".csv"):
+        ftype = "CSV"
+    elif f.endswith(".jpg"):
+        ftype = "图片"
+    elif f.endswith(".py"):
+        ftype = "Python"
+    else:
+        ftype = "未知"
 
-# 用 rfind 找到最后一个空格，提取端口号
-last_space = log.rfind(" ")
-print(f"端口号: {log[last_space+1:]}")
+    print(f"{f} → {module}/{ftype}")
 ```
 
 **运行结果**：
 
 ```text
-时间戳: 2024-01-15
-日志级别: INFO
-端口号: 8080
+report_q1.json → 报表模块/JSON
+user_list.csv → 用户模块/CSV
+photo_001.jpg → 图片模块/图片
+script.py → 通用模块/Python
 ```
 
 ### 1.3 方法速览
 
-| 方法 | 查找方向 | 找不到时 | 支持范围参数 |
-|------|---------|---------|------------|
-| `s.find(sub)` | 从左到右 | 返回 `-1` | `start, end` |
-| `s.rfind(sub)` | 从右到左 | 返回 `-1` | `start, end` |
-| `s.index(sub)` | 从左到右 | 抛出 `ValueError` | `start, end` |
-| `s.rindex(sub)` | 从右到左 | 抛出 `ValueError` | `start, end` |
+| 方法 | 作用 | 返回值 | 支持多值 | 支持范围参数 |
+|------|------|--------|---------|------------|
+| `s.startswith(prefix)` | 判断是否以 prefix 开头 | `bool` | 元组 | `start, end` |
+| `s.endswith(suffix)` | 判断是否以 suffix 结尾 | `bool` | 元组 | `start, end` |
 
-四个方法的签名完全对称：
+两个方法的签名完全对称：
 
 ```text
-s.find(sub[, start[, end]])
-s.rfind(sub[, start[, end]])
-s.index(sub[, start[, end]])
-s.rindex(sub[, start[, end]])
+s.startswith(prefix[, start[, end]])
+s.endswith(suffix[, start[, end]])
 ```
 
 ## 2. 核心内容
 
-### 2.1 find()：查找子串首次出现的位置
+### 2.1 startswith()：判断前缀
 
 #### 2.1.1 基本用法
 
-`find()` 从字符串左侧开始搜索，返回子串**第一次出现**的索引位置。如果子串不存在，返回 `-1`：
+`startswith()` 判断字符串是否以指定子串开头，返回 `True` 或 `False`：
 
 ```python
-text = "Hello, World! Hello, Python!"
-print(f"字符串: {text!r}")
-print(f"find('Hello'):  {text.find('Hello')}")   # 0（第一次出现）
-print(f"find('World'):  {text.find('World')}")   # 7
-print(f"find('Python'): {text.find('Python')}")  # 21
-print(f"find('Java'):   {text.find('Java')}")    # -1（未找到）
-print(f"find('o'):      {text.find('o')}")       # 4（第一个 'o'）
+url = "https://www.example.com"
+print(f"字符串: {url}")
+print(f"以 'https' 开头: {url.startswith('https')}")
+print(f"以 'http://' 开头: {url.startswith('http://')}")
+print(f"以 'ftp' 开头: {url.startswith('ftp')}")
 ```
 
 **运行结果**：
 
 ```text
-字符串: 'Hello, World! Hello, Python!'
-find('Hello'):  0
-find('World'):  7
-find('Python'): 21
-find('Java'):   -1
-find('o'):      4
+字符串: https://www.example.com
+以 'https' 开头: True
+以 'http://' 开头: False
+以 'ftp' 开头: False
 ```
 
-注意 `find('o')` 返回的是 `4`，即字符串中第一个 `'o'` 的位置——`find` 只返回**首次出现**的位置，不会告诉你后面还有多少个 `'o'`。
+"https://www.example.com" 以 "https" 开头，但不是以 "http://" 开头——因为 "https://" 中 's' 紧跟在 'http' 后面，不是 '://'。这类细节在实际开发中需要注意。
 
-#### 2.1.2 找不到时返回 -1
+#### 2.1.2 区分大小写
 
-`find` 最大的特点是找不到子串时返回 `-1` 而**不会报错**。这让 `find` 非常适合"不确定子串是否存在"的场景：
+`startswith()` **区分大小写**：
 
 ```python
-text = "abcdefg"
-print(f"find('xyz'): {text.find('xyz')}")  # -1
-
-# 通常配合条件判断使用
-pos = text.find("cd")
-if pos != -1:
-    print(f"找到了，在位置 {pos}")
-else:
-    print("没找到")
+text = "Python Programming"
+print(f"字符串: {text}")
+print(f"以 'Python' 开头: {text.startswith('Python')}")
+print(f"以 'python' 开头: {text.startswith('python')}")
 ```
 
 **运行结果**：
 
 ```text
-find('xyz'): -1
-找到了，在位置 2
+字符串: Python Programming
+以 'Python' 开头: True
+以 'python' 开头: False
 ```
 
-#### 2.1.3 空字符串的查找
-
-空字符串 `""` 作为子串时，`find` 返回 `0`——因为空字符串可以被视为在字符串的任何位置"出现"，`find` 返回的是第一个位置：
+如果需要不区分大小写，先统一转换为小写再判断：
 
 ```python
-print(f"'hello'.find(''): {'hello'.find('')}")  # 0
-print(f"''.find(''):     {('').find('')}")      # 0
+text = "Python Programming"
+print(f"忽略大小写: {text.lower().startswith('python')}")  # True
 ```
 
 **运行结果**：
 
 ```text
-'hello'.find(''): 0
-''.find(''):      0
+忽略大小写: True
 ```
 
-### 2.2 find() 的范围参数
+#### 2.1.3 单字符前缀
 
-#### 2.2.1 start 参数：从指定位置开始查找
-
-`find(sub, start)` 从 `start` 索引位置开始搜索，跳过 `start` 之前的内容。这在需要查找子串的**后续出现位置**时特别有用：
+前缀可以是单个字符。常见的场景是判断代码行是否是注释、配置行是否是 section 标记等：
 
 ```python
-text = "apple, banana, apple, cherry"
-print(f"字符串: {text!r}")
+code = "# This is a comment"
+print(f"以 '#' 开头: {code.startswith('#')}")
 
-# 第一次出现
-pos1 = text.find("apple")
-print(f"第一次 find('apple'): {pos1}")  # 0
-
-# 从 pos1 + 1 开始继续找下一次出现
-pos2 = text.find("apple", pos1 + 1)
-print(f"从位置 {pos1+1} 再 find('apple'): {pos2}")  # 15
-
-# 从 pos2 + 1 之后没有更多 apple 了
-pos3 = text.find("apple", pos2 + 1)
-print(f"从位置 {pos2+1} 再 find('apple'): {pos3}")  # -1
+config = "[database]"
+print(f"以 '[' 开头: {config.startswith('[')}")
 ```
 
 **运行结果**：
 
 ```text
-字符串: 'apple, banana, apple, cherry'
-第一次 find('apple'): 0
-从位置 1 再 find('apple'): 15
-从位置 16 再 find('apple'): -1
+以 '#' 开头: True
+以 '[' 开头: True
 ```
 
-#### 2.2.2 start + end 参数：限定查找范围
+#### 2.1.4 空前缀与超长前缀
 
-`find(sub, start, end)` 在 `[start, end)` 范围内查找，等价于 `s[start:end].find(sub)`：
+空字符串 `""` 作为前缀时，**永远返回 True**——因为任何字符串都可以视为以空字符串开头：
 
 ```python
-text = "2024-01-15.log.2024-01-16.log"
-print(f"字符串: {text!r}")
-
-# 在整个字符串中查找 "log"
-print(f"find('log'):         {text.find('log')}")          # 11
-# 只在 [0, 15) 范围内查找
-print(f"find('log', 0, 15):  {text.find('log', 0, 15)}")   # 11
-# 只在 [15, 30) 范围内查找
-print(f"find('log', 15):     {text.find('log', 15)}")     # 26
-# 范围内找不到返回 -1
-print(f"find('log', 0, 10):  {text.find('log', 0, 10)}")  # -1
+print(f"'hello' 以 '' 开头: {'hello'.startswith('')}")  # True
+print(f"'' 以 '' 开头: {('').startswith('')}")          # True
 ```
 
 **运行结果**：
 
 ```text
-字符串: '2024-01-15.log.2024-01-16.log'
-find('log'):         11
-find('log', 0, 15):  11
-find('log', 15):     26
-find('log', 0, 10):  -1
+'hello' 以 '' 开头: True
+'' 以 '' 开头: True
 ```
 
-#### 2.2.3 范围参数的切片语义
+如果前缀比字符串还长，直接返回 False：
 
-理解范围参数的关键——`find(sub, start, end)` 与切片 `s[start:end]` 的语义完全一致：
+```python
+short = "Hi"
+print(f"'Hi' 以 'Hello' 开头: {short.startswith('Hello')}")  # False
+```
+
+**运行结果**：
 
 ```text
-s.find(sub, start, end)
-    ↓ 等价于
-s[start:end].find(sub)
+'Hi' 以 'Hello' 开头: False
 ```
 
-切片 `s[start:end]` 包含 `start` 但不包含 `end`，`find` 的范围参数也是如此。
+### 2.2 startswith() 的元组多值判断
+
+#### 2.2.1 基本用法
+
+`startswith()` 的第一个参数可以是一个**元组**，包含多个候选前缀。只要匹配任意一个就返回 `True`：
+
+```python
+url = "ftp://files.server.com"
+print(url.startswith(("http://", "https://", "ftp://")))
+```
+
+**运行结果**：
+
+```text
+True
+```
+
+这比用多个 `or` 连接简洁得多：
+
+```python
+# 不推荐：多个 or
+if url.startswith("http://") or url.startswith("https://") or url.startswith("ftp://"):
+    print("是网络协议 URL")
+
+# 推荐：元组一次判断
+if url.startswith(("http://", "https://", "ftp://")):
+    print("是网络协议 URL")
+```
+
+**运行结果**：
+
+```text
+是网络协议 URL
+是网络协议 URL
+```
+
+#### 2.2.2 文件分发场景
+
+元组多值判断在文件分发中特别实用——按前缀把文件路由到不同处理器：
+
+```python
+filenames = ["report_q1.pdf", "photo_vacation.jpg", "data_users.csv", "script_backup.py"]
+
+for f in filenames:
+    if f.startswith(("report", "data")):
+        print(f"  {f} → 业务数据文件")
+    elif f.startswith(("photo", "image")):
+        print(f"  {f} → 图片文件")
+    elif f.startswith("script"):
+        print(f"  {f} → 脚本文件")
+    else:
+        print(f"  {f} → 其他文件")
+```
+
+**运行结果**：
+
+```text
+  report_q1.pdf → 业务数据文件
+  photo_vacation.jpg → 图片文件
+  data_users.csv → 业务数据文件
+  script_backup.py → 脚本文件
+```
+
+#### 2.2.3 URL 协议批量判断
+
+一次判断 URL 属于哪种协议：
+
+```python
+urls = [
+    "https://example.com",
+    "http://localhost:8000",
+    "ftp://files.server.com",
+    "file:///home/user/doc.txt",
+    "ws://chat.example.com",
+]
+
+for url in urls:
+    if url.startswith(("http://", "https://")):
+        print(f"  {url} → HTTP/HTTPS")
+    elif url.startswith(("ftp://", "sftp://")):
+        print(f"  {url} → FTP")
+    elif url.startswith("file://"):
+        print(f"  {url} → 本地文件")
+    elif url.startswith(("ws://", "wss://")):
+        print(f"  {url} → WebSocket")
+    else:
+        print(f"  {url} → 未知协议")
+```
+
+**运行结果**：
+
+```text
+  https://example.com → HTTP/HTTPS
+  http://localhost:8000 → HTTP/HTTPS
+  ftp://files.server.com → FTP
+  file:///home/user/doc.txt → 本地文件
+  ws://chat.example.com → WebSocket
+```
+
+#### 2.2.4 注意：参数必须是元组，不能是列表
+
+`startswith()` 只接受 `str` 或 `tuple of str`，传列表会报 `TypeError`：
+
+```python
+try:
+    "test.py".startswith(["test", "config"])
+except TypeError as e:
+    print(f"列表参数报错: {e}")
+```
+
+**运行结果**：
+
+```text
+列表参数报错: startswith first arg must be str or a tuple of str, not list
+```
+
+正确做法是使用元组——加个括号逗号即可：
+
+```python
+# 正确：元组
+"test.py".startswith(("test", "config"))  # True
+
+# 错误：列表
+# "test.py".startswith(["test", "config"])  # TypeError
+```
+
+**记住**：元组的标志是逗号，不是括号。但 `startswith(("test",))` 中的括号不能省——不写括号会被解析为多个参数。
+
+### 2.3 startswith() 的范围参数
+
+#### 2.3.1 start 参数：跳过开头部分
+
+`startswith(prefix, start)` 从 `start` 索引位置开始检查前缀，相当于先切片再判断：
+
+```python
+text = "Version: 2.0.1-beta"
+print(f"字符串: {text}")
+print(f"从位置0检查 '2': {text.startswith('2')}")
+print(f"从位置9检查 '2': {text.startswith('2', 9)}")
+```
+
+**运行结果**：
+
+```text
+字符串: Version: 2.0.1-beta
+从位置0检查 '2': False
+从位置9检查 '2': True
+```
+
+`startswith('2', 9)` 等价于 `text[9:].startswith('2')`——从索引 9 开始（跳过了 "Version: "），检查是否以 "2" 开头。
+
+#### 2.3.2 start + end 参数：限定检查范围
+
+`startswith(prefix, start, end)` 在 `[start, end)` 范围内检查前缀，等价于 `s[start:end].startswith(prefix)`：
 
 ```python
 s = "ABCDEFGH"
 print(f"字符串: {s}")
-print(f"find('CD', 2):    {s.find('CD', 2)}")      # 2（s[2:] 开头就是 CD）
-print(f"find('CD', 2, 5): {s.find('CD', 2, 5)}")    # 2（s[2:5]="CDE" 包含 CD）
-print(f"find('CD', 3):    {s.find('CD', 3)}")      # -1（s[3:]="DEFGH"，没有 CD）
+print(f"s.startswith('CD', 2): {s.startswith('CD', 2)}")       # s[2:]="CDEFGH"
+print(f"s.startswith('CD', 2, 4): {s.startswith('CD', 2, 4)}")  # s[2:4]="CD"
+print(f"s.startswith('CDE', 2, 4): {s.startswith('CDE', 2, 4)}")  # s[2:4]="CD"
 ```
 
 **运行结果**：
 
 ```text
 字符串: ABCDEFGH
-find('CD', 2):    2
-find('CD', 2, 5): 2
-find('CD', 3):    -1
+s.startswith('CD', 2): True
+s.startswith('CD', 2, 4): True
+s.startswith('CDE', 2, 4): False
 ```
 
-#### 2.2.4 完整参数速查
+`s.startswith('CDE', 2, 4)` 检查 `s[2:4]`（即 "CD"）是否以 "CDE" 开头——"CD" 只有 2 个字符，而 "CDE" 有 3 个字符，长度不够，返回 False。
+
+#### 2.3.3 范围参数的切片语义
+
+理解范围参数的关键是——`startswith(prefix, start, end)` 与切片 `s[start:end]` 的语义完全一致：
+
+```text
+s.startswith(prefix, start, end)
+    ↓ 等价于
+s[start:end].startswith(prefix)
+```
+
+切片 `s[start:end]` 包含 `start` 但不包含 `end`，`startswith` 的范围参数也是如此。
+
+```python
+log_line = "[2024-01-15] INFO Server started"
+print(f"日志行: {log_line}")
+# 检查从索引1开始、到索引12为止是否以 "2024" 开头
+# 等价于 log_line[1:12].startswith("2024")
+# log_line[1:12] = "2024-01-15"
+print(f"位置1..12 检查 '2024': {log_line.startswith('2024', 1, 12)}")
+```
+
+**运行结果**：
+
+```text
+日志行: [2024-01-15] INFO Server started
+位置1..12 检查 '2024': True
+```
+
+#### 2.3.4 完整参数速查
+
+`startswith()` 完整签名：
+
+```text
+s.startswith(prefix[, start[, end]])
+```
 
 | 参数 | 含义 | 默认值 | 说明 |
 |------|------|--------|------|
-| `sub` | 要查找的子串 | 必填 | 字符串 |
-| `start` | 查找起始位置 | 0 | 从该索引开始查找 |
-| `end` | 查找结束位置（不含） | `len(s)` | 到该索引为止（不含） |
+| `prefix` | 要检查的前缀 | 必填 | 字符串或字符串元组 |
+| `start` | 检查起始位置 | 0 | 从该索引开始检查 |
+| `end` | 检查结束位置（不含） | `len(s)` | 到该索引为止（不含） |
 
-### 2.3 find() 的实战：找出所有出现位置
-
-`find` 只返回第一次出现的位置，要找出所有出现位置，需要配合循环：
-
-```python
-text = "abracadabra"
-target = "abra"
-print(f"字符串: {text!r}, 目标: {target!r}")
-
-positions = []
-start = 0
-while True:
-    pos = text.find(target, start)
-    if pos == -1:
-        break
-    positions.append(pos)
-    start = pos + 1  # 从下一个位置继续找
-
-print(f"所有出现位置: {positions}")  # [0, 7]
-print(f"出现次数: {len(positions)}")
-```
-
-**运行结果**：
-
-```text
-字符串: 'abracadabra', 目标: 'abra'
-所有出现位置: [0, 7]
-出现次数: 2
-```
-
-**注意**：`start = pos + 1` 而非 `pos + len(target)`。两者有微妙差别：
-
-- `pos + 1`：允许重叠匹配。比如在 `"aaa"` 中找 `"aa"`，会找到位置 0 和 1
-- `pos + len(target)`：不允许重叠。在 `"aaa"` 中找 `"aa"` 只找到位置 0
-
-```python
-text = "aaa"
-target = "aa"
-
-# 允许重叠
-pos1 = []
-start = 0
-while True:
-    p = text.find(target, start)
-    if p == -1:
-        break
-    pos1.append(p)
-    start = p + 1
-
-# 不允许重叠
-pos2 = []
-start = 0
-while True:
-    p = text.find(target, start)
-    if p == -1:
-        break
-    pos2.append(p)
-    start = p + len(target)
-
-print(f"允许重叠: {pos1}")  # [0, 1]
-print(f"不允许重叠: {pos2}")  # [0]
-```
-
-**运行结果**：
-
-```text
-允许重叠: [0, 1]
-不允许重叠: [0]
-```
-
-### 2.4 rfind()：从右侧查找子串位置
+### 2.4 endswith()：判断后缀
 
 #### 2.4.1 基本用法
 
-`rfind()` 从字符串右侧开始搜索，返回子串**最后一次出现**的索引位置。与 `find` 方向相反，但返回值仍是**从头数的索引**：
+`endswith()` 判断字符串是否以指定子串结尾，与 `startswith()` 完全对称：
 
 ```python
-text = "Hello, World! Hello, Python!"
-print(f"字符串: {text!r}")
-print(f"find('Hello'):    {text.find('Hello')}")    # 0（从左找第一个）
-print(f"rfind('Hello'):   {text.rfind('Hello')}")   # 14（从右找最后一个）
-print(f"rfind('o'):       {text.rfind('o')}")       # 25（最后一个 'o'）
+filename = "report.pdf"
+print(f"文件名: {filename}")
+print(f"以 '.pdf' 结尾: {filename.endswith('.pdf')}")
+print(f"以 '.doc' 结尾: {filename.endswith('.doc')}")
 ```
 
 **运行结果**：
 
 ```text
-字符串: 'Hello, World! Hello, Python!'
-find('Hello'):    0
-rfind('Hello'):   14
-rfind('o'):       25
+文件名: report.pdf
+以 '.pdf' 结尾: True
+以 '.doc' 结尾: False
 ```
 
-`rfind` 返回的索引仍然是相对于字符串开头的位置——它只是搜索方向从右往左，返回的是最后一个匹配子串的起始索引。
+#### 2.4.2 区分大小写
 
-#### 2.4.2 find 与 rfind 的配合使用
-
-`find` 和 `rfind` 配合使用时最常见的场景是**路径和文件名解析**——用 `rfind` 找最后一个分隔符，从分隔符处切分出文件名和目录名：
+与 `startswith` 一样，`endswith` 也区分大小写：
 
 ```python
-path = "/home/user/documents/report.pdf"
-print(f"路径: {path!r}")
-
-# 用 rfind 找最后一个斜杠
-last_slash = path.rfind("/")
-print(f"最后一个斜杠位置: {last_slash}")
-
-# 提取文件名 = 最后一个斜杠之后的部分
-filename = path[last_slash + 1:]
-print(f"文件名: {filename!r}")  # 'report.pdf'
-
-# 提取目录名 = 最后一个斜杠之前的部分
-dirname = path[:last_slash]
-print(f"目录名: {dirname!r}")  # '/home/user/documents'
+text = "Hello.PY"
+print(f"以 '.py' 结尾: {text.endswith('.py')}")    # False
+print(f"以 '.PY' 结尾: {text.endswith('.PY')}")    # True
 ```
 
 **运行结果**：
 
 ```text
-路径: '/home/user/documents/report.pdf'
-最后一个斜杠位置: 20
-文件名: 'report.pdf'
-目录名: '/home/user/documents'
+以 '.py' 结尾: False
+以 '.PY' 结尾: True
 ```
 
-这里用 `rfind` 而非 `find` 的原因——路径中可能有多个斜杠，我们要的是最后一个，这样才能正确提取文件名。
-
-#### 2.4.3 rfind 的范围参数
-
-`rfind` 同样支持 `start` 和 `end` 参数，语义与 `find` 对称——在 `[start, end)` 范围内从右侧查找：
+实际开发中，如果文件扩展名大小写不确定，建议先转换为小写再判断：
 
 ```python
-text = "error.log.2024.error.log.2025"
-print(f"字符串: {text!r}")
-
-# 在整个字符串中找最后一个 "error"
-print(f"rfind('error'):             {text.rfind('error')}")           # 15
-# 只在 [0, 10) 范围内找
-print(f"rfind('error', 0, 10):      {text.rfind('error', 0, 10)}")    # 0
-# 只在 [10, 27) 范围内找
-print(f"rfind('error', 10):         {text.rfind('error', 10)}")      # 15
+filename = "Report.PDF"
+print(filename.lower().endswith(".pdf"))  # True
 ```
 
 **运行结果**：
 
 ```text
-字符串: 'error.log.2024.error.log.2025'
-rfind('error'):             15
-rfind('error', 0, 10):      0
-rfind('error', 10):         15
+True
 ```
 
-#### 2.4.4 空字符串与找不到的情况
+#### 2.4.3 空后缀与超长后缀
 
-空字符串作为子串时，`rfind` 返回 `len(s)`——因为空字符串可以视为在字符串末尾"之后"出现：
+空字符串作为后缀时永远返回 True（与 `startswith` 行为一致）：
 
 ```python
-print(f"'hello'.rfind(''): {'hello'.rfind('')}")  # 5
-print(f"''.rfind(''):      {('').rfind('')}")     # 0
-print(f"'hello'.rfind('x'): {'hello'.rfind('x')}")  # -1
+print(f"'hello' 以 '' 结尾: {'hello'.endswith('')}")  # True
 ```
 
 **运行结果**：
 
 ```text
-'hello'.rfind(''): 5
-''.rfind(''):      0
-'hello'.rfind('x'): -1
+'hello' 以 '' 结尾: True
 ```
 
-这与 `find` 返回 `0` 不同——`find('')` 返回字符串开头位置 `0`，`rfind('')` 返回字符串末尾位置 `len(s)`。空字符串被视为"出现在每一个位置上"，`find` 返回最左边（0），`rfind` 返回最右边（`len(s)`）。
-
-#### 2.4.5 实战：提取文件扩展名
+后缀比字符串长时返回 False：
 
 ```python
-files = ["report.pdf", "photo.tar.gz", "script.py", "README", "data.csv.bak"]
-print("提取文件扩展名：")
+print(f"'.py' 以 'script.py' 结尾: {'.py'.endswith('script.py')}")  # False
+```
+
+**运行结果**：
+
+```text
+'.py' 以 'script.py' 结尾: False
+```
+
+### 2.5 endswith() 的元组多值判断
+
+#### 2.5.1 文件类型分类
+
+`endswith()` 同样支持元组参数，这在文件类型分类中极其常用：
+
+```python
+files = ["main.py", "report.pdf", "photo.jpg", "data.csv", "video.mp4", "music.mp3"]
+
 for f in files:
-    dot_pos = f.rfind(".")
-    if dot_pos == -1:
-        print(f"  {f:20s} -> 无扩展名")
+    if f.endswith((".py", ".sh")):
+        category = "脚本"
+    elif f.endswith((".pdf", ".docx", ".doc")):
+        category = "文档"
+    elif f.endswith((".jpg", ".png", ".gif", ".bmp")):
+        category = "图片"
+    elif f.endswith((".mp4", ".avi", ".mkv")):
+        category = "视频"
+    elif f.endswith((".mp3", ".wav", ".flac")):
+        category = "音频"
+    elif f.endswith((".csv", ".xlsx", ".json")):
+        category = "数据"
     else:
-        ext = f[dot_pos + 1:]
-        name = f[:dot_pos]
-        print(f"  {f:20s} -> 文件名: {name!r}, 扩展名: {ext!r}")
+        category = "其他"
+    print(f"  {f:15s} → {category}")
 ```
 
 **运行结果**：
 
 ```text
-提取文件扩展名：
-  report.pdf           -> 文件名: 'report', 扩展名: 'pdf'
-  photo.tar.gz         -> 文件名: 'photo.tar', 扩展名: 'gz'
-  script.py            -> 文件名: 'script', 扩展名: 'py'
-  README               -> 无扩展名
-  data.csv.bak         -> 文件名: 'data.csv', 扩展名: 'bak'
+  main.py         → 脚本
+  report.pdf      → 文档
+  photo.jpg       → 图片
+  data.csv        → 数据
+  video.mp4       → 视频
+  music.mp3       → 音频
 ```
 
-用 `rfind` 而非 `find` 找 `.`——因为文件名可能有多个点（如 `photo.tar.gz`），`rfind` 找最后一个点才能正确提取出真正的扩展名。
+#### 2.5.2 多后缀判断 vs 多个 or
 
-### 2.5 index() 与 rindex()：查找失败时抛出异常
-
-#### 2.5.1 基本用法
-
-`index()` 和 `rindex()` 的行为与 `find()` 和 `rfind()` 完全相同，唯一区别是——**当查找失败时，不返回 `-1`，而是抛出 `ValueError`**：
+对比两种写法的简洁度：
 
 ```python
-text = "Hello, World!"
-print(f"index('Hello'): {text.index('Hello')}")  # 0
-print(f"index('World'): {text.index('World')}")  # 7
-print(f"index('o'):     {text.index('o')}")     # 4
+filename = "archive.tar.gz"
+
+# 不推荐：多个 or 连接
+if filename.endswith(".zip") or filename.endswith(".tar.gz") or filename.endswith(".rar"):
+    print("是压缩文件")
+
+# 推荐：元组一次判断
+if filename.endswith((".zip", ".tar.gz", ".rar")):
+    print("是压缩文件")
 ```
 
 **运行结果**：
 
 ```text
-index('Hello'): 0
-index('World'): 7
-index('o'): 4
+是压缩文件
+是压缩文件
 ```
 
-`rindex` 从右侧查找：
+元组写法不仅更简洁，而且当候选后缀很多时（如十几种图片格式），优势更明显。
+
+#### 2.5.3 注意：元组元素必须是字符串
+
+元组中的每个元素都必须是字符串，混入非字符串类型会报错：
 
 ```python
-text = "Hello, World! Hello, Python!"
-print(f"index('Hello'):   {text.index('Hello')}")    # 0
-print(f"rindex('Hello'):  {text.rindex('Hello')}")   # 14
-print(f"rindex('o'):      {text.rindex('o')}")      # 25
-```
-
-**运行结果**：
-
-```text
-index('Hello'):   0
-rindex('Hello'):  14
-rindex('o'):      25
-```
-
-#### 2.5.2 找不到时抛出 ValueError
-
-这是 `index` 与 `find` 的核心区别：
-
-```python
-text = "abcdefg"
-
-# find 找不到返回 -1，不报错
-print(f"find('xyz'):  {text.find('xyz')}")  # -1
-
-# index 找不到抛出 ValueError
 try:
-    text.index("xyz")
-except ValueError as e:
-    print(f"index('xyz') 抛出: ValueError: {e}")
-
-# rindex 同理
-try:
-    text.rindex("xyz")
-except ValueError as e:
-    print(f"rindex('xyz') 抛出: ValueError: {e}")
+    "test123".endswith(("test", 123))
+except TypeError as e:
+    print(f"混入非字符串报错: {e}")
 ```
 
 **运行结果**：
 
 ```text
-find('xyz'):  -1
-index('xyz') 抛出: ValueError: substring not found
-rindex('xyz') 抛出: ValueError: substring not found
+混入非字符串报错: endswith first arg must be str or a tuple of str, not tuple
 ```
 
-#### 2.5.3 index 也支持范围参数
+### 2.6 endswith() 的范围参数
 
-`index` 和 `rindex` 同样支持 `start` 和 `end` 参数，语义与 `find`/`rfind` 完全一致：
+#### 2.6.1 start 参数
+
+`endswith(suffix, start)` 从 `start` 位置开始检查后缀，等价于 `s[start:].endswith(suffix)`：
 
 ```python
-text = "2024-01-15.2024-06-20"
-print(f"字符串: {text!r}")
-print(f"index('2024'):        {text.index('2024')}")         # 0
-print(f"index('2024', 5):     {text.index('2024', 5)}")     # 11
-print(f"index('-', 0, 12):    {text.index('-', 0, 12)}")    # 4
+path = "/home/user/report.backup.pdf"
+print(f"路径: {path}")
+# 从位置6开始检查（跳过 "/home/"）
+# s[6:] = "user/report.backup.pdf"
+print(f"从位置6开始以 'report' 结尾: {path.endswith('report', 6)}")
 ```
 
 **运行结果**：
 
 ```text
-字符串: '2024-01-15.2024-06-20'
-index('2024'):        0
-index('2024', 5):     11
-index('-', 0, 12):    4
+路径: /home/user/report.backup.pdf
+从位置6开始以 'report' 结尾: False
 ```
 
-#### 2.5.4 安全使用 index 的模式
+`path[6:]` 是 `"user/report.backup.pdf"`，它不以 "report" 结尾（以 ".pdf" 结尾），所以返回 False。
 
-当你使用 `index` 但不确定子串是否存在时，需要用 `try/except` 捕获异常：
+#### 2.6.2 start + end 参数：去掉扩展名后判断
+
+`endswith(suffix, start, end)` 在 `[start, end)` 范围内检查后缀，最有用的场景是"去掉扩展名后判断"：
 
 ```python
-log_lines = [
-    "[INFO] Server started",
-    "[ERROR] Connection refused",
-    "Server running normally",
-    "[WARN] High memory usage",
-]
-
-print("提取日志级别：")
-for line in log_lines:
-    try:
-        bracket_start = line.index("[")
-        bracket_end = line.index("]", bracket_start)
-        level = line[bracket_start + 1 : bracket_end]
-        print(f"  {line!r} -> 级别: {level}")
-    except ValueError:
-        print(f"  {line!r} -> 无日志级别标记")
+path = "/home/user/report.backup.pdf"
+dot_pos = path.rfind(".")
+print(f"最后一个点位置: {dot_pos}")
+# 检查 path[0:dot_pos]（去掉扩展名后的部分）是否以 ".backup" 结尾
+# path[0:24] = "/home/user/report.backup"
+print(f"去掉扩展名后以 '.backup' 结尾: {path.endswith('.backup', 0, dot_pos)}")
 ```
 
 **运行结果**：
 
 ```text
-提取日志级别：
-  '[INFO] Server started' -> 级别: INFO
-  '[ERROR] Connection refused' -> 级别: ERROR
-  'Server running normally' -> 无日志级别标记
-  '[WARN] High memory usage' -> 级别: WARN
+最后一个点位置: 24
+去掉扩展名后以 '.backup' 结尾: True
 ```
 
-### 2.6 四个方法的完整对比
+`path[0:24]` 是 `"/home/user/report.backup"`，以 ".backup" 结尾，返回 True。这种用法在处理有多个点的文件名（如 `report.backup.pdf`）时特别有用。
 
-#### 2.6.1 行为对比表
+#### 2.6.3 范围参数语义对比
 
-| 维度 | `find()` | `rfind()` | `index()` | `rindex()` |
-|------|----------|-----------|-----------|------------|
-| 查找方向 | 从左到右 | 从右到左 | 从左到右 | 从右到左 |
-| 返回值 | 首次出现索引 | 最后出现索引 | 首次出现索引 | 最后出现索引 |
-| 找不到时 | 返回 `-1` | 返回 `-1` | 抛出 `ValueError` | 抛出 `ValueError` |
-| 范围参数 | `start, end` | `start, end` | `start, end` | `start, end` |
-| 空字符串返回 | `0` | `len(s)` | `0` | `len(s)` |
-
-#### 2.6.2 find/rfind 与 index/rindex 的等价关系
-
-```python
-text = "abcdabcd"
-
-# 找到时：find 和 index 返回值相同
-print(f"find('a'):   {text.find('a')}")    # 0
-print(f"index('a'):  {text.index('a')}")   # 0
-
-# 找到时：rfind 和 rindex 返回值相同
-print(f"rfind('a'):  {text.rfind('a')}")   # 4
-print(f"rindex('a'): {text.rindex('a')}")  # 4
-```
-
-**运行结果**：
+与 `startswith` 一样，`endswith(suffix, start, end)` 等价于 `s[start:end].endswith(suffix)`：
 
 ```text
-find('a'):   0
-index('a'):  0
-rfind('a'):  4
-rindex('a'): 4
+s.endswith(suffix, start, end)
+    ↓ 等价于
+s[start:end].endswith(suffix)
 ```
 
-唯一差异在于找不到时的行为：
+| 调用形式 | 等价切片 | 含义 |
+|---------|---------|------|
+| `s.endswith(x)` | `s[0:].endswith(x)` | 整个字符串 |
+| `s.endswith(x, 5)` | `s[5:].endswith(x)` | 从位置5到末尾 |
+| `s.endswith(x, 5, 10)` | `s[5:10].endswith(x)` | 从位置5到10（不含） |
 
-```python
-text = "abcdabcd"
-print(f"find('z'):    {text.find('z')}")    # -1
-print(f"rfind('z'):   {text.rfind('z')}")   # -1
-# text.index('z')   → ValueError
-# text.rindex('z')  → ValueError
-```
+#### 2.6.4 完整参数速查
 
-**运行结果**：
+`endswith()` 完整签名：
 
 ```text
-find('z'):    -1
-rfind('z'):   -1
+s.endswith(suffix[, start[, end]])
 ```
 
-#### 2.6.3 与 in 运算符的对比
+| 参数 | 含义 | 默认值 | 说明 |
+|------|------|--------|------|
+| `suffix` | 要检查的后缀 | 必填 | 字符串或字符串元组 |
+| `start` | 检查起始位置 | 0 | 从该索引开始检查 |
+| `end` | 检查结束位置（不含） | `len(s)` | 到该索引为止（不含） |
 
-当你**只需要判断子串是否存在**而不需要位置信息时，`in` 运算符是最简洁的选择：
+### 2.7 startswith 与 endswith 完整对比
 
-```python
-text = "Hello, World!"
-target = "World"
+两个方法在行为上完全对称，掌握一个就能举一反三：
 
-# in 只返回是否存在，不返回位置
-print(f"'{target}' in text: {target in text}")  # True
+| 维度 | `startswith()` | `endswith()` |
+|------|---------------|-------------|
+| 判断方向 | 从字符串**开头**检查 | 从字符串**末尾**检查 |
+| 返回值 | `bool` | `bool` |
+| 区分大小写 | 是 | 是 |
+| 空前缀/后缀 | 永远 True | 永远 True |
+| 前缀/后缀比字符串长 | 返回 False | 返回 False |
+| 元组多值 | 支持，匹配任意一个 | 支持，匹配任意一个 |
+| 范围参数 `start, end` | 支持 | 支持 |
+| 参数类型要求 | `str` 或 `tuple of str` | `str` 或 `tuple of str` |
+| 等价切片语义 | `s[start:end].startswith(x)` | `s[start:end].endswith(x)` |
 
-# find 返回位置，-1 表示不存在
-print(f"find('{target}'): {text.find(target)}")  # 7
+### 2.8 startswith / endswith 与其他方法的对比
 
-# index 返回位置，不存在则报错
-print(f"index('{target}'): {text.index(target)}")  # 7
-```
+字符串中做"判断"的方法有好几个，它们的适用场景不同：
 
-**运行结果**：
-
-```text
-'World' in text: True
-find('World'): 7
-index('World'): 7
-```
-
-### 2.7 与其他查找方法的对比
-
-`find`/`rfind`/`index`/`rindex` 是"查找位置"的方法，Python 字符串还有其他相关的查找方法，它们的适用场景不同：
-
-| 方法 | 返回什么 | 找不到时 | 典型场景 |
-|------|---------|---------|---------|
-| `find(sub)` | 首次出现位置 | `-1` | 需要位置，不确定是否存在 |
-| `rfind(sub)` | 最后出现位置 | `-1` | 需要最后位置（如最后一个分隔符） |
-| `index(sub)` | 首次出现位置 | `ValueError` | 需要位置，确信一定存在 |
-| `rindex(sub)` | 最后出现位置 | `ValueError` | 需要最后位置，确信一定存在 |
-| `in` | `True/False` | `False` | 只判断是否存在，不关心位置 |
-| `count(sub)` | 出现次数 | `0` | 统计出现次数 |
-| `split(sep)` | 分割后的列表 | 返回整个字符串 | 需要按分隔符切割 |
+| 方法 | 判断什么 | 典型场景 |
+|------|---------|---------|
+| `startswith(prefix)` | 是否以 prefix **开头** | URL 协议、日志级别、文件名前缀 |
+| `endswith(suffix)` | 是否以 suffix **结尾** | 文件扩展名、域名后缀、数据行格式 |
+| `in` | 子串是否**存在**（任意位置） | 关键词过滤、简单搜索 |
+| `find()` | 子串**首次出现位置** | 需要知道位置时 |
+| `==` | 是否**完全相等** | 精确匹配 |
+| `startswith` + 元组 | 是否以**任意一个**候选开头 | 多协议/多前缀分发 |
+| `endswith` + 元组 | 是否以**任意一个**候选结尾 | 多扩展名/多后缀分类 |
 
 **选择决策**：
 
-![示例图片](../images/base/202610121310.svg)
+![示例图片](../images/base/202609242330.svg)
 
-### 2.8 实战：配合 count() 先判断再查找
+**`startswith` vs `in` 的关键区别**——`in` 只判断"是否包含"，不关心出现位置：
 
 ```python
-text = "apple, banana, apple, cherry, apple"
-target = "apple"
+filename = "backup.script.py"
 
-count = text.count(target)
-print(f"字符串: {text!r}")
-print(f"count('{target}'): {count}")
+# in 不关心位置，可能在中间
+print(f"'.py' in filename: {'.py' in filename}")              # True（但可能在中间）
 
-if count == 0:
-    print("未找到")
-elif count == 1:
-    print(f"只出现一次，位置: {text.find(target)}")
-else:
-    print(f"出现 {count} 次，所有位置：")
-    start = 0
-    for i in range(count):
-        pos = text.find(target, start)
-        print(f"  第 {i + 1} 次: 位置 {pos}")
-        start = pos + 1
+# endswith 只看结尾
+print(f"filename.endswith('.py'): {filename.endswith('.py')}")  # True（确实在结尾）
+
+# 如果文件名中间有 .py 但结尾不是
+filename2 = "script.py.bak"
+print(f"'.py' in filename2: {'.py' in filename2}")            # True（在中间出现）
+print(f"filename2.endswith('.py'): {filename2.endswith('.py')}")  # False（结尾是 .bak）
 ```
 
 **运行结果**：
 
 ```text
-字符串: 'apple, banana, apple, cherry, apple'
-count('apple'): 3
-出现 3 次，所有位置：
-  第 1 次: 位置 0
-  第 2 次: 位置 15
-  第 3 次: 位置 30
+'.py' in filename: True
+filename.endswith('.py'): True
+'.py' in filename2: True
+filename2.endswith('.py'): False
 ```
 
-### 2.9 实战：URL 解析
-
-用 `find` 和 `rfind` 配合解析 URL 中的协议、域名和路径：
-
-```python
-urls = [
-    "https://www.example.com/products/electronics/iphone",
-    "http://localhost:8080/api/v1/users",
-    "https://docs.python.org/3/library/string.html",
-]
-
-print("用 find / rfind 解析 URL：")
-for url in urls:
-    # 协议：找 "://" 的位置
-    scheme_end = url.find("://")
-    scheme = url[:scheme_end]
-
-    # 域名：从 "://" 后到第一个 "/"
-    host_start = scheme_end + 3
-    host_end = url.find("/", host_start)
-    if host_end == -1:
-        host = url[host_start:]
-        path = "/"
-    else:
-        host = url[host_start:host_end]
-        path = url[host_end:]
-
-    # 最后一个路径段：用 rfind 找最后一个 "/"
-    last_slash = url.rfind("/")
-    last_segment = url[last_slash + 1:]
-
-    print(f"  URL:  {url}")
-    print(f"    协议: {scheme}, 域名: {host}")
-    print(f"    路径: {path}")
-    print(f"    最后一段: {last_segment}")
-```
-
-**运行结果**：
-
-```text
-用 find / rfind 解析 URL：
-  URL:  https://www.example.com/products/electronics/iphone
-    协议: https, 域名: www.example.com
-    路径: /products/electronics/iphone
-    最后一段: iphone
-  URL:  http://localhost:8080/api/v1/users
-    协议: http, 域名: localhost:8080
-    路径: /api/v1/users
-    最后一段: users
-  URL:  https://docs.python.org/3/library/string.html
-    协议: https, 域名: docs.python.org
-    路径: /3/library/string.html
-    最后一段: string.html
-```
+这就是判断文件类型必须用 `endswith` 而非 `in` 的原因——`in` 可能将 `script.py.bak` 误判为 Python 文件。
 
 ## 3. 最佳实践
 
@@ -774,244 +718,186 @@ for url in urls:
 
 | 场景 | 不推荐 | 推荐 | 原因 |
 |------|--------|------|------|
-| 只判断是否存在 | `s.find(x) != -1` | `x in s` | `in` 语义更清晰 |
-| 需要位置 + 不确定存在 | `s.index(x)` | `s.find(x)` | `index` 找不到会抛异常 |
-| 需要位置 + 确信存在 | `s.find(x); if != -1` | `s.index(x)` | `index` 在异常时暴露 bug |
-| 找最后一个分隔符 | `s[::-1].find(x)` | `s.rfind(x)` | `rfind` 直接从右找，无需反转 |
-| 找所有出现位置 | 多次 `find` 手动判断 | 循环 + `find` + `pos+1` | 循环结构更清晰 |
-| 忽略大小写查找 | `s.find('ABC')` | `s.lower().find('abc')` | 先转小写再查找 |
+| 判断多个前缀 | `s.startswith('a') or s.startswith('b')` | `s.startswith(('a', 'b'))` | 元组写法更简洁，一次调用 |
+| 判断文件类型 | `'.py' in filename` | `filename.endswith('.py')` | `in` 可能匹配中间部分 |
+| 忽略大小写 | `s.startswith('HTTP') or s.startswith('http')` | `s.lower().startswith('http')` | 先转小写更可靠 |
+| 多扩展名 | 多个 `endswith` 用 `or` 连接 | `endswith(('.py', '.sh', '.rb'))` | 元组写法避免重复调用 |
+| 获取扩展名 | `filename[-3:]`（硬编码长度） | `filename.endswith('.py')` 或用 `os.path.splitext` | 硬编码长度容易出错 |
+| 传列表当参数 | `s.startswith(['a', 'b'])` | `s.startswith(('a', 'b'))` | 列表会报 TypeError |
+| 元组只有一个元素 | `s.startswith(('a',))` | `s.startswith('a')` | 单元素直接传字符串更简洁 |
+| 判断 URL 协议 | `url[:8] == 'https://'` | `url.startswith('https://')` | 切片硬编码长度容易出错 |
 
 ### 3.2 常见错误模式
 
-**错误1：用 index 处理不确定存在的子串**
+**错误1：用列表代替元组**
 
 ```python
-text = "配置文件中可能没有这个字段"
+# 错误：列表会报 TypeError
+# "test.py".startswith(["test", "config"])
 
-# 不推荐：index 找不到会抛 ValueError，如果没捕获会中断程序
-try:
-    pos = text.index("端口号")
-except ValueError:
-    pos = -1
-
-# 推荐：直接用 find，返回 -1 不报错
-pos = text.find("端口号")
+# 正确：使用元组
+"test.py".startswith(("test", "config"))
 ```
 
-**错误2：用 find 判断存在性时忘记判断 -1**
+**错误2：用 `in` 判断文件扩展名**
 
 ```python
-text = "Hello, World!"
+filename = "my_script.py.bak"
 
-# 错误：直接使用 find 返回值，忘记 -1 的场景
-pos = text.find("Java")
-if pos:  # -1 是 truthy，这会进入 if！
-    print(f"找到了，在位置 {pos}")  # 误判！
+# 错误：'.py' 在中间也会匹配
+if ".py" in filename:
+    print("Python 文件")  # 误判！
 
-# 正确：必须显式判断 != -1
-if pos != -1:
-    print(f"找到了，在位置 {pos}")
-else:
-    print("没找到")
+# 正确：用 endswith 只看结尾
+if filename.endswith(".py"):
+    print("Python 文件")
 ```
 
 **运行结果**：
 
 ```text
-找到了，在位置 -1  # 误判！-1 是 truthy
-没找到
+Python 文件  # in 误判
+（endswith 不会误判）
 ```
 
-这是一个极易踩的坑——`find` 返回 `-1` 表示未找到，而 `-1` 在布尔上下文中是 `True`（只有 `0` 是 `False`）。所以 `if pos:` 对 `-1` 会判断为 `True`，产生误判。必须用 `if pos != -1:` 或 `if pos >= 0:`。
-
-**错误3：用切片+find 代替范围参数**
+**错误3：切片硬编码长度判断前缀**
 
 ```python
-text = "Hello, World! Hello, Python!"
+url = "https://example.com"
 
-# 不推荐：先切片再 find，多创建了一个字符串对象
-pos = text[7:].find("Hello")
+# 不推荐：硬编码长度，容易算错
+if url[:8] == "https://":
+    print("HTTPS")
 
-# 推荐：直接用范围参数，不创建中间字符串
-pos = text.find("Hello", 7)
+# 推荐：startswith 不需要算长度
+if url.startswith("https://"):
+    print("HTTPS")
 ```
 
-**错误4：混淆 find 和 split 的场景**
+**运行结果**：
+
+```text
+HTTPS
+HTTPS
+```
+
+**错误4：忽略大小写问题**
 
 ```python
-csv_line = "张三,25,北京"
+# 实际文件可能扩展名大小写不一
+files = ["photo.JPG", "image.Png", "pic.jpeg"]
 
-# 不推荐：用 find 手动找分隔符，代码冗长
-pos1 = csv_line.find(",")
-name = csv_line[:pos1]
-pos2 = csv_line.find(",", pos1 + 1)
-age = csv_line[pos1+1:pos2]
-city = csv_line[pos2+1:]
+# 不推荐：只判断小写，会漏掉大写扩展名
+for f in files:
+    if f.endswith((".jpg", ".png")):
+        print(f"  {f} 是图片")  # 全部漏掉
 
-# 推荐：需要分割时直接用 split
-name, age, city = csv_line.split(",")
+# 推荐：先转小写再判断
+for f in files:
+    if f.lower().endswith((".jpg", ".png", ".jpeg")):
+        print(f"  {f} 是图片")
+```
+
+**运行结果**：
+
+```text
+  photo.JPG 是图片
+  image.Png 是图片
+  pic.jpeg 是图片
 ```
 
 ### 3.3 性能注意事项
 
-**时间复杂度**：`find` 和 `rfind` 的时间复杂度在最坏情况下是 **O(n×m)**（n 是字符串长度，m 是子串长度），因为底层使用的是高效的字符串搜索算法。对于大多数实际场景（子串较短），性能近似 O(n)。
-
-**范围参数比先切片更高效**——`find(sub, start, end)` 不会创建中间字符串对象：
+**元组多值 vs 多次调用**：元组参数比多次 `or` 调用更高效，因为 `startswith` 内部对元组做一次遍历，而多次 `or` 会多次调用方法：
 
 ```python
-text = "a" * 10_000_000 + "target"
+# 更高效：一次调用
+filename.startswith(("report", "data", "user", "config", "test"))
 
-# 更高效：直接用范围参数
-pos = text.find("target", 5)  # 在原字符串上偏移计算
+# 较低效：多次调用
+filename.startswith("report") or filename.startswith("data") or filename.startswith("user") or ...
 
-# 较低效：先切片再查找
-pos = text[5:].find("target")  # 创建了一个新的字符串副本
+# 最慢：正则
+import re
+bool(re.match(r"^(report|data|user|config|test)", filename))
 ```
 
-**find 与 in 的性能对比**：当你只需要判断"是否存在"时，`in` 运算符通常比 `find != -1` 更快，因为 `in` 只需要返回布尔值，不需要计算具体位置：
+**时间复杂度**：`startswith` 和 `endswith` 的时间复杂度是 **O(k)**，其中 k 是前缀/后缀的长度，与字符串总长度无关。它们不需要扫描整个字符串——`startswith` 只比较头部 k 个字符，`endswith` 只比较尾部 k 个字符：
 
 ```python
-# 判断是否存在，in 更快
-if "target" in text:
-    ...
-
-# 如果同时需要位置信息，用 find
-pos = text.find("target")
-if pos != -1:
-    ...
-```
-
-### 3.4 find vs index 的选择策略
-
-什么时候用 `find`，什么时候用 `index`？核心判断标准是——**子串是否存在是"正常情况"还是"异常情况"**：
-
-**子串应该存在，不存在即异常 → 用 `index`**
-
-```python
-# 模板中确信有占位符，找不到说明模板被改错了
-template = "Dear {name}, your order {order_id} is confirmed."
-name_pos = template.index("{name}")   # 找不到立即暴露问题
-order_pos = template.index("{order_id}")
-```
-
-**子串可能存在也可能不存在 → 用 `find`**
-
-```python
-# 配置文件中某个选项可能存在也可能不存在
-config = "port=8080\nhost=localhost\n"
-port_pos = config.find("port=")
-if port_pos != -1:
-    # 提取端口号
-    value_start = port_pos + len("port=")
-    value_end = config.find("\n", value_start)
-    port = config[value_start:value_end]
-    print(f"端口: {port}")
-else:
-    print("未配置端口")
+# 即使字符串很长，判断前缀也很快
+long_text = "https://" + "a" * 10_000_000 + ".com"
+print(long_text.startswith("https://"))  # 只比较前 8 个字符，O(8)
+print(long_text.endswith(".com"))        # 只比较后 4 个字符，O(4)
 ```
 
 **运行结果**：
 
 ```text
-端口: 8080
+True
+True
 ```
 
 ## 4. 原理
 
-### 4.1 find / rfind 的底层实现
+### 4.1 startswith / endswith 的底层实现
 
-`find` 和 `rfind` 在 CPython 中由 C 实现，底层使用高效的字符串搜索算法。核心流程：
+`startswith` 和 `endswith` 在 CPython 中由 C 实现，核心逻辑是**内存比较**（`memcmp`），不需要逐字符遍历 Python 层面的字符串对象。
 
-![示例图片](../images/base/202610121311.svg)
+`startswith` 的核心流程：
 
-`rfind` 的流程完全对称，只是搜索方向从右往左：
+![示例图片](../images/base/202609242331.svg)
 
-![示例图片](../images/base/202610121312.svg)
+`endswith` 的流程完全对称，只是从字符串末尾比较：
 
-### 4.2 为什么空字符串返回值不同
+![示例图片](../images/base/202609242332.svg)
 
-`find('')` 返回 `0`，`rfind('')` 返回 `len(s)`——这是因为空字符串被视为出现在字符串的**每一个位置**（包括首尾）：
+### 4.2 为什么元组比多次 or 更高效
 
-```text
-s = "hello"  (长度 5)
-空串可出现的位置: 0 1 2 3 4 5（共 6 个位置）
+当传入元组时，`startswith` 在 C 层面遍历候选列表，一次调用完成所有比较。而 `or` 连接的多次调用每次都要经历 Python 函数调用开销：
 
-find('')  → 返回最左边的位置 → 0
-rfind('') → 返回最右边的位置 → 5 (= len(s))
-```
+![示例图片](../images/base/202609242333.svg)
 
-```python
-s = "hello"
-print(f"find(''):   {s.find('')}")     # 0
-print(f"rfind(''):  {s.rfind('')}")    # 5
+当候选数量较少时（2-3 个），差异不大。但候选数量多时（如 10+ 种文件扩展名），元组方式明显更快。
 
-# 范围参数同样影响空字符串的返回值
-print(f"find('', 2):   {s.find('', 2)}")     # 2
-print(f"rfind('', 2):  {s.rfind('', 2)}")    # 5
-print(f"find('', 2, 4):  {s.find('', 2, 4)}")  # 2
-print(f"rfind('', 2, 4): {s.rfind('', 2, 4)}")  # 4
-```
+### 4.3 范围参数不创建新字符串
 
-**运行结果**：
+`startswith(prefix, start, end)` 虽然等价于 `s[start:end].startswith(prefix)`，但它在底层**不会真的创建切片副本**——而是直接在原字符串的内存上偏移计算：
 
-```text
-find(''):   0
-rfind(''):  5
-find('', 2):   2
-rfind('', 2):  5
-find('', 2, 4):  2
-rfind('', 2, 4): 4
-```
+![示例图片](../images/base/202609242335.svg)
 
-### 4.3 范围参数不创建切片副本
-
-与 `startswith`/`endswith` 一样，`find(sub, start, end)` 虽然语义上等价于 `s[start:end].find(sub)`，但底层**不会真的创建切片副本**——而是直接在原字符串的内存上偏移计算：
-
-![示例图片](../images/base/202610121313.svg)
-
-所以，如果需要在字符串的某个范围内查找子串，**直接用范围参数**比先切片更高效：
+所以，如果需要在字符串的某个范围内判断前缀，**直接用范围参数**比先切片更高效：
 
 ```python
 text = "Hello, World!"
 
 # 推荐：直接用范围参数
-pos = text.find("World", 7)  # 高效
+text.startswith("World", 7)  # 高效
 
-# 不推荐：先切片再查找
-pos = text[7:].find("World")  # 多创建了一个字符串对象
+# 不推荐：先切片再判断
+text[7:].startswith("World")  # 多创建了一个字符串对象
 ```
 
-### 4.4 find 返回 -1 而非抛异常的设计原因
+### 4.4 空前缀/后缀返回 True 的原因
 
-Python 选择让 `find` 返回 `-1` 而非抛异常，是为了**效率**——在大量查找场景中，"找不到"是正常情况而非异常。如果每次都要 try/except，代码会变得冗长且性能下降：
+`"".startswith("")` 和 `"hello".startswith("")` 都返回 True。这是因为 `startswith` 的底层逻辑是——比较字符串的前 `len(prefix)` 个字符与 `prefix`：
 
-```python
-# find 的模式：简洁高效
-pos = text.find("keyword")
-if pos != -1:
-    process(text[pos:])
+![示例图片](../images/base/202609242334.svg)
 
-# 如果 find 也抛异常，代码变为：
-try:
-    pos = text.find("keyword")
-    process(text[pos:])
-except ValueError:
-    pass  # 找不到就跳过
-```
-
-而 `index` 的存在是为了另一种场景——当"找不到"是一种**不应该发生的错误**时，用 `index` 让异常自然抛出，立即暴露问题而非静默返回 `-1`。两种方法服务于不同的编程风格：防御式编程用 `find`，断言式编程用 `index`。
+同样的逻辑适用于 `endswith`——比较末尾 0 个字符，永远相等。
 
 ## 5. 总结
 
-本文围绕子串位置查找展开，主要介绍了以下内容：
+本文围绕字符串前缀与后缀判断展开，主要介绍了以下内容：
 
-- `find(sub)` 从左到右查找子串首次出现的位置，`rfind(sub)` 从右到左查找最后一次出现的位置，找不到时均返回 `-1`
-- `index(sub)` 和 `rindex(sub)` 与 `find`/`rfind` 行为相同，但找不到时抛出 `ValueError` 而非返回 `-1`
-- 四个方法都支持 `start` 和 `end` 范围参数，语义等价于 `s[start:end].find(sub)`，但不创建切片副本
-- `find('')` 返回 `0`，`rfind('')` 返回 `len(s)`——空字符串被视为出现在每一个位置上
-- `find` 返回 `-1` 在布尔判断中是 `True`，判断存在性时必须用 `!= -1` 而非 `if pos:`
-- `find` 和 `rfind` 配合循环可以找出所有出现位置，注意 `pos + 1` 允许重叠匹配，`pos + len(sub)` 不允许
-- 只判断子串是否存在时用 `in` 运算符最清晰；需要位置信息时用 `find`/`rfind`；确信一定存在时用 `index`/`rindex`
-- 子串应该存在、不存在即异常时用 `index`；子串可能存在也可能不存在时用 `find`
-- 范围参数比先切片再查找更高效，因为不创建中间字符串对象
-- `rfind` 常用于路径解析——找最后一个分隔符提取文件名和目录名
+- `startswith(prefix)` 判断字符串是否以指定前缀开头，`endswith(suffix)` 判断是否以指定后缀结尾，均返回 `bool`
+- 两个方法都**区分大小写**，需要忽略大小写时先 `lower()` 再判断
+- 空字符串作为前缀/后缀时永远返回 True；前缀/后缀比字符串长时返回 False
+- 两个方法都支持**元组多值判断**——传入元组时匹配任意一个即返回 True，比多次 `or` 更简洁高效
+- 元组参数必须是 `tuple` 类型，传 `list` 会报 `TypeError`
+- 两个方法都支持 `start` / `end` 范围参数，语义等价于 `s[start:end].startswith(x)`，但不创建切片副本
+- 范围参数的切片语义：包含 `start`，不包含 `end`
+- 判断文件类型必须用 `endswith()` 而非 `in`——`in` 会匹配字符串中间的部分导致误判
+- `startswith` / `endswith` 的时间复杂度为 O(k)（k 为前缀/后缀长度），与字符串总长度无关
+- 元组多值判断比多次 `or` 连接更高效，因为只经历一次方法调用
+- 范围参数比先切片再判断更高效，因为不创建中间字符串对象

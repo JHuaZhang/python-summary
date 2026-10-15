@@ -3,919 +3,780 @@ group:
   title: 【03】字符串介绍
   order: 3
 order: 25
-title: translate 与 maketrans 方法
+title: capitalize 与 title 与 swapcase 方法
 nav:
   title: Python基础
   order: 1
 ---
 
-# translate 与 maketrans 方法
+# capitalize 与 title 与 swapcase 方法
 
 ## 1. 介绍
 
 ### 1.1 知识点定义
 
-`str.maketrans()` 和 `str.translate()` 是 Python 字符串的一对搭档方法——`maketrans` 创建字符映射表，`translate` 使用映射表对字符串进行一次性替换/删除。与 `replace` 的"逐个子串替换"不同，`translate` 在一次遍历中完成所有字符的映射，高效且不会产生连锁替换。
+`str.capitalize()` / `str.title()` / `str.swapcase()` 是字符串的**单词级大小写重排方法**：它们不再像 `upper`/`lower` 那样把整串一刀切成全大写或全小写，而是在字符之间做**局部的精装修**——`capitalize` 只把首字符升为大写、其余压成小写，产出标准的"句子格式"；`title` 把每个"单词"的首字母升为大写、词内其余压小写，产出"标题格式"；`swapcase` 没有格式目标，把所有字符大小写镜像对调。
 
-方法签名：
+| 维度 | `capitalize()` | `title()` | `swapcase()` |
+|------|------|------|------|
+| 所属 | `str` 的内置实例方法 | 同左 | 同左 |
+| 语法 | `s.capitalize()` | `s.title()` | `s.swapcase()` |
+| 参数 | 无——传参抛 `TypeError` | 同左 | 同左 |
+| 动作 | 首字符大写 + **其余全部强制小写** | 每个"词"首字母大写 + 词内其余小写 | 大写变小写、小写变大写 |
+| 格式目标 | 句子格式（sentence case） | 标题格式（Title Case） | 无目标，纯镜像翻转 |
+| 典型用途 | 句子、单行描述、日志消息的首字归位 | 书名、栏目、标签的排版标题 | 视觉效果、测试数据的镜像构造 |
+| 坑位 | 非字母开头的文本"看着没反应" | 撇号/数字当边界、缩写词被压扁 | 双次调用不保证还原（`ß`） |
+| 返回 | 转换后的**新串**，原串不变 | 同左 | 同左 |
 
-```python
-str.maketrans(x, y=None, z=None) -> dict[int, int | str | None]
-str.maketrans(mapping_dict) -> dict[int, int | str | None]
-str.translate(table) -> str
-```
+先把本篇最重要的一句认知放在这里：**title 的"单词"不是人眼认识的单词**。它把任何非字母字符（空格、连字符、撇号、数字、下划线）都当作词间边界——`"they're"` 在 title 眼里是 `they` 和 `re` 两个词，于是产出 `"They'Re"`；`'USA'` 被"规范化"成 `'Usa'`。这条机械的边界直觉一半是便利（连字符复合词自动全大写）、一半是坑（英文缩写与撇号全灭），是 2.3 与 2.4 节的主线，也是选型速查表的灵魂。
 
-| 方法 | 作用 | 返回值 |
-|------|------|--------|
-| `maketrans(x, y)` | 从两个等长字符串创建映射表 | `dict[int, int]` |
-| `maketrans(x, y, z)` | 创建映射表并指定删除字符 | `dict[int, int \| None]` |
-| `maketrans(dict)` | 从字典创建映射表 | `dict[int, str \| None]` |
-| `translate(table)` | 使用映射表替换/删除字符 | `str`（新字符串） |
-
-`translate` 的核心特点：
-
-- **单字符映射**——映射表的 key 是单个字符（以 Unicode 序号表示），不是子串
-- **一次遍历**——字符串中的每个字符只需遍历一次即可完成所有映射
-- **不会连锁替换**——所有映射同时生效，不会像链式 `replace` 那样后续步骤影响前面的结果
-- **支持删除**——映射到 `None` 即可删除字符
-- **支持多字符映射值**——Python 3 中，单个字符可以映射到多字符字符串（如 `&` -> `&amp;`）
+这三个方法与 `upper`/`lower`/`casefold` 共同构成大小写转换的完整工具箱：前者管**局部**（哪里大写、哪里小写），后者管**整串**（全部大写或全部小写）。处理展示层文本时你几乎总会先经过整串方法做"清洗基线"，再用本篇的方法做"精装修"，3.4 节会给出这条组合流水线。
 
 ### 1.2 最简示例
 
-先用最简单的代码直观感受这两个方法的配合：
+同一串小写文本，三个方法给出三种排版语义：
 
 ```python
-# 创建映射表：a->1, b->2, c->3
-table = str.maketrans("abc", "123")
+s = "hello world"
 
-# 使用映射表替换
-result = "abcdefabc".translate(table)
-print(result)
-# 123def123
+print(f"capitalize: {s.capitalize()!r}")
+print(f"title:      {s.title()!r}")
+print(f"swapcase:   {s.swapcase()!r}")
 ```
 
 运行结果：
 
 ```text
-123def123
+capitalize: 'Hello world'
+title:      'Hello World'
+swapcase:   'HELLO WORLD'
 ```
 
-映射表可以同时包含替换和删除：
+三种产物的分工一清二楚：`capitalize` 得到 `'Hello world'`——只有句子的第一个字母抬起头，这是叙事句的格式；`title` 得到 `'Hello World'`——两个词的首字母都抬起头，这是标题的格式；`swapcase` 得到 `'HELLO WORLD'`——全部小写镜像成全部大写（碰巧与 `upper` 同形，因为原文全是小写）。
+
+大小写杂交的输入更能暴露三者的性格差异：
 
 ```python
-# 创建映射表：a->1, b->2, c->3, 同时删除 x/y/z
-table = str.maketrans("abc", "123", "xyz")
-result = "abcxyzabc".translate(table)
-print(result)
-# 123123
+s = "hello WORLD"
+
+print(f"capitalize: {s.capitalize()!r}")
+print(f"title:       {s.title()!r}")
+print(f"swapcase:    {s.swapcase()!r}")
 ```
 
 运行结果：
 
 ```text
-123123
+capitalize: 'Hello world'
+title:       'Hello World'
+swapcase:    'HELLO world'
 ```
 
-### 1.3 在字符串方法体系中的位置
+同一个 `'hello WORLD'`：capitalize **强制归位**（首字母升、`world` 一律压小写，产出与全小写输入完全一致）；title 分词归位（首词 `Hello` 的 `H` 升、`WORLD` 压成 `World`）；swapcase 忠实镜像（小写 `hello` 升成 `HELLO`、大写 `WORLD` 降成 `world`）。**normalize（归一到格式）与 swap（翻转形态）是两种世界观**——前两者把文本拉向标准，后者把文本镜像反转。
 
-`translate` 和 `maketrans` 属于"替换类"字符串操作：
+### 1.3 大小写工具体系中的定位
+
+在大小写方法体系里，本篇的三剑客占据"单词级转换"这一层：
 
 ```text
-字符串方法体系
-├── 查找类：find / rfind / index / count / in
-├── 判断类：isalpha / isdigit / isupper / islower ...
-├── 拆分与连接类：split / rsplit / splitlines / partition / join
-├── 替换类（本篇）：
-│   ├── replace          ← 子串替换
-│   └── translate / maketrans  ← 单字符映射替换（本篇）
-├── 大小写转换类：upper / lower / title / capitalize / swapcase
-├── 对齐填充类：ljust / rjust / center / zfill
-└── 清洗类：strip / lstrip / rstrip / removeprefix / removesuffix
+字符与字符串大小写处理的几个层次
+│
+├── 整串转换 —— upper / lower / casefold
+│     └── 整串全部升/降/折叠, 不区分词与句子结构
+│
+├── 单词级转换 —— capitalize / title / swapcase (本篇)
+│     ├── capitalize: 句首大写, 其余压小写(句子格式)
+│     ├── title:       每词首字母大写(标题格式)
+│     └── swapcase:    大小写镜像对调
+│
+├── 形态判定 —— isupper / islower / istitle
+│     └── 回答"当前串是什么大小写形态", 与转换互为验收关系
+│
+└── 外部替代 —— string.capwords
+      └── 标准库的标题排版函数, 分词规则与 title 不同(3.1 节)
 ```
 
-与 `replace` 相比，`translate` 的优势在于：
-
-- **多字符同时映射**——一次调用完成多个单字符的替换，不需要链式调用
-- **不会连锁替换**——所有映射同时生效，不会后续替换影响前面
-- **支持删除**——映射到 `None` 直接删除字符
-- **性能更好**——一次遍历完成所有操作
-
-但 `translate` 也有局限：只支持**单字符**作为映射的 key，不能映射多字符子串（如 `"world"` -> `"Python"`）。
+四层结构里，本篇的三剑客恰好处在中间：比整串转换精细（保留了大小的分布结构）、又与判定方法构成闭环（`title` 的产出恰好通过 `istitle` 的检验，2.6 节验证）。而体系外的 `string.capwords` 针对 `title` 最疼的撇号坑提供了官方替代——3.1 节正面展开。
 
 ## 2. 核心内容
 
-### 2.1 str.maketrans()
+### 2.1 三方法的基本行为
 
-#### 2.1.1 形式1：两个等长字符串
+#### 2.1.1 签名与参数纪律
 
-`maketrans(x, y)` 将两个等长字符串中对应位置的字符建立映射——`x` 中的第 i 个字符映射到 `y` 中的第 i 个字符：
+三个方法共享同一套签名形状——无参数、返回新串、原串不变：
 
 ```python
-table = str.maketrans("abc", "123")
-print(f"  str.maketrans('abc', '123') = {table}")
-print(f"  含义: a->1, b->2, c->3")
+for method in ["capitalize", "title", "swapcase"]:
+    try:
+        getattr("a", method)("x")
+    except TypeError as e:
+        print(f"{method:>10} 带参数 -> TypeError: {e}")
 ```
 
 运行结果：
 
 ```text
-  str.maketrans('abc', '123') = {97: 49, 98: 50, 99: 51}
-  含义: a->1, b->2, c->3
+capitalize 带参数 -> TypeError: str.capitalize() takes no arguments (1 given)
+     title 带参数 -> TypeError: str.title() takes no arguments (1 given)
+  swapcase 带参数 -> TypeError: str.swapcase() takes no arguments (1 given)
 ```
 
-**关键点说明**：
+同一个"takes no arguments"模板——与整串转换家族（upper/lower/casefold）完全同款的纪律：只做整串处理，没有区间参数、没有开关选项。
 
-- 映射表的 key 是字符的 Unicode 序号（`ord('a')` = 97），value 是目标字符的序号（`ord('1')` = 49）
-- `x` 和 `y` 的长度必须相同，否则抛出 `ValueError`
+#### 2.1.2 返回新串：原串不变
 
-再来一个元音字母替换的例子：
+字符串不可变，转换产物是全新构造的串，**原串从头到尾保持原样**：
 
 ```python
-table = str.maketrans("aeiou", "12345")
-print(f"  str.maketrans('aeiou', '12345') = {table}")
-print(f"  含义: a->1, e->2, i->3, o->4, u->5")
+raw = "product NAME"
+
+print(f"raw 原串:    {raw!r}")
+print(f"raw.title(): {raw.title()!r}")
+
+raw.title()          # 反面教材: 结果被丢弃
+print(f"不接收后 raw: {raw!r}  <- 转换结果无人接收, 纹丝不动")
 ```
 
 运行结果：
 
 ```text
-  str.maketrans('aeiou', '12345') = {97: 49, 101: 50, 105: 51, 111: 52, 117: 53}
-  含义: a->1, e->2, i->3, o->4, u->5
+raw 原串:    'product NAME'
+raw.title(): 'Product Name'
+不接收后 raw: 'product NAME'  <- 转换结果无人接收, 纹丝不动
 ```
 
-#### 2.1.2 长度不匹配报错
+第二行的 `raw.title()` 确实执行了、确实产出了 `'Product Name'`——但新串无人接收，当场蒸发。**"调用了转换但数据没变"的第一嫌疑人永远是忘记接收返回值**——这与剥壳家族、整串转换家族的坑完全同构，是所有返回新串方法的共同事故面。
 
-两个字符串长度不同时，`maketrans` 抛出 `ValueError`：
+#### 2.1.3 空串与单字符的边界
+
+三个方法对最小输入的行为：
 
 ```python
-try:
-    table = str.maketrans("abc", "12")
-except ValueError as e:
-    print(f"  str.maketrans('abc', '12') -> ValueError: {e}")
+for s in ["", "a", "A"]:
+    print(f"{s!r}: capitalize={s.capitalize()!r}, "
+          f"title={s.title()!r}, swapcase={s.swapcase()!r}")
 ```
 
 运行结果：
 
 ```text
-  str.maketrans('abc', '12') -> ValueError: the first two maketrans arguments must have equal length
+'': capitalize='', title='', swapcase=''
+'a': capitalize='A', title='A', swapcase='A'
+'A': capitalize='A', title='A', swapcase='a'
 ```
 
-#### 2.1.3 形式2：第三参数指定删除字符
+三个观察：空串对三个方法都是"无字符可处理"，原样返回；单个小写 `'a'` 在三个方法下都升成 `'A'`（capitalize 与 title 的首字母指定动作、swapcase 的小转大）；已是大写的 `'A'` 在 capitalize/title 下不变（它已经达标——首字母大写格式），在 swapcase 下降为 `'a'`（镜像对调不讲达标，只讲翻转）。
 
-`maketrans(x, y, z)` 在建立映射的同时，指定要删除的字符集 `z`——`z` 中每个字符映射到 `None`（即删除）：
+### 2.2 capitalize：句首大写，其余压小写
+
+#### 2.2.1 两个动作：try 升首字符 + 强制压小写
+
+`capitalize` 的完整语义是两个动作的叠加：**把首字符尽量升为大写，把其余全部字符强制压为小写**。它的产出是标准的"句子格式"（sentence case）——无论原文大小写多乱，归位后只有第一个字母大写：
 
 ```python
-table = str.maketrans("abc", "123", "xyz")
-print(f"  str.maketrans('abc', '123', 'xyz') = {table}")
-print(f"  含义: a->1, b->2, c->3, 同时删除 x/y/z")
-
-result = "abcxyzabc".translate(table)
-print(f"  'abcxyzabc'.translate(table) = {result!r}")
-```
-
-运行结果：
-
-```text
-  str.maketrans('abc', '123', 'xyz') = {97: 49, 98: 50, 99: 51, 120: None, 121: None, 122: None}
-  含义: a->1, b->2, c->3, 同时删除 x/y/z
-  'abcxyzabc'.translate(table) = '123123'
-```
-
-**关键点说明**：
-
-- 第三参数 `z` 是一个字符串，其中每个字符都会被映射到 `None`（删除）
-- `"abcxyzabc"` 经过映射后，`a/b/c` 变成 `1/2/3`，`x/y/z` 被删除，结果为 `"123123"`
-
-#### 2.1.4 形式3：字典形式
-
-`maketrans(dict)` 接受一个字典，key 是字符，value 是目标字符或 `None`（删除）：
-
-```python
-# 映射到字符串
-table = str.maketrans({"a": "1", "b": "2", "c": "3"})
-print(f"  str.maketrans({{'a':'1','b':'2','c':'3'}}) = {table}")
-```
-
-运行结果：
-
-```text
-  str.maketrans({'a':'1','b':'2','c':'3'}) = {97: '1', 98: '2', 99: '3'}
-```
-
-字典形式更灵活——可以映射到多字符字符串、可以映射到 `None` 删除字符：
-
-```python
-# 混合：映射 + 删除
-table = str.maketrans({"a": "1", "e": None, "i": "!"})
-print(f"  含 None 的字典: {table}")
-print("  a->1, e->删除, i->!")
-result = "aeiou".translate(table)
-print(f"  'aeiou'.translate(table) = {result!r}")
-```
-
-运行结果：
-
-```text
-  含 None 的字典: {97: '1', 101: None, 105: '!'}
-  a->1, e->删除, i->!
-  'aeiou'.translate(table) = '1!ou'
-```
-
-**关键点说明**：
-
-- 字典形式中，value 可以是字符串（包括多字符）、`None`（删除）、或整数（Unicode 序号）
-- `"aeiou"` 经过映射后：`a` -> `1`，`e` 被删除，`i` -> `!`，`o` 和 `u` 不在映射表中保持不变，结果为 `"1!ou"`
-
-#### 2.1.5 映射表的内部结构
-
-`maketrans` 返回的是一个字典，key 是 Unicode 序号（`int`），value 可以是：
-- `int`：目标字符的 Unicode 序号（两等长字符串形式）
-- `str`：目标字符串（字典形式，可以是多字符）
-- `None`：表示删除该字符
-
-```python
-table = str.maketrans("ab", "12")
-print(f"  str.maketrans('ab', '12') = {table}")
-print(f"  ord('a')={ord('a')}, ord('b')={ord('b')}")
-print(f"  ord('1')={ord('1')}, ord('2')={ord('2')}")
-```
-
-运行结果：
-
-```text
-  str.maketrans('ab', '12') = {97: 49, 98: 50}
-  ord('a')=97, ord('b')=98
-  ord('1')=49, ord('2')=50
-```
-
-**关键点说明**：
-
-- 映射表的 key 是 `97`（`ord('a')`），不是字符 `'a'` 本身
-- 两等长字符串形式返回 `{int: int}` 结构，值是目标字符的序号
-- 字典形式返回 `{int: str | None}` 结构，值是字符串或 `None`
-
-### 2.2 str.translate()
-
-#### 2.2.1 基本用法
-
-`translate(table)` 接受 `maketrans` 创建的映射表，对字符串中的每个字符进行映射：
-
-```python
-table = str.maketrans("aeiou", "12345")
-s = "hello world"
-result = s.translate(table)
-print(f"  映射: a->1, e->2, i->3, o->4, u->5")
-print(f"  {s!r}.translate(table) = {result!r}")
-```
-
-运行结果：
-
-```text
-  映射: a->1, e->2, i->3, o->4, u->5
-  'hello world'.translate(table) = 'h2ll4 w4rld'
-```
-
-**关键点说明**：
-
-- `e` -> `2`，`o` -> `4`，其余字符不在映射表中保持不变
-- `"hello world"` -> `"h2ll4 w4rld"`
-
-#### 2.2.2 映射到多字符字符串
-
-Python 3 中，`translate` 支持将单个字符映射为多字符字符串。这在 HTML 转义等场景中非常有用：
-
-```python
-table = str.maketrans({"a": "XY"})
-result = "abc".translate(table)
-print(f"  maketrans({{'a':'XY'}}), 'abc'.translate(table) = {result!r}")
-```
-
-运行结果：
-
-```text
-  maketrans({'a':'XY'}), 'abc'.translate(table) = 'XYbc'
-```
-
-`a` 被映射为 `"XY"`（两个字符），其余字符不变。
-
-#### 2.2.3 不可变性
-
-`translate` 不会修改原字符串——它返回一个新字符串：
-
-```python
-original = "hello"
-table = str.maketrans("h", "H")
-result = original.translate(table)
-print(f"  原始: {original!r}")
-print(f"  替换后: {result!r}")
-print(f"  原始未被修改: {original == 'hello'}")
-```
-
-运行结果：
-
-```text
-  原始: 'hello'
-  替换后: 'Hello'
-  原始未被修改: True
-```
-
-#### 2.2.4 空映射表
-
-空映射表（`maketrans("", "")`）不替换任何字符。`translate` 对空映射表返回内容相同的新字符串：
-
-```python
-table = str.maketrans("", "")
-s = "hello world"
-result = s.translate(table)
-print(f"  {s!r}.translate(maketrans('', '')) = {result!r}")
-print(f"  内容相同: {s == result}")
-print(f"  同一对象: {s is result}")
-```
-
-运行结果：
-
-```text
-  'hello world'.translate(maketrans('', '')) = 'hello world'
-  内容相同: True
-  同一对象: False
-```
-
-**关键点说明**：
-
-- 空映射表返回内容相同的新字符串，但不是同一对象（`is` 为 `False`）
-- 这与 `replace(old, new, 0)` 不同——后者在 `count=0` 时返回原对象本身
-
-#### 2.2.5 中文字符替换
-
-`translate` 支持 Unicode 字符映射，包括中文：
-
-```python
-table = str.maketrans({"你": "我", "好": "棒"})
-s = "你好世界"
-result = s.translate(table)
-print(f"  原始: {s}")
-print(f"  替换: {result}")
-```
-
-运行结果：
-
-```text
-  原始: 你好世界
-  替换: 我棒世界
-```
-
-### 2.3 translate 删除字符
-
-#### 2.3.1 映射到 None 删除字符
-
-字典形式中，value 为 `None` 表示删除该字符：
-
-```python
-table = str.maketrans({" ": None, ",": None, ".": None, "!": None, "?": None})
-s = "Hello, World! How are you?"
-result = s.translate(table)
-print(f"  原始: {s!r}")
-print(f"  删除标点和空格后: {result!r}")
-```
-
-运行结果：
-
-```text
-  原始: 'Hello, World! How are you?'
-  删除标点和空格后: 'HelloWorldHowareyou'
-```
-
-#### 2.3.2 第三参数删除字符集
-
-`maketrans("", "", z)` 可以只删除字符不做替换——前两个参数传空字符串：
-
-```python
-# 删除所有数字
-table = str.maketrans("", "", "0123456789")
-cases = [
-    ("phone: 138-1234-5678", "删除数字"),
-    ("price: $99.99", "删除数字"),
-    ("ID: 2024-001", "删除数字"),
+samples = [
+    "hello WORLD",    # 大写正文
+    "hELLO wORLD",    # 乱序大小写
+    "hello world",    # 已是标准句式
 ]
-for s, label in cases:
-    result = s.translate(table)
-    print(f"  {s!r} -> {result!r} ({label})")
+
+for s in samples:
+    print(f"  {s!r}.capitalize() -> {s.capitalize()!r}")
 ```
 
 运行结果：
 
 ```text
-  'phone: 138-1234-5678' -> 'phone: --' (删除数字)
-  'price: $99.99' -> 'price: $.' (删除数字)
-  'ID: 2024-001' -> 'ID: -' (删除数字)
+  'hello WORLD'.capitalize() -> 'Hello world'
+  'hELLO wORLD'.capitalize() -> 'Hello world'
+  'hello world'.capitalize() -> 'Hello world'
 ```
 
-#### 2.3.3 translate 删除 vs replace 删除
+三种输入殊途同归 `'Hello world'`——第二个动作（压小写）是无差别的：`WORLD` 被压成 `world`，无论它原本是大写声明还是大写 shouting。**capitalize 产出的是"归一化句子"而不是"保留作者强调的句子"**——凡是大写起强调作用的数据，过一遍 capitalize 强调就没了。
 
-删除多种字符时，`translate` 一次调用完成，`replace` 需要链式调用多次：
+#### 2.2.2 非字母开头：第一个动作落空
+
+首字符若是数字、下划线、汉字这类**没有大小写体系的字符**，第一个动作（升大写）无处置办——capitalize 的表现是"看着没反应"：
 
 ```python
-s = "a1b2c3d4"
-# translate 一次性删除所有数字
-table = str.maketrans("", "", "1234")
-t_result = s.translate(table)
-# replace 需要链式调用
-r_result = s.replace("1", "").replace("2", "").replace("3", "").replace("4", "")
-print(f"  原始: {s!r}")
-print(f"  translate: {t_result!r}")
-print(f"  replace链式: {r_result!r}")
-print(f"  结果相同: {t_result == r_result}")
+samples = [
+    "123abc starts here",   # 首字符是数字
+    "_hidden value",        # 首字符是下划线
+    "中文abc",               # 首字符是汉字
+]
+
+for s in samples:
+    print(f"  {s!r}.capitalize() -> {s.capitalize()!r}")
 ```
 
 运行结果：
 
 ```text
-  原始: 'a1b2c3d4'
-  translate: 'abcd'
-  replace链式: 'abcd'
-  结果相同: True
+  '123abc starts here'.capitalize() -> '123abc starts here'
+  '_hidden value'.capitalize() -> '_hidden value'
+  '中文abc'.capitalize() -> '中文abc'
 ```
 
-`translate` 只需一次调用，而 `replace` 需要四次链式调用——当需要删除的字符种类很多时，`translate` 的优势更加明显。
-
-### 2.4 同时替换和删除
-
-#### 2.4.1 第三参数形式
-
-`maketrans(x, y, z)` 可以同时替换字符（x->y）和删除字符（z）：
+三行输入原样返回，但这**不是方法偷懒**——两个动作都在执行：数字/下划线/汉字没有大写形态，第一个动作落空；第二个动作（压小写）照常执行，只是样本里的字母（`abc`）本来就全是小写，压了等于没压。验证第二个动作在场的方法很简单——把样本换成大小写混杂的正文：
 
 ```python
-table = str.maketrans("aeiou", "12345", "xyz")
-s = "hello xyz world"
-result = s.translate(table)
-print(f"  原始: {s!r}")
-print(f"  替换元音+删除xyz: {result!r}")
+s = "123ABC starts HERE"
+print(f"{s!r}.capitalize() -> {s.capitalize()!r}")
 ```
 
 运行结果：
 
 ```text
-  原始: 'hello xyz world'
-  替换元音+删除xyz: 'h2ll4  w4rld'
+'123ABC starts HERE'.capitalize() -> '123abc starts here'
 ```
 
-**关键点说明**：
+首字符 `1` 没有升大写可言，但 `ABC` 与 `HERE` 被压成 `abc` 与 `here`——**第二个动作从不缺席，缺席的只是第一个动作的靶子**。理解了"两个动作"的拆解，capitalize 在任何输入上的行为都可以精确预判。
 
-- `e` -> `2`，`o` -> `4`，元音被替换
-- `x`/`y`/`z` 被删除，`"xyz"` 变为空字符串
-- `"hello xyz world"` -> `"h2ll4  w4rld"`（注意有两个空格，原文本中 xyz 两侧的空格保留）
+#### 2.2.3 单字符归位
 
-#### 2.4.2 字典形式
-
-字典形式也可以同时指定替换和删除：
+最小样本验证两个动作的边界：
 
 ```python
-table = str.maketrans({"a": "@", "o": "0", " ": None})
-s = "hello world app"
-result = s.translate(table)
-print(f"  原始: {s!r}")
-print(f"  替换a/o+删除空格: {result!r}")
+for ch in ["a", "A", "1", "中"]:
+    print(f"  {ch!r}.capitalize() -> {ch.capitalize()!r}")
 ```
 
 运行结果：
 
 ```text
-  原始: 'hello world app'
-  替换a/o+删除空格: 'hell0w0rld@pp'
+  'a'.capitalize() -> 'A'
+  'A'.capitalize() -> 'A'
+  '1'.capitalize() -> '1'
+  '中'.capitalize() -> '中'
 ```
 
-**关键点说明**：
+`'a'` 升为 `'A'`（第一个动作生效）且没有其余字符可压；`'A'` 已达标原样；`'1'` 与 `'中'` 两个动作都无靶子。capitalize 对单字符等价于"把首字符变到大写形态"。
 
-- `o` -> `0`，`a` -> `@`
-- 空格被删除
-- `"hello world app"` -> `"hell0w0rld@pp"`
+### 2.3 title 的分词规则：非字母即边界
 
-### 2.5 映射到多字符字符串
+#### 2.3.1 五种边界：title 眼中只有"连续字母序列"
 
-#### 2.5.1 HTML 实体转义
-
-`translate` 的多字符映射值在 HTML 转义场景中非常实用——多个特殊字符可以一次性替换为各自的 HTML 实体：
+`title` 对"单词"的定义是机械的：**凡连续的字母序列就是一个词**——空格是最普通的边界，但连字符、下划线、数字统统算边界。五种边界一次看清：
 
 ```python
-html_table = str.maketrans({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-})
-raw = '<div class="x">A & B</div>'
-escaped = raw.translate(html_table)
-print(f"  原始: {raw}")
-print(f"  转义: {escaped}")
+samples = [
+    "hello world",         # 空格分词: 最常规认知
+    "well-known expert",   # 连字符: 复合词被拆成两个词
+    "hello_world",         # 下划线: 编程命名被拆词
+    "top 10 tips",         # 数字与空格
+    "abc2def",             # 数字也是边界: abc 和 def 分别大写
+]
+
+for s in samples:
+    print(f"  {s!r}.title() -> {s.title()!r}")
 ```
 
 运行结果：
 
 ```text
-  原始: <div class="x">A & B</div>
-  转义: &lt;div class=&quot;x&quot;&gt;A &amp; B&lt;/div&gt;
+  'hello world'.title() -> 'Hello World'
+  'well-known expert'.title() -> 'Well-Known Expert'
+  'hello_world'.title() -> 'Hello_World'
+  'top 10 tips'.title() -> 'Top 10 Tips'
+  'abc2def'.title() -> 'Abc2Def'
 ```
 
-**关键点说明**：
+五条结果的解读分层进行：空格分词符合直觉；连字符把 `well-known` 拆成 `Well` + `Known` 两词（排版上复合词每段都大写，多半是乐于接受的）；下划线同理拆 `Hello_World`；最值得注意的是最后一条——**`2` 是边界，`def` 紧跟着数字就被认成新词**，`Abc2Def` 这种大写在人眼里很怪，在 title 的规则里完全自洽。
 
-- `<` -> `&lt;`，`>` -> `&gt;`，`"` -> `&quot;`，`&` -> `&amp;`
-- 一次 `translate` 调用完成所有转义，不需要链式 `replace`
-- 如果用 `replace` 实现同样的效果，需要四次链式调用，且 `&` 的替换需要放在最前面（否则会将后续替代的实体中的 `&` 再次替换）
+#### 2.3.2 撇号边界：最高频的坑
 
-#### 2.5.2 删除 Unicode 字符
-
-`translate` 可以删除任何 Unicode 字符，包括中文标点：
+五种边界里，撇号带来的坑口碑最差——因为英文缩写（`they're`、`don't`）在自然文本里出现得太频繁了：
 
 ```python
-# 删除中文全角标点
-table = str.maketrans("", "", "\u3000\u3001\u3002\uff0c\uff1b\uff1a\uff01\uff1f")
-s = "\u3000你好\uff0c世界\uff01"
-result = s.translate(table)
-print(f"  原始: {s!r}")
-print(f"  删除中文标点: {result!r}")
+samples = [
+    "they're bill's",
+    "don't stop",
+    "o'reilly's books",
+]
+
+for s in samples:
+    print(f"  {s!r}.title() -> {s.title()!r}")
 ```
 
 运行结果：
 
 ```text
-  原始: '\u3000你好，世界！'
-  删除中文标点: '你好世界'
+  "they're bill's".title() -> "They'Re Bill'S"
+  "don't stop".title() -> "Don'T Stop"
+  "o'reilly's books".title() -> "O'Reilly'S Books"
 ```
 
-### 2.6 translate vs replace 对比
+`'` 是非字母字符，于是 `they're` 被拆成 `they` 与 `re` 两词——`re` 的 `r` 也要"首字母大写"，产出 `"They'Re"`；`don't` 得到 `"Don'T"`；姓名 `o'reilly` 惨遭双重切割 `"O'Reilly'S"`。**眼睛看着别扭，逻辑上无懈可击**——title 的分词规则没有"撇号连词"的概念，它只认"非字母即边界"这一条死理。要对人眼友好，需要的就是分词规则不同的替代工具（3.1 节的 `string.capwords`）。
 
-#### 2.6.1 链式 replace 的连锁替换问题
+#### 2.3.3 任何字符都能当边界：边界的完全体
 
-链式 `replace` 的核心缺陷——后续替换可能影响前面步骤的结果：
+边界没有"资格认证"——任何非字母字符站在词前，下一个字母就要大写：
 
 ```python
-s = "abc"
-# 想把 a->b, b->c
-result = s.replace("a", "b").replace("b", "c")
-print(f"  原始: {s!r}")
-print(f"  replace('a','b').replace('b','c') = {result!r}")
-print("  期望 'bcc'，实际 'ccc'（连锁替换）")
-
-table = str.maketrans("ab", "bc")
-result2 = s.translate(table)
-print(f"  translate(maketrans('ab','bc')) = {result2!r}")
-print("  translate 一次性映射，不会连锁")
+for s in ["- leading dash", "(paren note)", "2fast 2furious"]:
+    print(f"  {s!r}.title() -> {s.title()!r}")
 ```
 
 运行结果：
 
 ```text
-  原始: 'abc'
-  replace('a','b').replace('b','c') = 'ccc'
-  期望 'bcc'，实际 'ccc'（连锁替换）
-  translate(maketrans('ab','bc')) = 'bcc'
-  translate 一次性映射，不会连锁
+  '- leading dash'.title() -> '- Leading Dash'
+  '(paren note)'.title() -> '(Paren Note)'
+  '2fast 2furious'.title() -> '2Fast 2Furious'
 ```
 
-#### 2.6.2 replace 支持多字符子串
+开头是 `-`，`leading` 的 `l` 大写；括号包裹的词首字母照升；`2fast` 的 `f` 因为前面站着数字 `2` 而大写成 `2Fast`。title 的世界里**"词"是纯字母概念、与排版符号无关**——这是理解它全部行为的钥匙，也是预判它何时伤人的钥匙。
 
-`replace` 的优势——支持多字符子串替换，`translate` 无法做到：
+#### 2.3.4 边界规则的正反两面
+
+把 2.3 节收拢成一张正反账：
+
+| 表现 | 正面（受益场景） | 反面（受伤场景） |
+|------|------|------|
+| 连字符/下划线当边界 | 复合词每段自动大写：`Well-Known Expert` | 编程命名 `hello_world` 也被切词（多数场合无害） |
+| 数字当边界 | 编号后接的词自动大写：`2Fast` | 无声变怪：`abc2def` → `Abc2Def` |
+| 撇号当边界 | ——（几乎没有受益场景） | 缩写词全灭：`they're` → `They'Re` |
+
+分词规则本身没有对错——**错误的是把它用在它不认识的数据形态上**。含撇号与缩写词的文本需要的是另一种分词标准，这正是标准库提供 `string.capwords` 的动机。
+
+### 2.4 title 的杀伤现场：缩写词、驼峰与品牌名
+
+#### 2.4.1 缩写词：全大写被压成单词式
+
+title 的语义是"标题排版"——它把每个词刷成首大写形式，但缩写词（`USA`、`NASA`、`API`）本来就靠全大写立身，一律"规范化"后惨遭变形：
 
 ```python
-s = "hello world"
-# replace 可以替换多字符子串
-r_result = s.replace("world", "Python")
-print(f"  replace('world', 'Python'): {r_result!r}")
-# translate 只能映射单个字符，无法把 "world" 作为整体替换
+for s in ["USA vs NASA", "PDF viewer API", "HTML and CSS"]:
+    print(f"  {s!r}.title() -> {s.title()!r}")
 ```
 
 运行结果：
 
 ```text
-  replace('world', 'Python'): 'hello Python'
+  'USA vs NASA'.title() -> 'Usa Vs Nasa'
+  'PDF viewer API'.title() -> 'Pdf Viewer Api'
+  'HTML and CSS'.title() -> 'Html And Css'
 ```
 
-#### 2.6.3 完整对比表
+`USA` 变 `Usa`、`NASA` 变 `Nasa`——除首字母外的所有字母一律压小写，全大写缩写词就此失去辨识度。**排版目标与命名语义在这里正面冲突**：title 追求视觉统一，缩写词依赖视觉特异性，鱼与熊掌不可兼得——这类文本要么换工具，要么后处理还原。
 
-| 维度 | `translate` | `replace` |
-|------|-------------|-----------|
-| 替换类型 | 单字符映射 | 子串替换 |
-| 多字符 old | 不支持 | 支持 |
-| 多字符 new | 支持（Python 3） | 支持 |
-| 删除字符 | 映射 `None` 或第三参数 | `new=""` |
-| 同时替换+删除 | 一次调用完成 | 需要多次链式调用 |
-| 连锁替换问题 | 不会连锁 | 可能连锁 |
-| 替换次数限制 | 不支持 | 支持 `count` |
-| 性能（多字符映射） | 更好（一次遍历） | 较差（多次创建新串） |
-| 使用前提 | 需先 `maketrans` 建表 | 直接调用 |
+#### 2.4.2 驼峰与品牌名：中间大写被抹平
+
+程序命名（驼峰式）与品牌名（iPhone、YouTube）在词中藏着大写字母——title 一视同仁地压平：
+
+```python
+for s in ["iPhone 15 pro", "McDonald's o'Reilly", "YouTube playlist"]:
+    print(f"  {s!r}.title() -> {s.title()!r}")
+```
+
+运行结果：
+
+```text
+  'iPhone 15 pro'.title() -> 'Iphone 15 Pro'
+  "McDonald's o'Reilly".title() -> "Mcdonald'S O'Reilly"
+  'YouTube playlist'.title() -> 'Youtube Playlist'
+```
+
+`iPhone` 变 `Iphone`（品牌精心设计的第二个大写 `P` 被压掉）、`McDonald's` 变 `Mcdonald'S`（撇号边界再插一刀，`Donald` 的小写 `c` 也不保）、`YouTube` 变 `Youtube`。**title 只保证"机械的排版统一"，不理解任何品牌与命名的语义**——发布出去的产品文案里出现 `Iphone 15 Pro`，错的不是 title，是把它送进了不该进的处理线。
+
+#### 2.4.3 正面应用：全小写自然短语——title 的安全区
+
+说完禁区看安全区——**全小写的自然短语**（书名、栏目名、课程标题）正是 title 的理想产地：
+
+```python
+for s in ["the quick brown fox", "war and peace", "python basics in one hour"]:
+    print(f"  {s!r}.title() -> {s.title()!r}")
+```
+
+运行结果：
+
+```text
+  'the quick brown fox'.title() -> 'The Quick Brown Fox'
+  'war and peace'.title() -> 'War And Peace'
+  'python basics in one hour'.title() -> 'Python Basics In One Hour'
+```
+
+三行产出全部无可挑剔——因为安全区有三重保险：输入全小写（没有需要保留的大小写语义）、纯空格分词（没有撇号数字的怪边界）、无缩写词（没有需要豁免的全大写）。**title 的错误面从来不在代码，在数据种类**——入线前先问"这批文本是全小写自然短语吗"，是使用 title 的第一守则。
+
+### 2.5 swapcase：大小写对调
+
+#### 2.5.1 基本对调：忠实的镜像
+
+swapcase 没有格式目标，它只做一件事：小写变大写、大写变小写——每个字符照着镜像翻转：
+
+```python
+for s in ["Hello World", "hello WORLD", "hELLO wORLD"]:
+    print(f"  {s!r}.swapcase() -> {s.swapcase()!r}")
+```
+
+运行结果：
+
+```text
+  'Hello World'.swapcase() -> 'hELLO wORLD'
+  'hello WORLD'.swapcase() -> 'HELLO world'
+  'hELLO wORLD'.swapcase() -> 'Hello World'
+```
+
+第三行最妙：经过手工打乱大小写的串，swapcase 照样逐字符翻转还原规整——**它不判断"当前是什么形态"，只执行"翻到对面"**。与 capitalize/title 的"归位到标准格式"是两种世界观：前者是镜像翻转，后两者是规范归一。
+
+#### 2.5.2 双次对调不还原：ß 的案例
+
+直觉认为"翻两次等于没翻"（`s.swapcase().swapcase() == s`）。德语 `ß` 把这条直觉再次打破：
+
+```python
+print(f"  'ß'.swapcase()           -> {'ß'.swapcase()!r}   <- 一个变两个")
+print(f"  'ß'.swapcase().swapcase() -> {'ß'.swapcase().swapcase()!r}   <- 回来的是 ss")
+print(f"  双次还原失败: {'ß'.swapcase().swapcase() != 'ß'}")
+```
+
+运行结果：
+
+```text
+  'ß'.swapcase()           -> 'SS'   <- 一个变两个
+  'ß'.swapcase().swapcase() -> 'ss'   <- 回来的是 ss
+  双次还原失败: True
+```
+
+`ß` 无对应的小写形态变化（它本来就是小写），于是翻转成大写 `SS`——**一个字符翻成两个**；再翻回来是两个普通小写 `ss`，与原串 `ß` 不再相等。机制与整串转换家族的"往返不对称"同根同源：**翻转走的是大小写映射，一对多的展开在第一次翻转时丢掉了身份信息**。含特殊字符的文本，双次 swapcase 不保证闭环。
+
+#### 2.5.3 中性字符原样通过
+
+没有大小写体系的字符不参与翻转：
+
+```python
+for s in ["中文Aa123", "🚀AB", "123"]:
+    print(f"  {s!r}.swapcase() -> {s.swapcase()!r}")
+```
+
+运行结果：
+
+```text
+  '中文Aa123'.swapcase() -> '中文aA123'
+  '🚀AB'.swapcase() -> '🚀ab'
+  '123'.swapcase() -> '123'
+```
+
+汉字、emoji、数字原样穿过，翻转只动有大小写对应的那部分字符——判定标准依旧是"字符有没有大小写形态"，与语种无关。
+
+#### 2.5.4 适用场景：要翻转，不要规范
+
+swapcase 在三个方法里地位最"工具人"——它出现的地方通常不追求排版：
+
+```python
+print(f"  强调: {'warning! attention!'.swapcase()!r}")
+print(f"  对测试数据做镜像: {'True False None'.swapcase()!r}")
+```
+
+运行结果：
+
+```text
+  强调: 'WARNING! ATTENTION!'
+  对测试数据做镜像: 'tRUE fALSE nONE'
+```
+
+两类典型用法：小写警示语翻成全大写强调（与 `upper` 同效，但语义是"翻转"）；测试夹具故意构造大小写镜像数据（验证某段代码对大小写不敏感）。**每当发现"我只是想统一成大写"的需求，意志坚定地改用 `upper`**——swapcase 的价值在翻转本身，不在排版。
+
+### 2.6 istitle：title 产出的验收章
+
+#### 2.6.1 判定标准与三组典型形态
+
+title 有一个天生的搭档——判定方法 `istitle()`。它的判定标准与 title 的分词规则同源：**每个用非字母边界切出的"词"如果含大小写字符，必须是首字符大写、其余小写**。几组典型形态过一遍：
+
+```python
+samples = [
+    "Hello World",       # title 标准形态
+    "They'Re",           # 撇号边界后的 R 也算词首
+    "HELLO WORLD",       # 全大写: 是 isupper, 不是 istitle
+    "hello world",       # 全小写: 是 islower, 也不是 istitle
+]
+
+for s in samples:
+    print(f"  {s!r}: istitle={s.istitle()}, isupper={s.isupper()}, islower={s.islower()}")
+```
+
+运行结果：
+
+```text
+  'Hello World': istitle=True, isupper=False, islower=False
+  "They'Re": istitle=True, isupper=False, islower=False
+  'HELLO WORLD': istitle=False, isupper=True, islower=False
+  'hello world': istitle=False, isupper=False, islower=True
+```
+
+四行输出两条看点：
+
+- **`"They'Re"` 通过 istitle**——人眼觉得别扭的形态，判定上是合法的 title 格式：撇号是边界，`Re` 是一个"词"，首字符大写达标。**istitle 执行的是同一套机械边界规则**，它不会"体谅"人眼的感受。
+- **`'HELLO WORLD'` 不通过 istitle**——全大写是"另一种形态"（`isupper=True`），不是标题格式。大小写形态的判定方法各管一格：isupper、islower、istitle 三者互斥地覆盖全大写、全小写、单词首大写三种形态。
+
+#### 2.6.2 转换与判定的闭环
+
+title 的产出必然通过 istitle 的检验——无论原文多乱：
+
+```python
+originals = ["they're bill's", "usa nasa", "PDF viewer API"]
+
+for s in originals:
+    made = s.title()
+    print(f"  {s!r} -> {made!r}: istitle={made.istitle()}")
+```
+
+运行结果：
+
+```text
+  "they're bill's" -> "They'Re Bill'S": istitle=True
+  'usa nasa' -> 'Usa Nasa': istitle=True
+  'PDF viewer API' -> 'Pdf Viewer Api': istitle=True
+```
+
+三组输入各有各的原始毛病（撇号、全小写、全大写缩写），title 的产出全部通过 istitle——**因为 istitle 的判定标准就是 title 的转换标准**，转换写下的每一笔，判定都认账。这对闭环在工程上是"验收章"：处理标题数据的管线可以在出口处放一道 `istitle()` 检查，凡不合格的行就知道绕过了标准流程。
+
+#### 2.6.3 判定成立需要至少一个大小写字符
+
+纯汉字、纯数字、空串——没有大小写字符，istitle 一律 False：
+
+```python
+for s in ["中文", "123 456", ""]:
+    print(f"  {s!r}: istitle={s.istitle()}   <- 没有大小写字符, 判 False")
+```
+
+运行结果：
+
+```text
+  '中文': istitle=False   <- 没有大小写字符, 判 False
+  '123 456': istitle=False   <- 没有大小写字符, 判 False
+  '': istitle=False   <- 没有大小写字符, 判 False
+```
+
+**"全词大写且位置正确"需要至少一个大小写字符来体现**——参与大小写体系的字符数为零时，"格式"无从谈起。这条边界与 isupper/islower 的空串行为（同为 False）一脉相承：形态判定方法要求至少存在一个能承载形态的字符。
 
 ## 3. 最佳实践
 
-### 3.1 推荐 vs 不推荐写法
+### 3.1 排版英文标题：capwords 优于 title
 
-| 场景 | 不推荐 | 推荐 | 原因 |
-|------|--------|------|------|
-| 同时替换多个单字符 | `s.replace("a","1").replace("b","2")` | `s.translate(str.maketrans("ab","12"))` | translate 一次完成，避免连锁 |
-| 删除多种字符 | `s.replace("1","").replace("2","")...` | `s.translate(str.maketrans("","",chars))` | translate 一次完成 |
-| 替换子串 | `s.translate(...)` | `s.replace(old, new)` | translate 不支持多字符子串 |
-| 限制替换次数 | `s.translate(...)` | `s.replace(old, new, count)` | translate 不支持 count |
-| HTML 转义 | `s.replace("&","&amp;").replace("<","&lt;")...` | `s.translate(str.maketrans({...}))` | translate 一次完成，且避免 `&` 连锁 |
-| ROT13 密码 | `s.replace("a","n").replace("b","o")...` | `s.translate(str.maketrans(...))` | translate 一次完成所有字母偏移 |
-
-### 3.2 常见错误模式
-
-**错误1：用 translate 替换多字符子串**
-
-```python
-# translate 无法把 "world" 作为整体替换
-# 错误想法：maketrans("world", "Python")
-# 这会把 w->P, o->y, r->t, l->h, d->o，而不是把 "world" 替换为 "Python"
-
-# 正确做法：用 replace
-result = "hello world".replace("world", "Python")
-```
-
-**错误2：maketrans 两个字符串长度不匹配**
-
-```python
-# 长度不同会报错
-try:
-    table = str.maketrans("abc", "12")  # ValueError!
-except ValueError as e:
-    print(f"Error: {e}")
-
-# 正确做法：两个字符串必须等长
-table = str.maketrans("abc", "123")
-```
-
-**错误3：用链式 replace 做多字符映射导致连锁替换**
-
-```python
-# a->b, b->c，但产生了连锁替换
-s = "abc"
-result = s.replace("a", "b").replace("b", "c")
-print(result)  # 'ccc' 而非 'bcc'
-
-# 正确做法：用 translate
-table = str.maketrans("ab", "bc")
-print(s.translate(table))  # 'bcc'
-```
-
-**错误4：HTML 转义时 & 的替换顺序错误**
-
-```python
-# 如果先替换 < -> &lt;，再替换 & -> &amp;
-# 那 &lt; 中的 & 也会被替换成 &amp;lt;
-s = '<a>A & B</a>'
-
-# 错误顺序
-wrong = s.replace("<", "&lt;").replace("&", "&amp;")
-print(wrong)  # '&lt;a&gt;A &amp; B&lt;/a&gt;'...'  乱套了
-
-# 正确做法：先替换 & 再替换其他，或用 translate
-table = str.maketrans({"&": "&amp;", "<": "&lt;", ">": "&gt;"})
-print(s.translate(table))  # 一次完成，没有顺序问题
-```
-
-### 3.3 实战示例：ROT13 密码
-
-ROT13 是一种简单的字母偏移密码——每个字母偏移 13 位，加密和解密使用同一个操作：
+title 的撇号坑（2.3.2 节）痛了太多人，标准库早有官方替代——`string.capwords`。两个工具的分词标准不同：title 的边界是"所有非字母字符"，capwords 的边界**只有空白**。含撇号的缩写在 capwords 眼里是一个完整单词：
 
 ```python
 import string
 
-lower_from = string.ascii_lowercase
-lower_to = lower_from[13:] + lower_from[:13]
-upper_from = string.ascii_uppercase
-upper_to = upper_from[13:] + upper_from[:13]
-table = str.maketrans(
-    lower_from + upper_from,
-    lower_to + upper_to,
-)
+cases = ["they're bill's", "don't stop now", "o'reilly's books"]
 
-text = "Hello, Python!"
-encoded = text.translate(table)
-decoded = encoded.translate(table)  # ROT13 是自逆的
-print(f"  原始: {text}")
-print(f"  加密: {encoded}")
-print(f"  解密: {decoded}")
-print(f"  加解密一致: {text == decoded}")
+for s in cases:
+    print(f"  {s!r}")
+    print(f"    title:    {s.title()!r}")
+    print(f"    capwords: {string.capwords(s)!r}")
 ```
 
 运行结果：
 
 ```text
-  原始: Hello, Python!
-  加密: Uryyb, Clguba!
-  解密: Hello, Python!
-  加解密一致: True
+  "they're bill's"
+    title:    "They'Re Bill'S"
+    capwords: "They're Bill's"
+  "don't stop now"
+    title:    "Don'T Stop Now"
+    capwords: "Don't Stop Now"
+  "o'reilly's books"
+    title:    "O'Reilly'S Books"
+    capwords: "O'reilly's Books"
 ```
 
-**关键点说明**：
+三组对照里 capwords 全部给出人眼期望的形态：`they're` 整词归位 `"They're"`、`don't` 保住 `"Don't"`。但它也有自己的取舍——对 O'Reilly 这类"撇号后本该大写"的姓名，capwords 同样无能为力（它按空格分词后对整词做 capitalize，`reilly` 的 `r` 被压小写得 `O'reilly's`）——**两种分词规则各有盲区，只是 capwords 的盲区（撇号后大写）比 title 的盲区（所有撇号）小得多**。
 
-- 26 个字母偏移 13 位，`a` -> `n`，`n` -> `a`，再偏移一次就回来了
-- `maketrans` 一次建立所有 52 个映射（26 小写 + 26 大写）
-- 如果用 `replace` 实现，需要 52 次链式调用，且会产生连锁替换问题
+选型的对照表：
 
-### 3.4 实战示例：密码强度检查
+| 场景 | 推荐 | 理由 |
+|------|------|------|
+| 含英文缩写的普通文本（they're、don't） | `string.capwords` | 撇号不是边界，缩写完整保留 |
+| 全小写自然短语（书名、栏目） | 两者皆可，capwords 更稳 | 两法结果一致，capwords 顺带清洗空白 |
+| 含 O'Reilly 类"撇号后大写"姓名 | 都不完美，需后处理或字典 | 两种分词规则都无此语义 |
+| 连字符复合词要每段大写（Well-Known） | `title` | capwords 只按空白分词，`known` 不会大写 |
 
-用 `translate` 快速统计字符串中各类字符的数量——将某类字符删除后比较长度差：
+### 3.2 capwords 的第二重身份：顺带清洗空白
+
+capwords 与 title 的第二处差异藏在空白处理——title 保留每个空白字符原样，capwords **顺带做了一次标准清洗**：
 
 ```python
-digit_only = str.maketrans("", "", "0123456789")
-lower_only = str.maketrans("", "", "abcdefghijklmnopqrstuvwxyz")
-upper_only = str.maketrans("", "", "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
-special_only = str.maketrans("", "", "!@#$%^&*()_+-=[]{}|;:',.<>?/`~")
+import string
 
-passwords = ["123456", "password", "Pass123!", "P@ssw0rd!", "weak"]
-for pwd in passwords:
-    digits = len(pwd) - len(pwd.translate(digit_only))
-    lowers = len(pwd) - len(pwd.translate(lower_only))
-    uppers = len(pwd) - len(pwd.translate(upper_only))
-    specials = len(pwd) - len(pwd.translate(special_only))
-    types = sum(1 for c in [digits, lowers, uppers, specials] if c > 0)
-    score = "弱" if types <= 1 else ("中" if types <= 2 else "强")
-    print(f"  {pwd:<12} 长度={len(pwd)} 数字={digits} 小写={lowers} 大写={uppers} 特殊={specials} [{score}]")
+messy = "  extra   spaces  between  words  "
+print(f"  原串: {messy!r}")
+print(f"  title:    {messy.title()!r}")
+print(f"  capwords: {string.capwords(messy)!r}")
 ```
 
 运行结果：
 
 ```text
-  123456       长度=6 数字=6 小写=0 大写=0 特殊=0 [弱]
-  password     长度=8 数字=0 小写=8 大写=0 特殊=0 [弱]
-  Pass123!     长度=8 数字=3 小写=3 大写=1 特殊=1 [强]
-  P@ssw0rd!    长度=9 数字=1 小写=5 大写=1 特殊=2 [强]
-  weak         长度=4 数字=0 小写=4 大写=0 特殊=0 [弱]
+  原串: '  extra   spaces  between  words  '
+  title:    '  Extra   Spaces  Between  Words  '
+  capwords: 'Extra Spaces Between Words'
 ```
 
-### 3.5 方法选择决策
+title 产出一丝不苟地保留首尾与中间的全部空白（连续三个空格还是三个）；capwords 给出 `Extra Spaces Between Words`——首尾剥净、连续空白折叠为一。**选 capwords 等于同时拿到了"按空格分词的 title 语义 + strip + 空白规范化"三件套**；反过来讲，**如果空白本身有语义（比如数据字段之间的对位），capwords 会把它抹掉**——两个工具在空白上的分歧同样是选型依据。
+
+### 3.3 title 的安全区检查清单
+
+把 title 放进处理线前，先过一遍这份入线检查：
+
+| 检查项 | 安全样本 | 危险样本 |
+|------|------|------|
+| 文本是不是全小写？ | `'war and peace'` | `'PDF viewer API'`（大小写语义会被冲掉） |
+| 有没有撇号缩写？ | 无 | `"they're"`（→ `They'Re`） |
+| 有没有全大写缩写词？ | 无 | `'USA'`（→ `Usa`） |
+| 有没有品牌/驼峰命名？ | 无 | `'iPhone'`（→ `Iphone`） |
+| 数字内嵌有没有语义？ | `'top 10 tips'` 无碍 | `'abc2def'` 会变 `Abc2Def` |
+
+**任何一项踩雷都说明 title 不适合这条数据线**——它的问题从来不是"不会排版"，而是"排版的规则是机械的，认不得数据里的语义"。
+
+### 3.4 组合链模板：先清洗基线，再精装修
+
+三个方法极少单独出现在真实管线里——标准姿势是**先用整串方法把脏数据拉平到统一基线，再用本篇方法做精装修**：
+
+```python
+raw = "  product NAME  "
+
+print(f"  原串:                   {raw!r}")
+print(f"  strip().lower().title(): {raw.strip().lower().title()!r}")
+print(f"  strip().capitalize():  {raw.strip().capitalize()!r}")
+```
+
+运行结果：
 
 ```text
-你需要做什么？
-  ├── 替换一个子串为新子串？
-  │     → replace(old, new)
-  │     （old 可以是多字符）
-  │
-  ├── 只替换前 N 个匹配？
-  │     → replace(old, new, count=N)
-  │     （translate 不支持次数限制）
-  │
-  ├── 同时映射多个单字符？
-  │     → translate(maketrans(old_chars, new_chars))
-  │     （一次调用，避免连锁替换）
-  │
-  ├── 删除多个字符？
-  │     → translate(maketrans("", "", chars))
-  │     （一次调用完成）
-  │
-  ├── 同时替换和删除？
-  │     → translate(maketrans(x, y, z))
-  │     or translate(maketrans({char: target_or_None}))
-  │
-  ├── 担心链式 replace 连锁？
-  │     → translate
-  │     （一次性映射，不会连锁）
-  │
-  └── 多字符子串替换？
-        → replace
-        （translate 只支持单字符映射）
+  原串:                   '  product NAME  '
+  strip().lower().title(): 'Product Name'
+  strip().capitalize():  'Product name'
 ```
+
+流水线的层次一目了然：`strip` 剥两端空白、`lower` 压平安大小写基线、再按需选 title（标题排版）或 capitalize（句子格式）。把这条流水线跑在一批真实数据上：
+
+```python
+RAW_HEADLINES = [
+    "  MERGE SUCCESS   on brAnch feature-x  ",
+    "deploy FAILED: retry 3 TIMES    reached ",
+]
+
+for raw in RAW_HEADLINES:
+    base = raw.strip().lower()
+    print(f"  原始: {raw!r}")
+    print(f"  句子: {base.capitalize()!r}")
+    print(f"  标题: {base.title()!r}")
+```
+
+运行结果：
+
+```text
+  原始: '  MERGE SUCCESS   on brAnch feature-x  '
+  句子: 'Merge success   on branch feature-x'
+  标题: 'Merge Success   On Branch Feature-X'
+  原始: 'deploy FAILED: retry 3 TIMES    reached '
+  句子: 'Deploy failed: retry 3 times    reached'
+  标题: 'Deploy Failed: Retry 3 Times    Reached'
+```
+
+两个观察值得记下：**基线（清洗+压平）一旦统一，输出就完全可预测**——两条原始数据再脏，都归位成整齐的两种排版；同时注意第二组的标题层把 `TIMES` 压成 `Times`——如果这是有意强调的数据，精装修就伤到了语义，回到 3.3 的检查清单。
+
+### 3.5 方法选择决策速查表
+
+| 需求 | 首选写法 |
+|------|------|
+| 句子格式（叙事、日志消息、单行描述） | `s.capitalize()` |
+| 标题格式（书名、栏目；无缩写与撇号） | `s.title()` |
+| 标题格式（含英文缩写 they're/don't） | `string.capwords(s)` |
+| 标题格式 + 空白顺带清洗 | `string.capwords(s)` |
+| 大小写镜像翻转（测试、视觉强调） | `s.swapcase()` |
+| 脏数据统一再排版 | `s.strip().lower()` 做基线，再选上三者 |
+| 判断是否已是标题格式 | `s.istitle()` |
+| 含品牌名/驼峰命的展示文本 | 都不完美——白名单词典或后处理还原 |
+| 人名格式化（简单形态） | `s.capitalize()`（注意 McDonald 类会变 Mcdonald） |
+
+使用心法一句话：**先定"格式目标是句子还是标题"，再看"数据里有没有 title 认不得的语义"——两问过后写法自动浮出**。
 
 ## 4. 原理
 
-### 4.1 maketrans 的映射表构建逻辑
+### 4.1 title 的实现：逐字符状态机
 
-`maketrans` 的三种参数形式最终都返回一个 `dict[int, int | str | None]`：
-
-```text
-形式1：maketrans(x, y)
-  遍历 x 和 y 中每对对应字符 (xi, yi):
-    table[ord(xi)] = ord(yi)
-  返回 {int: int}
-
-形式2：maketrans(x, y, z)
-  先做形式1的映射
-  再遍历 z 中每个字符 zi:
-    table[ord(zi)] = None
-  返回 {int: int | None}
-
-形式3：maketrans(dict)
-  遍历字典每对 {key: value}:
-    if value 是 str:
-      table[ord(key)] = value
-    elif value 是 int:
-      table[ord(key)] = value
-    elif value 是 None:
-      table[ord(key)] = None
-  返回 {int: str | int | None}
-```
-
-**关键点说明**：
-
-- 三种形式最终都返回 `dict[int, ...]`，key 统一是 Unicode 序号
-- 形式1和形式2返回的是 `int` 值（序号），形式3可以返回 `str` 或 `None`
-- `translate` 在实际处理时，会统一处理 `int`、`str`、`None` 三种值类型
-
-### 4.2 translate 的一次遍历逻辑
-
-`translate` 的核心优势在于**一次遍历**完成所有字符的映射：
+title 在 CPython 里是单趟扫描的状态机：对每个字符，它只关心一个问题——**前一个字符是不是字母**：
 
 ```text
-函数 translate(s, table):
-    result = []                     # 结果用可变列表收集
-    for char in s:
-        codepoint = ord(char)
-        if codepoint in table:
-            mapped = table[codepoint]
-            if mapped is None:
-                continue            # 跳过（删除该字符）
-            elif isinstance(mapped, int):
-                result.append(chr(mapped))   # 转回字符
-            elif isinstance(mapped, str):
-                result.append(mapped)        # 直接追加字符串
-        else:
-            result.append(char)     # 不在映射表中，保持原样
-    return ''.join(result)
+扫描 'abc2def' 的状态机轨迹:
+
+位置:     a      b      c      2      d      e      f
+前一字符: (串首)  a(字母) b(字母) c(字母) 2(非字母) d(字母) e(字母)
+判定:     升↑    压↓    压↓    不动    升↑    压↓    压↓
+产出:     A      b      c      2      D      e      f
+                              ↑ 前一字符非字母 -> 新词开始, 升大写
 ```
 
-**关键点说明**：
+状态机的一条规则解释了本篇全部现象：**"前字符非字母即升大写"**——撇号、数字、连字符、下划线、串首，都是"前字符非字母"的各种形态。2.3 节的五种边界、撇号坑、`2Fast` 的怪形态，全是这条规则的机械推论。单趟扫描 O(n)、每个字符一次类别判定 + 一次映射查表——title 的行为完全可以从这条规则推导，没有例外。
 
-- `translate` 只遍历字符串**一次**，每个字符查一次映射表
-- 如果字符在表中：映射为 `int`（转回字符）、`str`（直接追加）、`None`（删除）
-- 如果字符不在表中：保持原样
-- 用可变列表 `result` 收集结果，最后 `''.join()` 合并——避免频繁创建中间字符串
+### 4.2 Unicode titlecase：第三张映射表
 
-### 4.3 为什么 translate 不会连锁替换
-
-`translate` 不会连锁替换的原因在于：映射表中所有映射关系是**预定义**的，在实际遍历时是**同时生效**的。
-
-```text
-链式 replace 的执行过程（会连锁）：
-  第1步：s.replace("a", "b")    → "bbc"  （a 变成了 b）
-  第2步："bbc".replace("b", "c") → "ccc"  （上一步产生的 b 也被替换了）
-
-translate 的执行过程（不会连锁）：
-  映射表：{97: 98, 98: 99}   （a->b, b->c）
-  遍历 "abc"：
-    字符 'a' (97) → 查表 → 映射为 98 ('b') → 追加 'b'
-    字符 'b' (98) → 查表 → 映射为 99 ('c') → 追加 'c'
-    字符 'c' (99) → 不在表中 → 保持 'c'
-  结果：'bcc'
-
-  原始的 'a' 被映射为 'b'，这个 'b' 是结果一部分，
-  但不会被再次查表映射——因为 translate 在遍历原始字符串，
-  不是遍历已替换的结果。
-```
-
-这就是 `translate` 不会连锁替换的本质——它在遍历原始字符串时查表，映射结果直接输出，不会被二次处理。
-
-### 4.4 性能对比
-
-`translate` 一次遍历完成所有操作，而链式 `replace` 每次都创建一个新字符串并完整扫描。当需要映射/删除的字符种类较多时，性能差异显著：
-
-```text
-假设字符串长度为 n，需要映射的字符种类为 k
-
-translate 的时间复杂度：O(n)
-  → 不管 k 多大，只遍历一次，每个字符查一次表
-
-链式 replace 的时间复杂度：O(n * k)
-  → 每次 replace 扫描整个字符串（O(n)），共调用 k 次
-  → 且每次都创建一个长度为 O(n) 的新字符串
-```
-
-对于常见的"删除所有标点"场景（需要删除约 20 种标点字符），`translate` 只需一次扫描，而 `replace` 需要扫描 20 次。
-
-### 4.5 多字符映射值的实现
-
-Python 3 中，`translate` 支持将单个字符映射为多字符字符串。这在 CPython 中的实现是：当映射值是 `str` 类型时，直接将整个字符串追加到结果列表中：
+一个深藏的事实：**title 和 upper 走的不是同一张映射表**。Unicode 为大小写准备了三套正式映射——小写、大写、以及专供标题排版的"标题格式"（titlecase）。绝大多数字符上三张表重合（`a` 的 title 与 upper 都是 `A`），但有一组"三兄弟"字符把分岔暴露出来：
 
 ```python
-table = str.maketrans({"&": "&amp;"})
-result = "A & B".translate(table)
-print(f"  {result!r}")
-# 'A &amp; B'
+dz_lower = "ǆ"    # U+01C6
+print(f"  'ǆ'(U+01C6): upper -> {dz_lower.upper()!r}, title -> {dz_lower.title()!r}")
+print(f"  upper 与 title 不同: {dz_lower.upper() != dz_lower.title()}")
 ```
 
 运行结果：
 
 ```text
-  'A &amp; B'
+  'ǆ'(U+01C6): upper -> 'Ǆ', title -> 'ǅ'
+  upper 与 title 不同: True
 ```
 
-这一特性使得 HTML 转义等场景可以用 `translate` 一次性完成——每个特殊字符映射到各自的多字符实体，不需要链式 `replace`。
+`ǆ`（Dž 型二合字母的小写形）升大写得 `Ǆ`（全大写形），转标题却得 `ǅ`（**首字符大写、第二字符小写**的混合形）——这正是"标题格式"的精确定义在多字符字母上的体现：**标题里词首大写、词身小写**，`ǅ` 就是这个词的"标题排版"。一条实测证据把三张表的存在坐实——title 不是"换个说法的 upper"，它查询的是独立的第三张映射。
+
+### 4.3 capitalize 与 swapcase 的实现路径
+
+三个方法的查表路径各有分工：
+
+| 方法 | 第一动作的表 | 第二动作的表 | 局部行为 |
+|------|------|------|------|
+| capitalize | 首字符升大写（mapping 表） | **其余字符全部 lower** | 两次查表各司其职，互不影响 |
+| title | 依据状态机：词首字符升 title 表 | 词身字符压 lower 表 | 单趟扫描内的分岔查表 |
+| swapcase | 小写走 upper 表 | 大写走 lower 表 | 逐字符镜像，无目标格式 |
+
+capitalize 的"非字母开头看着没反应"由实现直接解释：第一动作查表落空（数字、汉字无映射条目），第二动作照常执行；swapcase 的 ß 案例（`'ß'.swapcase()` 得 `'SS'`）同样来自查表——`ß` 升大写的映射条目就是两个字符的 `SS`，**一对多展开在第一次翻转时丢身份信息**，双次不还原是映射表结构的必然结果，与整串转换家族的往返不对称同根同源。
+
+### 4.4 性能：三方法同量级
+
+三者都是单趟 O(n) 扫描，实测在同一串（约 3800 字符）上跑三万个来回：
+
+```python
+import timeit
+
+text = "The Quick Brown Fox" * 200
+n = 30000
+print(f"  capitalize: {timeit.timeit(lambda: text.capitalize(), number=n):.4f}s")
+print(f"  title:      {timeit.timeit(lambda: text.title(), number=n):.4f}s")
+print(f"  swapcase:   {timeit.timeit(lambda: text.swapcase(), number=n):.4f}s")
+```
+
+运行结果：
+
+```text
+  capitalize: 0.2135s
+  title:      0.2591s
+  swapcase:   0.2709s
+```
+
+三者同一量级（耗时绝对值随机器浮动，量级与相对结论稳定），差距来自扫描开销的细微不同：capitalize 只在首字符判断一次"升"，其余无差别压小写；title 每个字符都要做"前字符类别 + 本字符归属"双重判定；swapcase 每个字符都要翻转一次。**这点差距在选型上不构成任何理由**——三个方法的取舍从第一个字就定在语义层：句子、标题、镜像，三问对上号，性能从来不参与决策。
 
 ## 5. 总结
 
-本文围绕 `str.maketrans()` 和 `str.translate()` 方法展开，主要介绍了以下内容：
+本文围绕 `capitalize`、`title`、`swapcase` 三个方法展开，主要介绍了以下内容：
 
-- `str.maketrans()` 有三种参数形式：两等长字符串 `maketrans(x, y)`、带删除集 `maketrans(x, y, z)`、字典形式 `maketrans(dict)`
-- `maketrans` 返回 `dict[int, int | str | None]` 映射表——key 是 Unicode 序号，value 是目标序号、字符串或 `None`
-- `str.translate(table)` 使用映射表对字符串进行一次遍历完成所有字符的替换和删除
-- `translate` 只支持单字符映射（key 是单个字符的序号），不支持多字符子串替换——这是与 `replace` 的核心区别
-- Python 3 中 `translate` 支持多字符映射值——单个字符可以映射为多字符字符串（如 `&` -> `&amp;`）
-- 映射到 `None` 删除字符——字典形式中 `"e": None` 或第三参数 `maketrans(x, y, z)` 中的 `z` 字符
-- 第三参数形式 `maketrans("", "", z)` 只删除不替换——前两个参数传空字符串
-- `translate` 可以同时替换和删除——一次调用完成，不需要链式调用
-- `translate` 不会连锁替换——所有映射在遍历原始字符串时同时生效，映射结果不会被二次处理
-- `translate` vs `replace`：多字符子串替换用 `replace`、单字符多字符映射用 `translate`、限制替换次数用 `replace` 的 `count`、删除多种字符用 `translate`
-- 链式 `replace` 连锁替换问题：`"abc".replace("a","b").replace("b","c")` 得到 `"ccc"` 而非 `"bcc"`，用 `translate` 可以避免
-- HTML 转义场景：用 `translate` + 多字符映射值一次完成所有特殊字符的转义，且不会有 `&` 的替换顺序问题
-- ROT13 密码：用 `maketrans` 建立 52 个字母的偏移映射，`translate` 一次完成加密/解密
-- 密码强度检查：用 `translate` 删除特定字符类型后比较长度差，快速统计各类字符数量
-- `translate` 的性能优势：一次遍历 O(n) 完成所有操作，链式 `replace` 为 O(n*k)，映射种类多时差距显著
+- 三方法是**单词级大小写重排**工具，与整串转换家族（upper/lower/casefold）分层：`capitalize` 产出句子格式（首字符大写 + 其余全部强制小写）；`title` 产出标题格式（每个词首字母大写、词内其余小写）；`swapcase` 无格式目标，做大小写镜像对调。三方法都无参数（传参抛 `takes no arguments` 的 TypeError）、返回新串、原串不变
+- capitalize 是两个动作的叠加："首字符 try 升大写 + 其余强制压小写"——非字母开头（`123abc`、`_hidden`、`中文abc`）时**第一动作落空、第二动作照常**（大小写混杂的正文照样被压平），"看着没反应"不是方法偷懒，是第一个动作没有靶子
+- **title 的"单词"定义是机械的：非字母即边界**——连字符（`well-known` → `Well-Known`）、下划线、数字（`abc2def` → `Abc2Def`）、撇号全部是词间边界；最高频的坑在撇号：`"they're"` → `"They'Re"`、`"don't"` → `"Don'T"`——眼睛别扭，逻辑自洽，规则里没有"撇号连词"的概念
+- title 的杀伤现场：全大写缩写词被压成单词式（`USA` → `Usa`、`API` → `Api`）、品牌与驼峰命名的中间大写被抹平（`iPhone` → `Iphone`、`McDonald's` → `Mcdonald'S`、`YouTube` → `Youtube`）；**安全区是"全小写自然短语"**（书名、栏目名）——title 的错误面不在代码，在数据种类
+- swapcase 忠实镜像：不判断当前形态、只执行翻转；`ß` 翻成 `SS`（一个变两个）、双次翻回得 `ss` 不等于原串——一对多展开丢身份信息，与整串家族的往返不对称同根；汉字/数字/emoji 原样通过；使用原则：**只把它用于翻转语义（测试、强调），统一大小写永远用整串家族**
+- **istitle 与 title 的分词规则同源**：每个非字母边界切出的词若含大小写字符，须首大写其余小写——所以 `"They'Re"` 通过 istitle（撇号后的 `Re` 是合法词首）、`'HELLO WORLD'` 不通过（那是 isupper 形态）；**title 的产出必然通过 istitle**——转换与判定构成验收闭环；无大小写字符（中文、数字、空串）一律 False
+- `string.capwords` 是 title 的官方替代：**只按空白分词**（`they're` 整词保留 → `"They're Bill's"`）+ **顺带空白清洗**（首尾剥净、连续空白折叠）——两重差异都是选型依据；它自己的盲区是"撇号后该大写"的姓名（`O'Reilly` 得 `O'reilly`）；反向场景（连字符复合词要每段大写）title 才是正解
+- 组合链模板：**先用 `strip().lower()` 做清洗基线，再精装修**——`strip().lower().title()` 出标题、`strip().capitalize()` 出句子；脏数据（`'  MERGE SUCCESS   on brAnch feature-x  '`）进线后输出完全可预测；入线前过安全区检查清单（全小写？无撇号？无缩写？无品牌名？）
+- 原理上：title 是单趟扫描状态机，核心规则一条——"前字符非字母即升大写"，五种边界全部是这条规则的形态；**Unicode 为 titlecase 准备了独立的第三张映射表**（`ǆ` 的 upper → `Ǆ` 而 title → `ǅ`，三兄弟字符坐实三张表的分岔）；capitalize 两次查表、swapcase 走 upper/lower 互查
+- 性能实测三者同量级（O(n) 单趟扫描，title 的双重类别判定略慢），**选型从第一个字就定在语义层——句子格式找 capitalize、标题格式看数据选 title 或 capwords、镜像翻转才轮到 swapcase，性能从不参与决策**

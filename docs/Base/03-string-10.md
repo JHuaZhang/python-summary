@@ -3,1100 +3,1247 @@ group:
   title: 【03】字符串介绍
   order: 3
 order: 10
-title: 字符串与字符编码
+title: encode 与 decode 方法
 nav:
   title: Python基础
   order: 1
 ---
 
-# 字符串与字符编码
+# encode 与 decode 方法
 
 ## 1. 介绍
 
-### 1.1 要理解什么
+### 1.1 知识点定义
 
-字符编码是计算机处理文本的基础——计算机只认识 0 和 1，而人类使用的是"中""A""😀"这样的字符。字符编码就是连接这两者的桥梁：它定义了每个字符对应哪些字节，以及如何在这些字节和字符之间来回转换。
+在 Python 中，`str` 是给人看的文本，`bytes` 是给机器传输/存储的字节序列。`encode()` 与 `decode()` 就是这两个类型之间唯一的官方转换通道：
 
-Python 3 中，`str` 类型内部存储的是 Unicode 码点（人类可读的文本），而 `bytes` 类型存储的是原始字节序列（机器可读的二进制数据）。`encode()` 把 `str` 编码成 `bytes`，`decode()` 把 `bytes` 解码回 `str`。理解编码原理，你才能正确处理中文乱码、多语言文本、文件读写、网络传输中的字符问题。
+- **`str.encode()`**：把字符串编码成字节序列，方向是 `str → bytes`
+- **`bytes.decode()`**：把字节序列解码成字符串，方向是 `bytes → str`
 
-### 1.2 为什么需要理解它
+方法签名：
 
-如果你只会写 `print("Hello")`，编码对你没有影响。但一旦涉及以下场景，不理解编码就会踩坑：
+```text
+str.encode(encoding='utf-8', errors='strict') -> bytes
+bytes.decode(encoding='utf-8', errors='strict') -> str
+```
 
-- **中文乱码**：读取文件出现 `ä½ å¥½` 这样的乱码，不知道怎么修复
-- **网络传输**：HTTP 请求/响应的编码处理不当，导致数据损坏
-- **跨平台兼容**：Windows 默认 GBK，Linux 默认 UTF-8，同一份文件在不同系统上表现不同
-- **多语言支持**：处理日文、韩文、阿拉伯文、Emoji 等非 ASCII 字符时出错
-- **文件读写**：`open()` 默认编码在不同操作系统上行为不一致，导致读取失败
+参数说明：
 
-这些问题的根源都是编码不一致——编码时用了 A 编码，解码时用了 B 编码，结果就对不上。理解编码原理后，你能快速定位"哪个环节用错了编码"，并给出修复方案。
+- **encoding**：编码方案的名字，如 `'utf-8'`、`'gbk'`、`'ascii'`、`'latin-1'`。两个方法的默认值都是 `'utf-8'`，不传就走默认
+- **errors**：编解码遇到"编不了/解不了"的字符时怎么办，默认 `'strict'`（直接抛异常）
 
-## 2. 整体架构
+这两个参数对两个方法含义相同，但同一个编码名在 encode 与 decode 两侧的行为可能完全不同——这正是乱码问题的根源。
 
-### 2.1 从字符到字节的完整映射链
+一个字符从"眼见"到"存储"要经过三层：
 
-计算机处理文本的核心流程：
+```text
+"中" 的三层视图
+
+  字符层（人类看到）       码点层（统一的编号）          字节层（存储与传输）
+  ─────────────────       ─────────────────────        ─────────────────────
+        "中"      ─字符集─▶   U+4E2D（十进制 20013）  ─编码方案─▶   E4 B8 AD
+                              │           ▲                        │
+                              │ ord()取号  │ chr()还原               │ len()/list() 数字节
+                              ▼           │                        ▼
+                              同一个号码支撑两个方向的查询          utf-8 下 '中' 占 3 个字节
+
+  ── ASCII：只编号前 128 个字符，编号即字节
+  ── Unicode/GBK/latin-1：字符集与编码方案的组合各不相同
+```
+
+对应到方法上：
+
+```text
+            encode('utf-8')                        decode('utf-8')
+   "中"(str) ────────────────▶ b'\xe4\xb8\xad'(bytes) ────────────────▶ "中"(str)
+    文本对象                      字节序列                         文本对象
+                                 在网络/文件里流动
+```
 
 ![示例图片](../images/base/202609232250.svg)
 
-这条链路中有三个关键层：
+### 1.2 最简示例
 
-| 层 | 内容 | 示例 |
-|----|------|------|
-| 字符层 | 人类可读的文本符号 | `'中'`、`'A'`、`'😀'` |
-| 码点层 | Unicode 为每个字符分配的唯一编号 | `U+4E2D`、`U+0041`、`U+1F600` |
-| 字节层 | 计算机存储的字节序列 | `E4 B8 AD`、`41`、`F0 9F 98 80` |
-
-### 2.2 编码方案的发展历程
-
-![示例图片](../images/base/202609232251.svg)
-
-### 2.3 Python 3 中的 str 与 bytes
-
-Python 3 明确区分了"文本"和"数据"两种概念，分别用 `str` 和 `bytes` 类型表示：
-
-![示例图片](../images/base/202609232252.svg)
-
-### 2.4 各组件职责
-
-| 组件 | 职责 | Python 表示 |
-|------|------|-------------|
-| Unicode | 定义字符与码点的映射 | `ord('中')` → `20013` |
-| UTF-8 | 码点到字节的编码方案 | `'中'.encode('utf-8')` → `b'\xe4\xb8\xad'` |
-| UTF-16 | 码点到字节的编码方案（定宽+字节序） | `'中'.encode('utf-16')` → `b'\xff\xfe-D'` |
-| `str` | Python 中的文本类型 | `'中文'` |
-| `bytes` | Python 中的字节序列类型 | `b'\xe4\xb8\xad\xe6\x96\x87'` |
-| `encode()` | str → bytes 的方法 | `'中'.encode('utf-8')` |
-| `decode()` | bytes → str 的方法 | `b'\xe4\xb8\xad'.decode('utf-8')` |
-
-## 3. 关键机制拆解
-
-### 3.1 ASCII — 一切的起点
-
-ASCII（American Standard Code for Information Interchange）是最早的字符编码标准，用 7 位二进制数表示 128 个字符，覆盖英文字母、数字和常用符号。
+先用几行代码直观感受"编码—解码"一个来回：
 
 ```python
-# ord() 查看字符的码点（ASCII 范围内 0~127）
-print(f"'A' 的码点: {ord('A')}")    # 65
-print(f"'a' 的码点: {ord('a')}")    # 97
-print(f"'0' 的码点: {ord('0')}")    # 48
-print(f"' ' 的码点: {ord(' ')}")    # 32
+text = "Python中文"
 
-# chr() 码点转字符
-print(f"码点 65 → '{chr(65)}'")    # A
-print(f"码点 97 → '{chr(97)}'")    # a
-```
+# encode：str → bytes（默认 utf-8）
+encoded = text.encode()
+print(encoded)
 
-ASCII 的 128 个字符分为两类：
+# decode：bytes → str（默认 utf-8）
+decoded = encoded.decode()
+print(decoded)
 
-![示例图片](../images/base/202609232253.svg)
-
-用代码查看 ASCII 字符分类：
-
-```python
-# ASCII 字符分类
-categories = {
-    "控制字符 (0-31)": range(0, 32),
-    "空格 (32)": range(32, 33),
-    "数字 (48-57)": range(48, 58),
-    "大写字母 (65-90)": range(65, 91),
-    "小写字母 (97-122)": range(97, 123),
-    "符号": range(33, 48),
-}
-
-for name, codes in categories.items():
-    chars = "".join(chr(c) if 32 <= c < 127 else f"\\x{c:02x}" for c in codes)
-    print(f"  {name}: [{chars}]")
-
-# 输出:
-#   控制字符 (0-31): [\x00\x01\x02\x03...]
-#   空格 (32): [ ]
-#   数字 (48-57): [0123456789]
-#   大写字母 (65-90): [ABCDEFGHIJKLMNOPQRSTUVWXYZ]
-#   小写字母 (97-122): [abcdefghijklmnopqrstuvwxyz]
-#   符号: [!"#$%&'()*+,-./]
-```
-
-ASCII 的局限：128 个字符只能覆盖英文。中文、日文、韩文等非拉丁文字的字符远远超过 128 个，ASCII 无法表示它们。
-
-```python
-# 码点 128 以上不在 ASCII 范围内
-print(f"码点 128 (非 ASCII): {chr(128)}")
-print(f"码点 256: {chr(256)}")      # Ā (扩展拉丁字母)
-
-# 中文的码点远超 ASCII 范围
-print(f"'中' 的码点: {ord('中')}")   # 20013，远超 127
-```
-
-### 3.2 Unicode — 统一码点空间
-
-Unicode 是解决 ASCII 局限性的方案。它为世界上所有文字系统、符号、Emoji 的每个字符都分配了一个唯一的码点，形成统一空间。
-
-#### 3.2.1 码点空间
-
-Unicode 的码点范围是 `U+0000` 到 `U+10FFFF`，共 1,114,112 个码点：
-
-![示例图片](../images/base/202609232254.svg)
-
-```python
-print("Unicode 码点分区:")
-print(f"  BMP (U+0000 ~ U+FFFF): {0x0000} ~ {0xFFFF}")
-print(f"  补充平面 (U+10000 ~ U+10FFFF): {0x10000} ~ {0x10FFFF}")
-print(f"  总码点数: {0x10FFFF + 1:,}")
-# 总码点数: 1,114,112
-```
-
-#### 3.2.2 各语言字符的码点
-
-```python
-# 中文常用字
-print("中文常用字码点:")
-for ch in ["中", "文", "编", "码", "字", "符"]:
-    print(f"  '{ch}' → U+{ord(ch):04X} (十进制 {ord(ch)})")
-# '中' → U+4E2D (十进制 20013)
-# '文' → U+6587 (十进制 25991)
-
-# 日文平假名
-print("\n日文平假名码点:")
-for ch in "あいうえお":
-    print(f"  '{ch}' → U+{ord(ch):04X}")
-# 'あ' → U+3042
-
-# Emoji (在补充平面，码点超过 U+FFFF)
-print("\nEmoji 码点:")
-for e in ["😀", "🐍", "❤", "✓", "①"]:
-    print(f"  '{e}' → U+{ord(e):05X}")
-# '😀' → U+1F600
-# '🐍' → U+1F40D
-```
-
-#### 3.2.3 Python 3 中 str 的 Unicode 本质
-
-Python 3 的 `str` 类型直接存储 Unicode 码点，每个 Unicode 字符都是 `str` 的一个独立元素：
-
-```python
-s = "Hello中文😀"
-print(f"字符串: '{s}'")
-print(f"长度: {len(s)}")  # 8 (每个 Unicode 字符算 1 个)
-print("逐字符码点:")
-for i, ch in enumerate(s):
-    print(f"  [{i}] '{ch}' → U+{ord(ch):04X}")
-
-# 输出:
-#   [0] 'H' → U+0048
-#   [1] 'e' → U+0065
-#   ...
-#   [5] '中' → U+4E2D
-#   [6] '文' → U+6587
-#   [7] '😀' → U+1F600
-```
-
-这与 Python 2 中 `str` 存字节、`unicode` 存码点的设计完全不同。Python 3 中 `str` 就是 Unicode 文本，不再需要区分"字节字符串"和"Unicode 字符串"。
-
-#### 3.2.4 Unicode 转义表示
-
-Python 支持三种 Unicode 转义写法：
-
-```python
-# \uXXXX: 4 位十六进制，适用于 BMP 范围 (U+0000 ~ U+FFFF)
-print(f"'\\u4e2d\\u6587' = '\u4e2d\u6587'")  # 中文
-
-# \UXXXXXXXX: 8 位十六进制，适用于完整 Unicode 范围 (含补充平面)
-print(f"'\\U0001F600' = '\U0001F600'")  # 😀
-
-# \N{name}: 通过 Unicode 字符名称引用
-print(f"'\\N{{CJK UNIFIED IDEOGRAPH-4E2D}}' = '\N{CJK UNIFIED IDEOGRAPH-4E2D}'")  # 中
-```
-
-#### 3.2.5 Unicode 字符属性
-
-Python 标准库 `unicodedata` 可以查询字符的 Unicode 属性：
-
-```python
-import unicodedata
-
-test_chars = [("A", "大写字母"), ("中", "中文"), ("1", "数字"), (" ", "空格"), ("😀", "emoji")]
-print("Unicode 属性检查:")
-for ch, desc in test_chars:
-    name = unicodedata.name(ch, "未知")
-    category = unicodedata.category(ch)
-    print(f"  '{ch}' ({desc}): 名称={name}, 类别={category}")
-
-# 输出:
-#   'A' (大写字母): 名称=LATIN CAPITAL LETTER A, 类别=Lu
-#   '中' (中文): 名称=CJK UNIFIED IDEOGRAPH-4E2D, 类别=Lo
-#   '1' (数字): 名称=DIGIT ONE, 类别=Nd
-#   ' ' (空格): 名称=SPACE, 类别=Zs
-#   '😀' (emoji): 名称=GRINNING FACE, 类别=So
-```
-
-类别编码的含义：`Lu` = 大写字母，`Lo` = 其他字母（如中文），`Nd` = 十进制数字，`Zs` = 空格分隔符，`So` = 其他符号（如 Emoji）。
-
-### 3.3 UTF-8 — 最常用的编码方案
-
-UTF-8 是 Unicode 的变长编码方案——不同的字符用不同数量的字节编码，从 1 到 4 字节不等。它是 Web 上最广泛使用的编码，也是 Python 3 的默认编码。
-
-#### 3.3.1 UTF-8 的变长编码规则
-
-![示例图片](../images/base/202609232255.svg)
-
-关键规则：
-- 第一个字节的最高位 `1` 的个数表示这个字符占几个字节
-- 后续字节都以 `10` 开头（标记为"延续字节"）
-
-用 Python 验证不同字符的 UTF-8 编码：
-
-```python
-print("UTF-8 编码字节数:")
-# 1 字节: ASCII 字符
-b = 'A'.encode('utf-8')
-print(f"  'A' → {list(b)} (1 字节, 0x41)")
-
-# 2 字节: 拉丁扩展字符
-b = 'é'.encode('utf-8')
-print(f"  'é' → {list(b)} (2 字节, 0xC3 0xA9)")
-
-# 3 字节: 中文字符 (中文在 BMP 范围 U+0800 ~ U+FFFF)
-b = '中'.encode('utf-8')
-print(f"  '中' → {list(b)} (3 字节, 0xE4 0xB8 0xAD)")
-
-# 4 字节: Emoji (在补充平面 U+10000 ~ U+10FFFF)
-b = '😀'.encode('utf-8')
-print(f"  '😀' → {list(b)} (4 字节, 0xF0 0x9F 0x98 0x80)")
-```
-
-#### 3.3.2 UTF-8 字节前缀验证
-
-通过查看二进制形式，可以清楚地看到 UTF-8 的字节前缀规则：
-
-```python
-print("UTF-8 字节前缀验证:")
-for ch in ["A", "中", "é", "😀"]:
-    b = ch.encode('utf-8')
-    byte_list = list(b)
-    hex_str = " ".join(f"0x{byte:02X}" for byte in byte_list)
-    binary_str = " ".join(f"{byte:08b}" for byte in byte_list)
-    print(f"  '{ch}' (U+{ord(ch):04X}):")
-    print(f"    十六进制: {hex_str}")
-    print(f"    二进制:   {binary_str}")
-
-# 输出:
-#   'A' (U+0041):
-#     十六进制: 0x41
-#     二进制:   01000001          ← 0 开头 = 1 字节
-#   '中' (U+4E2D):
-#     十六进制: 0xE4 0xB8 0xAD
-#     二进制:   11100100 10111000 10101101   ← 1110 开头 = 3 字节
-#   '😀' (U+1F600):
-#     十六进制: 0xF0 0x9F 0x98 0x80
-#     二进制:   11110000 10011111 10011000 10000000   ← 11110 开头 = 4 字节
-```
-
-可以看到字节前缀的规律：`0` 开头是 1 字节，`110` 开头是 2 字节的第一字节，`1110` 开头是 3 字节的第一字节，`11110` 开头是 4 字节的第一字节。后续字节都以 `10` 开头。
-
-#### 3.3.3 UTF-8 与 ASCII 的兼容性
-
-UTF-8 的一个重要设计决策是向下兼容 ASCII——所有 128 个 ASCII 字符的 UTF-8 编码就是它本身（1 字节，值相同）：
-
-```python
-print("UTF-8 与 ASCII 兼容性:")
-for code in range(128):
-    char = chr(code)
-    utf8_bytes = char.encode('utf-8')
-    if len(utf8_bytes) == 1 and utf8_bytes[0] == code:
-        pass  # 兼容
-    else:
-        print(f"  不兼容! code={code}")
-        break
-else:
-    print("  所有 128 个 ASCII 字符的 UTF-8 编码与 ASCII 编码完全一致")
-```
-
-这意味着一份纯英文的 ASCII 文件同时就是一份合法的 UTF-8 文件——UTF-8 编码的英文文本和 ASCII 编码的英文文本在字节层面完全相同。这保证了 UTF-8 对遗留系统的向后兼容。
-
-#### 3.3.4 UTF-8 与 UTF-16 编码效率对比
-
-不同的编码方案对同一字符的字节消耗不同：
-
-```python
-print("UTF-8 vs UTF-16 编码字节数对比:")
-samples = [
-    ("A", "ASCII 字符"),
-    ("中", "中文"),
-    ("é", "拉丁扩展"),
-    ("😀", "Emoji"),
-    ("𠮷", "CJK 扩展B"),
-]
-
-for ch, desc in samples:
-    utf8 = ch.encode('utf-8')
-    utf16 = ch.encode('utf-16')
-    utf16le = ch.encode('utf-16-le')
-    print(f"  '{ch}' ({desc}, U+{ord(ch):04X}):")
-    print(f"    UTF-8:    {len(utf8)} 字节 {list(utf8)}")
-    print(f"    UTF-16:   {len(utf16)} 字节 {list(utf16)} (含BOM)")
-    print(f"    UTF-16LE: {len(utf16le)} 字节 {list(utf16le)} (无BOM)")
+# 走一个来回，内容不丢
+print(text == decoded)
 ```
 
 **运行结果**：
 
 ```text
-  'A' (ASCII 字符, U+0041):
-    UTF-8:    1 字节 [65]
-    UTF-16:   4 字节 [255, 254, 65, 0] (含BOM)
-    UTF-16LE: 2 字节 [65, 0] (无BOM)
-  '中' (中文, U+4E2D):
-    UTF-8:    3 字节 [228, 184, 173]
-    UTF-16:   4 字节 [255, 254, 45, 78] (含BOM)
-    UTF-16LE: 2 字节 [45, 78] (无BOM)
-  'é' (拉丁扩展, U+00E9):
-    UTF-8:    2 字节 [195, 169]
-    UTF-16:   4 字节 [255, 254, 233, 0] (含BOM)
-    UTF-16LE: 2 字节 [233, 0] (无BOM)
-  '😀' (Emoji, U+1F600):
-    UTF-8:    4 字节 [240, 159, 152, 128]
-    UTF-16:   6 字节 [255, 254, 61, 216, 0, 222] (含BOM)
-    UTF-16LE: 4 字节 [61, 216, 0, 222] (无BOM)
+b'Python\xe4\xb8\xad\xe6\x96\x87'
+Python中文
+True
 ```
 
-**编码效率对比**：
+可以看到三个事实：
 
-| 字符类型 | UTF-8 | UTF-16 (无BOM) | 更优 |
-|---------|-------|---------------|------|
-| ASCII 字符 | 1 字节 | 2 字节 | UTF-8 |
-| 拉丁扩展 | 2 字节 | 2 字节 | 持平 |
-| 中日韩字符 | 3 字节 | 2 字节 | UTF-16 |
-| Emoji | 4 字节 | 4 字节 | 持平 |
+- 字符串编码后变成 `b'...'` 开头的 **bytes 对象**，中文在显示时以 `\xe4\xb8\xad` 这样的十六进制转义呈现
+- 解码后又变回了普通字符串，可以直接打印
+- 同一编码进、同一编码出，内容必然还原
 
-UTF-8 对英文最优，UTF-16 对中文略优。但 UTF-8 的 ASCII 兼容性和无字节序问题使其成为 Web 上的默认选择。
+### 1.3 encode 与 decode 的核心特点
 
-### 3.4 encode() / decode() — 编码与解码
+- **方向固定**：`encode` 只属于 `str`，`decode` 只属于 `bytes`。对象搞反了会直接报 `AttributeError`
+- **默认编码是 utf-8**：不传 `encoding` 时，两个方法都按 utf-8 处理，且这个默认值**与操作系统无关**
+- **类型严格隔离**：`str` 与 `bytes` 不能混用——不能拼接、不能比较相等、不能互相放进对方的方法里
+- **错误行为可控**：遇到编不了的字符/解不了的字节，默认抛异常，但可以通过 `errors` 参数换成丢弃、替换、转义等策略
+- **大概率可逆**：只要"编码—解码用的是同一种编码方案且不丢信息"，往返必相等；一旦两侧编码不一致或用了丢信息的错误策略，出问题就毫无征兆
 
-`encode()` 和 `decode()` 是 Python 中 `str` 与 `bytes` 之间转换的桥梁。
+## 2. 核心内容
 
-#### 3.4.1 encode() 编码
+### 2.1 先认识 bytes：decode 的操作对象
 
-`str.encode(encoding)` 将字符串按指定编码编码为 `bytes` 对象：
+`decode()` 的操作对象是 `bytes`。在学解码之前，先把 `bytes` 这个类型看清楚——它是"一串 0~255 的整数"，仅此而已。
+
+#### 2.1.1 bytes 的四种创建方式
 
 ```python
-# 编码: str → bytes
-text = "Hello中文"
-encoded = text.encode('utf-8')
-print(f"编码: '{text}' → {encoded}")
-print(f"类型: {type(encoded)}")      # <class 'bytes'>
-print(f"字节列表: {list(encoded)}")   # [72, 101, 108, 108, 111, 228, 184, 173, 230, 150, 135]
+# 方式1: 字节字面量，b 前缀 + 只含 ASCII 字符
+b1 = b'Hello'
+print(b1, type(b1))
+
+# 方式2: 字节字面量 + 十六进制转义（\xNN 表示一个字节）
+b2 = b'\xe4\xb8\xad'          # 恰好是 '中' 的 utf-8 编码
+print(b2)
+
+# 方式3: bytes() 从整数列表构造，每个元素 0~255
+b3 = bytes([0x48, 0x69])      # 0x48='H' 0x69='i'
+print(b3)
+
+# 方式4: 字符串 encode 得到（最常用、最推荐）
+b4 = '中文'.encode('utf-8')
+print(b4)
+print(len(b4), list(b4))
 ```
 
-`encode` 找不到编码方式时抛出 `LookupError`，编码失败（字符不在编码范围内）时抛出 `UnicodeEncodeError`：
+**运行结果**：
+
+```text
+b'Hello' <class 'bytes'>
+b'\xe4\xb8\xad'
+b'Hi'
+b'\xe4\xb8\xad\xe6\x96\x87'
+6 [228, 184, 173, 230, 150, 135]
+```
+
+关键认知：`'中文'` 编码成 utf-8 后占 **6 个字节**（每个汉字 3 字节），`list()` 把每个字节按整数展开——`228` 就是十六进制的 `0xE4`。
+
+#### 2.1.2 怎么读 bytes 的显示形式
+
+`bytes` 打印出来的样子容易吓到初学者，规则其实很简单：
 
 ```python
-# ASCII 无法编码中文
+b = 'Hello中文'.encode('utf-8')
+print(b)
+print(b.hex())
+
+# 遍历 bytes 得到的是整数；能按 ASCII 显示的字节直接显示字符，
+# 其余字节在打印 bytes 时用 \xNN 转义
+for byte in b:
+    print(byte, hex(byte), chr(byte) if 32 <= byte < 127 else '(不可打印)')
+```
+
+**运行结果**：
+
+```text
+b'Hello\xe4\xb8\xad\xe6\x96\x87'
+48656c6c6fe4b8ade69687
+72 0x48 H
+101 0x65 e
+108 0x6c l
+108 0x6c l
+111 0x6f o
+228 0xe4 (不可打印)
+184 0xb8 (不可打印)
+173 0xad (不可打印)
+230 0xe6 (不可打印)
+150 0x96 (不可打印)
+135 0x87 (不可打印)
+```
+
+三条读法规则：
+
+- `print(bytes)` 时，能按 ASCII 显示的字节直接显示为字符（`H`、`e`、`o`），不能显示的字节用 `\xNN` 十六进制转义（`\xe4`）
+- `b.hex()` 把每个字节都按两位十六进制串起来，看"原始字节值"最方便：`48 65 6c 6c 6f e4 b8 ad e6 96 87`
+- 遍历 bytes 得到的是 **int**（72、228...），不是单字符——这是 bytes 与 str 最大的行为差异
+
+![示例图片](../images/base/202609232252.svg)
+
+#### 2.1.3 bytes 的索引、切片与长度：与 str 逐一对照
+
+`str` 按字符操作，`bytes` 按字节操作，两边的行为完全平行：
+
+```python
+s = 'AB中'
+data = s.encode('utf-8')            # b'AB\xe4\xb8\xad'
+print("len('AB中') =", len(s), "          # str 按字符数")
+print("len(bytes)  =", len(data), "          # bytes 按字节数")
+print("s[0]   =", repr(s[0]), "         # str 索引 → 字符")
+print("data[0] =", repr(data[0]), "     # bytes 索引 → 整数")
+print("s[2:]   =", repr(s[2:]), "         # str 切片 → str")
+print("data[2:] =", repr(data[2:]), "   # bytes 切片 → bytes")
+```
+
+**运行结果**：
+
+```text
+len('AB中') = 3           # str 按字符数
+len(bytes)  = 5           # bytes 按字节数
+s[0]   = 'A'          # str 索引 → 字符
+data[0] = 65      # bytes 索引 → 整数
+s[2:]   = '中'          # str 切片 → str
+data[2:] = b'\xe4\xb8\xad'    # bytes 切片 → bytes
+```
+
+| 维度 | `str` | `bytes` |
+|------|-------|---------|
+| `len()` | 字符（码点）个数 | 字节个数 |
+| 索引 `[0]` | 得到 1 个字符（str） | 得到 1 个整数（int，0~255） |
+| 切片 `[2:]` | 得到 str | 得到 bytes |
+| 遍历 | 逐字符 | 逐字节（int） |
+| 可拼接对象 | 只能拼 str | 只能拼 bytes |
+
+`'AB中'` 长度是 3 个字符，但编码后变成 5 个字节（`A`、`B` 各 1 字节，`中` 占 3 字节）——这就是"字符数"和"字节数"的差别，也是编码转换必须面对的第一课。
+
+#### 2.1.4 str 与 bytes 为什么不能混用
+
+两个类型互不认识，任何混用都是 TypeError 或者"看起来成功但结果是假"：
+
+```python
+data = 'Hello中文'.encode('utf-8')
+
+# 拼接：两个方向都会炸
 try:
-    "中文".encode('ascii')
-except UnicodeEncodeError as e:
-    print(f"编码失败: {e}")
-# 'ascii' codec can't encode character '\u4e2d' in position 0: ordinal not in range(128)
-```
-
-#### 3.4.2 decode() 解码
-
-`bytes.decode(encoding)` 将字节序列按指定编码解码为 `str`：
-
-```python
-# 解码: bytes → str
-encoded = "Hello中文".encode('utf-8')
-decoded = encoded.decode('utf-8')
-print(f"解码: {encoded} → '{decoded}'")
-print(f"类型: {type(decoded)}")      # <class 'str'>
-print(f"往返一致: {text == decoded}") # True
-```
-
-`decode` 在字节序列不符合编码规则时抛出 `UnicodeDecodeError`——这是中文乱码的核心原因。
-
-#### 3.4.3 常用编码方式对比
-
-```python
-print("常用编码方式对比:")
-text = "A中"
-encodings = ["utf-8", "utf-16", "gbk", "gb2312", "big5", "ascii"]
-for enc in encodings:
-    try:
-        b = text.encode(enc)
-        print(f"  {enc:>10}: {list(b)} ({len(b)} 字节)")
-    except UnicodeEncodeError as e:
-        print(f"  {enc:>10}: 编码失败 - {e}")
-
-# 输出:
-#       utf-8: [65, 228, 184, 173] (4 字节)
-#      utf-16: [255, 254, 65, 0, 45, 78] (6 字节)
-#         gbk: [65, 214, 208] (3 字节)
-#      gb2312: [65, 214, 208] (3 字节)
-#        big5: [65, 164, 164] (3 字节)
-#       ascii: 编码失败 (无法编码 '中')
-```
-
-各编码的特点：
-
-| 编码 | 字节序 | 中文编码 | 英文编码 | 支持范围 |
-|------|--------|---------|---------|---------|
-| UTF-8 | 无 | 3 字节 | 1 字节 | 全部 Unicode |
-| UTF-16 | 有 (LE/BE) | 2 字节 | 2 字节 | 全部 Unicode |
-| GBK | 无 | 2 字节 | 1 字节 | 中文 + ASCII |
-| Big5 | 无 | 2 字节 | 1 字节 | 繁体中文 + ASCII |
-| ASCII | 无 | 不支持 | 1 字节 | 仅 128 个 ASCII 字符 |
-
-#### 3.4.4 errors 参数 — 编解码错误处理
-
-`encode()` 和 `decode()` 都支持 `errors` 参数控制遇到错误时的行为：
-
-**encode 的 errors 参数**：
-
-```python
-print("encode errors 参数:")
-
-# strict (默认): 编码失败抛异常
+    _ = data + '!'
+except TypeError as e:
+    print("bytes + str ->", e)
 try:
-    "中文".encode('ascii')
-except UnicodeEncodeError as e:
-    print(f"  strict: 抛异常 - {e}")
+    _ = 'he' + data
+except TypeError as e:
+    print("str + bytes ->", e)
 
-# ignore: 跳过无法编码的字符
-result = "中文".encode('ascii', errors='ignore')
-print(f"  ignore: {result}")        # b''（空字节）
+# 相等比较：不报错，但永远 False
+print("data == 'Hello中文' ->", data == 'Hello中文')
 
-# replace: 用 ? 替代无法编码的字符
-result = "中文".encode('ascii', errors='replace')
-print(f"  replace: {result}")       # b'??'
-
-# xmlcharrefreplace: 用 XML 实体 &#NNNN; 替代
-result = "中文".encode('ascii', errors='xmlcharrefreplace')
-print(f"  xmlcharrefreplace: {result}")  # b'&#20013;&#25991;'
-
-# backslashreplace: 用 \uXXXX 转义替代
-result = "中文".encode('ascii', errors='backslashreplace')
-print(f"  backslashreplace: {result}")   # b'\\u4e2d\\u6587'
-```
-
-**decode 的 errors 参数**：
-
-```python
-print("decode errors 参数:")
-
-# 制造一个包含非法字节的序列
-bad_bytes = b'Hello\xc3(\xe6\x96\x87'  # \xc3 后面应该跟延续字节，但跟了 '('
-
-# strict: 解码失败抛异常
+# 查找：str 不能直接放进 bytes 里找
 try:
-    bad_bytes.decode('utf-8')
-except UnicodeDecodeError as e:
-    print(f"  strict: 抛异常 - {e}")
+    _ = '中' in data
+except TypeError as e:
+    print("'中' in bytes ->", e)
 
-# ignore: 跳过非法字节
-result = bad_bytes.decode('utf-8', errors='ignore')
-print(f"  ignore: '{result}'")      # 'Hello(文'
-
-# replace: 用 替代非法字节
-result = bad_bytes.decode('utf-8', errors='replace')
-print(f"  replace: '{result}'")     # 'Hello(文'（用替换标记）
-
-# backslashreplace: 用转义序列替代
-result = bad_bytes.decode('utf-8', errors='backslashreplace')
-print(f"  backslashreplace: '{result}'")  # 'Hello\xc3(文'
+# 正确姿势：先按同样的编码转成 bytes 再查
+print("'中'.encode('utf-8') in data ->", '中'.encode('utf-8') in data)
 ```
 
-各 `errors` 参数的行为对比：
+**运行结果**：
 
-| errors 值 | encode 行为 | decode 行为 | 适用场景 |
-|-----------|------------|------------|---------|
-| `strict` | 抛异常 | 抛异常 | 默认，要求严格正确 |
-| `ignore` | 跳过字符 | 跳过字节 | 容忍丢失少量数据 |
-| `replace` | `?` 替代 | 替代 | 可视化展示损坏区域 |
-| `xmlcharrefreplace` | XML 实体替代 | 不适用 | HTML/XML 生成 |
-| `backslashreplace` | `\uXXXX` 转义 | `\xXX` 转义 | 调试和日志 |
-
-#### 3.4.5 编码不一致导致乱码
-
-乱码的根本原因：编码用的 A 编码，解码用的 B 编码，两者规则不一致，导致字节被错误解析。
-
-```python
-print("编码不一致导致乱码:")
-
-# 场景1: GBK 编码 + UTF-8 解码 → 解码失败
-text = "你好世界"
-gbk_bytes = text.encode('gbk')
-print(f"原文: '{text}'")
-print(f"GBK 编码: {list(gbk_bytes)}")
-try:
-    wrong = gbk_bytes.decode('utf-8')
-    print(f"UTF-8 解码: '{wrong}'")
-except UnicodeDecodeError:
-    print("UTF-8 解码: 解码失败")
-# UTF-8 严格的字节规则不允许 GBK 的字节模式
-
-# 正确解码
-right = gbk_bytes.decode('gbk')
-print(f"GBK 解码: '{right}'")  # 你好世界
+```text
+bytes + str -> can't concat str to bytes
+str + bytes -> can only concatenate str (not "bytes") to str
+data == 'Hello中文' -> False
+'中' in bytes -> a bytes-like object is required, not 'str'
+'中'.encode('utf-8') in data -> True
 ```
 
-三种最典型的乱码场景：
+结论只有一条：**遇到类型不匹配，永远先 encode/decode 统一类型，再操作**。== 比较是唯一"悄悄失败"的混用——不报错但永远 `False`，这类 bug 只能靠人眼发现。
+
+### 2.2 str.encode()：把文本变成字节
+
+#### 2.2.1 encoding 参数：同样的文本，不同的字节
+
+`encoding` 决定每个字符换成哪几个字节。同一个文本在不同方案下的"体积"可以差很多：
 
 ```python
-# 场景2: UTF-8 编码 + GBK 解码 → 阉字
-original = "你好"
-utf8_encoded = original.encode('utf-8')
-garbled = utf8_encoded.decode('gbk', errors='replace')
-print(f"UTF-8编码 + GBK解码: '{garbled}'")
-# '浣犲ソ' ← 6 个 UTF-8 字节被 GBK 解析为 3 个字符
-
-# 场景3: UTF-8 编码 + Latin-1 解码 → 西欧乱码 (HTTP 常见问题)
-garbled = utf8_encoded.decode('latin-1')
-print(f"UTF-8编码 + Latin-1解码: '{garbled}'")
-# 'ä½ å¥½' ← 每个字节被当作一个 Latin-1 字符
-```
-
-场景 3 的修复方法——先按错误编码回到字节，再按正确编码解码：
-
-```python
-# 修复: 把错误解码的字符串按错误编码重新变回字节，再正确解码
-fixed = garbled.encode('latin-1').decode('utf-8')
-print(f"修复: '{fixed}'")
-# '你好' ← 恢复原文
-```
-
-#### 3.4.6 安全解码策略
-
-当不知道字节的编码方式时，可以采用"逐个尝试"策略——UTF-8 最严格，先试它；失败试 GBK；再失败用 Latin-1 兜底：
-
-```python
-def safe_decode(raw_bytes):
-    """安全解码: 逐个尝试常用编码"""
-    for encoding in ['utf-8', 'gbk', 'latin-1']:
+for enc in ['utf-8', 'gbk', 'ascii', 'latin-1']:
+    for t in ['中', 'Hi中文']:
         try:
-            return raw_bytes.decode(encoding), encoding
+            raw = t.encode(enc)
+            print(f"{enc:8} {t!r:6} -> {raw}  ({len(raw)} 字节)")
+        except UnicodeEncodeError:
+            print(f"{enc:8} {t!r:6} -> 编码失败（该编码不认这个字符）")
+```
+
+**运行结果**：
+
+```text
+utf-8    '中'    -> b'\xe4\xb8\xad'  (3 字节)
+utf-8    'Hi中文' -> b'Hi\xe4\xb8\xad\xe6\x96\x87'  (8 字节)
+gbk      '中'    -> b'\xd6\xd0'  (2 字节)
+gbk      'Hi中文' -> b'Hi\xd6\xd0\xce\xc4'  (6 字节)
+ascii    '中'    -> 编码失败（该编码不认这个字符）
+ascii    'Hi中文' -> 编码失败（该编码不认这个字符）
+latin-1  '中'    -> 编码失败（该编码不认这个字符）
+latin-1  'Hi中文' -> 编码失败（该编码不认这个字符）
+```
+
+四个方案的行为差异一目了然：
+
+| 编码方案 | '中' 的字节 | 字节数 | 'Hi中文' 的字节数 | 对中文的态度 |
+|---------|------------|--------|------------------|-------------|
+| utf-8 | `e4 b8 ad` | 3 | 8（2+3+3） | 全字符集通用，1~4 字节变长 |
+| gbk | `d6 d0` | 2 | 6（2+2+2） | 中文强国方案，汉字 2 字节 |
+| ascii | 编码失败 | - | - | 只认 128 个英文字符，中文直接拒绝 |
+| latin-1 | 编码失败 | - | - | 只认 256 个西欧字符，中文直接拒绝 |
+
+三条规律：
+
+- **同一段文本，编码不同则字节完全不同**。`e4 b8 ad` 与 `d6 d0` 之间没有任何换算关系，就像同一句话用两套不同的密码本
+- **ascii 与 latin-1 是单字节方案**，每个字符最多占 1 字节，字符上限分别是 128 和 256 个，注定装不下几万个汉字——遇到就抛 `UnicodeEncodeError`
+- **utf-8 与 gbk 都是变长方案**：英文 1 字节；gbk 的中文 2 字节，utf-8 的中文 3 字节。字节数差异直接影响存储空间与兼容性选择
+
+#### 2.2.2 编码名的细节：大小写、别名与拼错的行为
+
+编码名是字符串参数，Python 对它做了三层宽松处理：
+
+```python
+print("UTF-8 与 utf-8 结果一致:", '中'.encode('UTF-8') == '中'.encode('utf-8'))
+print("'utf8'、'utf_8' 也都是同一个:", 'Hi'.encode('utf8') == 'Hi'.encode('utf_8') == b'Hi')
+print('中'.encode('utf-8'))
+
+# 编码名拼错：当场抛 LookupError
+try:
+    '中'.encode('utf-8x')
+except LookupError as e:
+    print(type(e).__name__, "->", e)
+
+import sys
+print("str.encode 不传 encoding 时用的默认:", sys.getdefaultencoding())
+```
+
+**运行结果**：
+
+```text
+UTF-8 与 utf-8 结果一致: True
+'utf8'、'utf_8' 也都是同一个: True
+b'\xe4\xb8\xad'
+LookupError -> unknown encoding: utf-8x
+str.encode 不传 encoding 时用的默认: utf-8
+```
+
+三条规则：
+
+- **大小写与别名不敏感**：`'UTF-8'`、`'utf-8'`、`'utf8'`、`'utf_8'` 解析到同一个方案，写哪个都对
+- **编码名拼错当场报错**：`LookupError: unknown encoding` 在调用瞬间就抛出，不会潜伏
+- **默认值固定 utf-8**：`str.encode()` 不传 `encoding` 永远按 utf-8 处理，与操作系统无关——这一点和 `open()` 读文件不同，后者会跟随系统语言设置
+
+#### 2.2.3 errors 参数：编不下去时怎么办
+
+默认策略 `strict` 会在遇到编码不了的字符时直接抛异常。`errors` 参数提供四种退路，各说各话：
+
+| errors 值 | 行为 | 适用场景 |
+|-----------|------|---------|
+| `'strict'` | 抛 `UnicodeEncodeError`（默认） | 绝大多数场合，问题要暴露不要掩盖 |
+| `'ignore'` | 直接丢掉编不了的字符 | 清洗脏数据，不在乎丢字 |
+| `'replace'` | 每个编不了的字符换成一个 `?` | 保留长度感、快速看大概 |
+| `'xmlcharrefreplace'` | 换成 `&#码点;` 形式的实体 | 生成 HTML 文本 |
+| `'backslashreplace'` | 换成 `\u码点` 形式的转义文本 | 调试期保留完整信息 |
+
+用 `"中文a"` 按 ascii 编码观察五种策略的差别：
+
+```python
+text = "中文a"
+print("strict          ->", end=" ")
+try:
+    print(text.encode('ascii'))
+except UnicodeEncodeError as e:
+    print("UnicodeEncodeError:", e)
+for handler in ['ignore', 'replace', 'xmlcharrefreplace', 'backslashreplace']:
+    print(f"{handler:18} ->", text.encode('ascii', errors=handler))
+```
+
+**运行结果**：
+
+```text
+strict          -> UnicodeEncodeError: 'ascii' codec can't encode characters in position 0-1: ordinal not in range(128)
+ignore             -> b'a'
+replace            -> b'??a'
+xmlcharrefreplace  -> b'&#20013;&#25991;a'
+backslashreplace   -> b'\\u4e2d\\u6587a'
+```
+
+逐行解读：
+
+- `strict`：直接炸出 `UnicodeEncodeError`，报错里指明"位置 0-1 的字符装不进 ascii"——位置是字符位置，从 0 开始数
+- `ignore`：'中'、'文' 被扔掉，只剩 `a`——最省事也最危险，丢失是静默的
+- `replace`：'中'、'文' 各换一个 `?`，输出 `b'??a'`（**字符数守恒**，看长度就能猜到丢了 2 个字）
+- `xmlcharrefreplace`：换成 `&#20013;&#25991;` 的 HTML 实体，交给浏览器仍能显示出"中文"
+- `backslashreplace`：换成 `\u4e2d\u6587` 的 Python 转义文本，信息一个不少，调试日志里最爱用
+
+注意两点：`xmlcharrefreplace` 与 `backslashreplace` 是**编码侧专属**的策略（decode 时不认）；这两者虽然"看起来变长了"，但手工也能还原出原文，属于**可逆**策略，而 ignore/replace 丢了就没了。
+
+#### 2.2.4 errors 名是"延迟校验"：出事才检查
+
+一个容易踩的冷知识：`errors` 参数名的合法性检查不是在调用时，而是真正出错那一刻：
+
+```python
+print("全部可编时，拼错的 errors 名不报错:")
+print("   '中文'.encode('utf-8', errors='nosuch') =", '中文'.encode('utf-8', errors='nosuch'))
+print("真正遇到错误，才抛出:")
+try:
+    '中'.encode('ascii', errors='nosuch')
+except LookupError as e:
+    print("   '中'.encode('ascii', errors='nosuch') -> LookupError:", e)
+```
+
+**运行结果**：
+
+```text
+全部可编时，拼错的 errors 名不报错:
+   '中文'.encode('utf-8', errors='nosuch') = b'\xe4\xb8\xad\xe6\x96\x87'
+真正遇到错误，才抛出:
+   '中'.encode('ascii', errors='nosuch') -> LookupError: unknown error handler name 'nosuch'
+```
+
+对照 2.2.2 的结论就有完整图景：
+
+- **encoding 名拼错**：当场抛 `LookupError: unknown encoding`，因为一上来就要查编码方案表
+- **errors 名拼错**：平时不查，某次真的遇到编不了的字符、需要找处理器时才抛 `LookupError: unknown error handler name`
+
+这解释了一个怪现象：`'中文'.encode('utf-8', errors='replace')` 之类的代码里 errors 拼错也能"正常跑"，直到某天数据里混进一个 bmp 之外的字符才炸——所以测试覆盖不到错误路径，这类拼写错误就能潜伏很久。
+
+### 2.3 bytes.decode()：把字节还原成文本
+
+#### 2.3.1 基本用法与默认参数
+
+`decode()` 是 `bytes` 的方法，签名与 `encode()` 完全对称：`bytes.decode(encoding='utf-8', errors='strict')`：
+
+```python
+raw = '中文'.encode()
+print(raw, type(raw))
+print(raw.decode(), type(raw.decode()))
+print("不传 encoding 时:", raw.decode())
+
+# 方法挂在类型上，对象搞反直接报错
+try:
+    '中文'.decode()
+except AttributeError as e:
+    print("str 上调 decode ->", e)
+```
+
+**运行结果**：
+
+```text
+b'\xe4\xb8\xad\xe6\x96\x87' <class 'bytes'>
+中文 <class 'str'>
+不传 encoding 时: 中文
+str 上调 decode -> 'str' object has no attribute 'decode'
+```
+
+`decode` 只认 `bytes`、`bytearray` 等字节类型，`str` 身上没有这个方法——方向感就是这么来的：**文本用 encode 出去，字节用 decode 回来**。
+
+#### 2.3.2 同一份字节，不同编码解出不同结果
+
+同一份"你好"的字节，用什么编码解，得到的文本完全不同——这正是乱码的两个方向：
+
+```python
+utf8_bytes = '你好'.encode('utf-8')
+print("utf-8 编码的 '你好' 字节:", utf8_bytes, len(utf8_bytes), "字节")
+print("按 utf-8 解:", utf8_bytes.decode('utf-8'))
+print("按 gbk  解:", utf8_bytes.decode('gbk'))
+
+gbk_bytes = '你好'.encode('gbk')
+print("gbk 编码的 '你好' 字节:", gbk_bytes, len(gbk_bytes), "字节")
+try:
+    gbk_bytes.decode('utf-8')
+except UnicodeDecodeError as e:
+    print("gbk 字节按 utf-8 解 ->", e)
+```
+
+**运行结果**：
+
+```text
+utf-8 编码的 '你好' 字节: b'\xe4\xbd\xa0\xe5\xa5\xbd' 6 字节
+按 utf-8 解: 你好
+按 gbk  解: 浣犲ソ
+gbk 编码的 '你好' 字节: b'\xc4\xe3\xba\xc3' 4 字节
+gbk 字节按 utf-8 解 -> 'utf-8' codec can't decode byte 0xc4 in position 0: invalid continuation byte
+```
+
+| 错配方向 | 后果 | 危险程度 |
+|---------|------|---------|
+| utf-8 字节按 gbk 解 | **静默乱码**：`浣犲ソ`，不报错 | 最危险，问题藏得住 |
+| gbk 字节按 utf-8 解 | **当场报错**：`invalid continuation byte` | 反而好，立刻能发现 |
+
+这个表背后是两种设计哲学：utf-8 的字节规则非常严格（首字节前缀决定长度，延续字节必须 `10` 开头），乱撞的字节对不上就报错；gbk 的规则宽松，`e4 bd`、`a0 e5`、`a5 bd` 恰好每两个字节都落在 gbk 的合法区间里，于是"强行解出一个毫不相干的汉字"。**排查乱码时先问自己：这份字节当初是用哪种编码写出去的？**
+
+#### 2.3.3 errors 参数：解不下去时怎么办
+
+decode 侧支持的策略少一个（没有 `xmlcharrefreplace`），行为与 encode 侧对应：
+
+| errors 值 | 行为 |
+|-----------|------|
+| `'strict'` | 抛 `UnicodeDecodeError`（默认） |
+| `'ignore'` | 丢掉解不了的字节 |
+| `'replace'` | 解不了的字节换成替换符（U+FFFD） |
+| `'backslashreplace'` | 换成 `\xNN` 形式的转义文本，几乎只用于调试 |
+
+构造一份"开头正常、中间断了再正常"的坏字节，逐个策略看：
+
+```python
+raw = b'Hello\xc3(' + '文'.encode('utf-8')
+print("原始字节:", raw)
+print("strict  尝试:", end=" ")
+try:
+    raw.decode('utf-8')
+except UnicodeDecodeError as e:
+    print("UnicodeDecodeError:", e)
+print("ignore  ->", raw.decode('utf-8', errors='ignore'))
+print("replace ->", raw.decode('utf-8', errors='replace'))
+print("backslashreplace ->", repr(raw.decode('utf-8', errors='backslashreplace')))
+```
+
+**运行结果**：
+
+```text
+原始字节: b'Hello\xc3(\xe6\x96\x87'
+strict  尝试: UnicodeDecodeError: 'utf-8' codec can't decode byte 0xc3 in position 5: invalid continuation byte
+ignore  -> Hello(文
+replace -> Hello�(文
+backslashreplace -> 'Hello\\xc3(文'
+```
+
+逐行解读：
+
+- 坏字节只有 1 个：位置 5 的 `\xc3`。它本想开启一个双字节序列，但位置 6 是 `(`（不是 `10` 开头的延续字节），校验失败
+- `ignore`：坏字节直接消失，前后文本自动接上——`Hello(文`，长度变了
+- `replace`：坏字节换成替换符 U+FFFD（就是输出里的那个 `�`）——长度感还在
+- `backslashreplace`：坏字节原样以 `\xc3` 文本形式保留，调试时能看出"这里本来是字节 0xc3"
+
+排障经验：decode 报错时**先别急着加 ignore**，报错信息里的 position 是"字节位置"（不是字符位置），直接定位到 `raw[5]` 看值，比盲改策略有用得多。
+
+decode 侧同样适用"延迟校验"：`raw.decode('utf-8', errors='nosuch')` 在字节全部合法时不报错——`errors` 名只在真出事时才检查。
+
+### 2.4 编解码往返：什么时候能保证不失真
+
+"往返"（roundtrip）指 `文本 --encode--> 字节 --decode--> 文本` 走一圈还能回到原点。这个圈子什么时候闭合、什么时候走样，是选择参数的核心依据。
+
+#### 2.4.1 同一编码 + strict：必然可逆
+
+只要字符集装得下你的所有字符，同一编码进出必然还原：
+
+```python
+for t in ["Hi", "中文a", "中文😀"]:
+    for enc in ["utf-8", "gbk", "ascii"]:
+        try:
+            raw = t.encode(enc, errors='strict')
+            back = raw.decode(enc, errors='strict')
+            print(f"'{t}' × {enc:6} -> {raw}  往返还原: {back == t}")
+        except (UnicodeEncodeError, UnicodeDecodeError) as e:
+            print(f"'{t}' × {enc:6} -> 编解码失败: {type(e).__name__}")
+```
+
+**运行结果**：
+
+```text
+'Hi' × utf-8  -> b'Hi'  往返还原: True
+'Hi' × gbk    -> b'Hi'  往返还原: True
+'Hi' × ascii  -> b'Hi'  往返还原: True
+'中文a' × utf-8  -> b'\xe4\xb8\xad\xe6\x96\x87a'  往返还原: True
+'中文a' × gbk    -> b'\xd6\xd0\xce\xc4a'  往返还原: True
+'中文a' × ascii  -> 编解码失败: UnicodeEncodeError
+'中文😀' × utf-8  -> b'\xe4\xb8\xad\xe6\x96\x87\xf0\x9f\x98\x80'  往返还原: True
+'中文😀' × gbk    -> 编解码失败: UnicodeEncodeError
+'中文😀' × ascii  -> 编解码失败: UnicodeEncodeError
+```
+
+九组对照的规律非常整齐：
+
+- 只要"能编出去"，全部都能还原——**失败全部发生在 encode 阶段**，且都是字符集装不下（gbk 装不下 😀，ascii 装不下中文）
+- `'中文😀'` 只有 utf-8 能吃下——这就是 utf-8 成为默认编码的根本原因：它的字符覆盖面就是整个 Unicode
+
+#### 2.4.2 丢信息的 errors：往返必然走样
+
+strict 换成 ignore/replace，信息在编码那一刻已经丢了，往返必然回不到原点：
+
+```python
+original = "中文a"
+kept = original.encode('ascii', errors='ignore')
+back = kept.decode('ascii')
+print("ignore  编码后:", kept, " 解回:", repr(back), " 相等吗:", back == original)
+kept = original.encode('ascii', errors='replace')
+back = kept.decode('ascii')
+print("replace 编码后:", kept, " 解回:", repr(back), " 相等吗:", back == original)
+
+# decode 侧 replace 更隐蔽：替换符本身是"真字符"，再编码会膨胀
+raw = '你好'.encode('utf-8')
+repaired = raw.decode('ascii', errors='replace')
+print("replace 解出:", repr(repaired))
+print("再 encode 后连字节数都变了:", len(repaired.encode('utf-8')), "vs 原", len(raw))
+```
+
+**运行结果**：
+
+```text
+ignore  编码后: b'a'  解回: 'a'  相等吗: False
+replace 编码后: b'??a'  解回: '??a'  相等吗: False
+replace 解出: '������'
+再 encode 后连字节数都变了: 18 vs 原 6
+```
+
+两组失真各有各的嘴脸：
+
+- `ignore` 侧：`'中文a'` 只剩 `'a'`，往返后 2 个汉字蒸发
+- `replace` 侧：`'??a'` 长度对上了，内容永远是假的——"长度守恒"是假象不是还原
+- 最值得注意的是替换符扩散：6 个字节解出 6 个替换符（每个坏字节变一个 U+FFFD），再按 utf-8 编码，每个替换符占 3 字节——**6 字节膨胀成 18 字节**。用 replace"修复"过的数据再存盘，体积和内容都变了
+
+#### 2.4.3 latin-1 的无损过桥：字节永不丢失
+
+latin-1 有个独一无二的本事：0~255 每个字节值都有一个对应字符，所以**任何字节串都能按 latin-1 解码成功、再把解出的字符编回去，字节一个不差**：
+
+```python
+# 特性1+2：任意字节 → 文本 → 字节，全部无损
+raw = bytes([0xe4, 0xb8, 0xad, 0x31, 0xff])
+text = raw.decode('latin-1')
+back = text.encode('latin-1')
+print("任意字节按 latin-1 解:", repr(text))
+print("再按 latin-1 编回:", back)
+print("字节能否完全还原:", back == raw)
+
+# 经典应用：把"误读"的文本按原路退回字节，再按正确编码解
+utf8_bytes = '你好'.encode('utf-8')
+misread = utf8_bytes.decode('latin-1')
+print("utf-8 字节误按 latin-1 解:", repr(misread))
+fixed = misread.encode('latin-1').decode('utf-8')
+print("按 latin-1 编回字节再按 utf-8 解:", fixed)
+```
+
+**运行结果**：
+
+```text
+任意字节按 latin-1 解: 'ä¸\xad1ÿ'
+再按 latin-1 编回: b'\xe4\xb8\xad1\xff'
+字节能否完全还原: True
+utf-8 字节误按 latin-1 解: 'ä½\xa0å¥½'
+按 latin-1 编回字节再按 utf-8 解: 你好
+```
+
+latin-1 的两个角色一褒一贬：
+
+- **无损过桥**：decode 永不失败 + byte 级往返保证，让 latin-1 成为"把字节安全包成文本"的标准手法，修复链 `garbled.encode('latin-1').decode('utf-8')` 的第一步就是靠它退回字节
+- **乱码温床**：`'ä½\xa0å¥½'` 这种"每个字节都变成了奇怪西欧字符"的字符串，就是 utf-8 中文被 latin-1 误解的典型面目——**能解 ≠ 解得对**，第一时间要怀疑的不是数据坏了，而是编码用错了
+
+三种组合的往返保证总结：
+
+| 组合 | 能否还原 |
+|------|---------|
+| 同一编码 + strict + 字符集认这个字符 | 必然还原 |
+| 走过 ignore/replace | 必然走样（丢字/换字） |
+| 跨编码进出 | 不在保证范围：撞得巧是"翻译"，撞不巧是乱码或报错 |
+
+### 2.5 典型错误与排障
+
+编码问题最终都会以两类异常亮相：`UnicodeEncodeError` 与 `UnicodeDecodeError`。它们的报错信息自带"破案线索"，学会拆解比背结论有用。
+
+#### 2.5.1 UnicodeEncodeError：四要素拆解
+
+```python
+try:
+    'abc中文'.encode('ascii')
+except UnicodeEncodeError as e:
+    print(e)
+```
+
+**运行结果**：
+
+```text
+'ascii' codec can't encode characters in position 3-4: ordinal not in range(128)
+```
+
+一句报错拆成四个部分，每部分都有用：
+
+| 要素 | 报错中的原文 | 含义 |
+|------|-------------|------|
+| 编码名 | `'ascii'` | 出事用的是哪套方案 |
+| 方向 | `can't encode` | encode 侧（文本 → 字节）失败 |
+| 位置 | `position 3-4` | `'abc中文'` 的第 3、第 4 个字符（`中`、`文`），从 0 开始数 |
+| 原因 | `ordinal not in range(128)` | 码点超出 ascii 允许的 0~127 范围 |
+
+拿到这种报错的处理顺序：
+
+1. **看位置**：`s[3]`、`s[4]` 看看具体是什么字符——多半是中文、emoji 或不可见的特殊符号
+2. **换编码**：内容确实需要这些字符，就换 utf-8（覆盖全部 Unicode），不要换 errors 掩盖
+3. **或换策略**：确认可以容忍失真时再选 `ignore`/`replace`/`xmlcharrefreplace`
+
+#### 2.5.2 UnicodeDecodeError：定位坏字节
+
+decode 侧报错结构相同，但两个细节不同：出事的是**字节**、位置是**字节位置**：
+
+```python
+utf8_bytes = "中文测试".encode('utf-8')
+print("字节串:", utf8_bytes)
+try:
+    utf8_bytes.decode('gbk')
+except UnicodeDecodeError as e:
+    print(e)
+```
+
+**运行结果**：
+
+```text
+字节串: b'\xe4\xb8\xad\xe6\x96\x87\xe6\xb5\x8b\xe8\xaf\x95'
+'gbk' codec can't decode byte 0xad in position 2: illegal multibyte sequence
+```
+
+| 要素 | 报错中的原文 | 含义 |
+|------|-------------|------|
+| 编码名 | `'gbk'` | 尝试解码用的方案（很可能用错了） |
+| 方向 | `can't decode` | decode 侧（字节 → 文本）失败 |
+| 出事字节 | `byte 0xad in position 2` | 第 **2** 个字节（`b8` 后面的 `ad`）坏了——不是字符位置 |
+| 原因 | `illegal multibyte sequence` | 字节序列不符合 gbk 的多字节组合规则 |
+
+这正是 Windows 中文系统上最常见的报错：`"中文测试"` 的 utf-8 字节按 gbk 解，`e4 b8` 被当作 gbk 的双字节组合，轮到第 2 位的 `ad` 时对不上 gbk 规则。**decode 报错的本质往往不是"数据坏了"，而是"解码方案用错了"**——position 里的字节值打印出来对照 2.2.1 的字节数分布，基本就能反推出真正的编码。
+
+#### 2.5.3 实战手法：把乱码修回来
+
+乱码修复只有一句口诀：**按当初产生它的编码退回字节，再按正确的编码解出来**。
+
+**手法一：知道乱码来路，两条链路直接对穿**
+
+```python
+garbled = '浣犲ソ'                       # 2.3.2 里 utf-8 字节按 gbk 解出的乱码
+fixed = garbled.encode('gbk').decode('utf-8')
+print("乱码:", garbled, "-> 修复:", fixed)
+```
+
+**运行结果**：
+
+```text
+乱码: 浣犲ソ -> 修复: 你好
+```
+
+路线图：`'你好'` --utf-8--> `e4 bd a0 e5 a5 bd` --gbk误解--> `'浣犲ソ'` --gbk编回--> 同样的字节 --utf-8正确解--> `'你好'`。修复的本质是**把字节当作唯一事实**，中间的文本只是字节的一层"皮"。
+
+**手法二：来路不明时按顺序试探，latin-1 兜底**
+
+```python
+def safe_decode(data):
+    """按 utf-8 → gbk → latin-1 的顺序尝试解码，返回 (结果, 实际使用的编码)"""
+    for enc in ('utf-8', 'gbk', 'latin-1'):
+        try:
+            return data.decode(enc), enc
         except UnicodeDecodeError:
             continue
-    # 最终兜底: Latin-1 不会失败
-    return raw_bytes.decode('utf-8', errors='replace'), 'utf-8(replace)'
 
-test_samples = [
-    '你好'.encode('utf-8'),
-    '你好'.encode('gbk'),
-    b'Hello\xc3\xc3',  # 纯 Latin-1 字节
-]
-
-for b in test_samples:
-    result, enc = safe_decode(b)
-    print(f"  {list(b)} → '{result}' (用 {enc} 解码)")
-# [228, 189, 160, 229, 165, 189] → '你好' (用 utf-8 解码)
-# [196, 227, 186, 195]            → '你好' (用 gbk 解码)
-# [72, 101, 108, 108, 111, 195, 195] → 'Hello妹' (用 gbk 解码)
+samples = [b'Hi\xe4\xb8\xad', b'\xc4\xe3\xba\xc3', b'\xff\xfe\x00?']
+for s in samples:
+    text, enc = safe_decode(s)
+    print(f"{s} -> {text!r}（按 {enc} 解出）")
 ```
 
-UTF-8 是最严格的编码——它的字节前缀规则使得随机字节串恰好是合法 UTF-8 的概率很低。因此，如果 UTF-8 解码成功，几乎可以确定就是 UTF-8 编码。这是 UTF-8 的自同步特性。
+**运行结果**：
 
-### 3.5 bytes 与 str 的区别
-
-Python 3 中 `str` 和 `bytes` 是两个完全不同的类型，不能直接混用。理解它们的区别是处理编码问题的基础。
-
-#### 3.5.1 类型的本质差异
-
-```python
-s = "Hello中文"           # str: Unicode 字符序列
-b = s.encode('utf-8')     # bytes: 字节序列
-
-print(f"str: {s!r}")
-print(f"  类型: {type(s)}")
-print(f"  长度: {len(s)} (字符数)")
-print(f"  每个元素是字符: {[c for c in s]}")
-
-print(f"\nbytes: {b!r}")
-print(f"  类型: {type(b)}")
-print(f"  长度: {len(b)} (字节数)")
-print(f"  每个元素是整数(0-255): {[x for x in b]}")
-
-# 输出:
-# str: 'Hello中文'
-#   类型: <class 'str'>
-#   长度: 7 (字符数)
-#   每个元素是字符: ['H', 'e', 'l', 'l', 'o', '中', '文']
-#
-# bytes: b'Hello\xe4\xb8\xad\xe6\x96\x87'
-#   类型: <class 'bytes'>
-#   长度: 11 (字节数)
-#   每个元素是整数(0-255): [72, 101, 108, 108, 111, 228, 184, 173, 230, 150, 135]
+```text
+b'Hi\xe4\xb8\xad' -> 'Hi中'（按 utf-8 解出）
+b'\xc4\xe3\xba\xc3' -> '你好'（按 gbk 解出）
+b'\xff\xfe\x00?' -> 'ÿþ\x00?'（按 latin-1 解出）
 ```
 
-核心差异：
+试探顺序大有讲究：
 
-| 维度 | str | bytes |
-|------|-----|-------|
-| 内部表示 | Unicode 码点 | 原始字节 (0~255) |
-| 元素类型 | 字符 (str) | 整数 (int) |
-| `len()` | 字符数 | 字节数 |
-| 字面量 | `'...'` / `"..."` | `b'...'` / `b"..."` |
-| 可变性 | 不可变 | 不可变（`bytearray` 可变） |
+- **先 utf-8**：它是当下的事实标准，先按大概率猜；而且 utf-8 校验严格，"能解出"基本就是"解对了"
+- **再 gbk**：中文 Windows 环境的历史数据大概率是 gbk 家族
+- **最后 latin-1**：它永不失败，放最后是兜底——代价是结果可能全是"假字符"（第三个样本 `'ÿþ\x00?'` 就是典型），**兜底结果必须抽查**，不能直接当真
 
-#### 3.5.2 bytes 字面量
+顺带一提，这三个样本的猜法都有依据：第一个字节 `48`（ASCII `H`）三种编码都认；`\xc4` 开头是典型 gbk 首字节；`\xff` 在 utf-8 与 gbk 里都非法，只有 latin-1 收留。
 
-`bytes` 字面量用 `b'...'` 前缀表示，有三种创建方式：
+### 2.6 ord() 与 chr()：单字符与码点的互转
+
+`encode`/`decode` 管的是"整串文本 ↔ 字节"，而 `ord()`/`chr()` 管的是"单字符 ↔ 码点"——它们是 1.1 三层视图里"码点层"的直接读写接口，看懂它们，很多编码现象就不神秘了。
+
+#### 2.6.1 基本用法
 
 ```python
-# 方式1: ASCII 字符直接写
-b1 = b'Hello'
-print(f"  b'Hello' = {b1}, 类型={type(b1)}")
-
-# 方式2: 十六进制转义（用于非 ASCII 字节）
-b2 = b'\xe4\xb8\xad'  # '中' 的 UTF-8 编码
-print(f"  b'\\xe4\\xb8\\xad' = {b2}")
-
-# 方式3: bytes() 构造（从整数列表创建）
-b3 = bytes([0x48, 0x65, 0x6c, 0x6c, 0x6f])  # 'Hello'
-print(f"  bytes([0x48,...]) = {b3}")
-
-# 方式4: 从 str 编码创建
-b4 = "中文".encode('utf-8')
-print(f"  '中文'.encode('utf-8') = {b4}")
+print(ord('A'), ord('a'), hex(ord('中')))
+print(chr(20013))
+print(chr(0x4E2D))
+print(chr(65))
 ```
 
-#### 3.5.3 bytearray — 可变的 bytes
+**运行结果**：
 
-`bytearray` 是 `bytes` 的可变版本，可以修改元素和追加字节：
-
-```python
-ba = bytearray(b'Hello')
-print(f"  创建: {ba}")
-print(f"  类型: {type(ba)}")  # bytearray
-
-# 可修改单个字节
-ba[0] = ord('h')     # 把 'H' 改成 'h'
-print(f"  修改后: {ba}")     # bytearray(b'hello')
-
-# 可追加字节
-ba.append(ord('!'))
-print(f"  追加后: {ba}")     # bytearray(b'hello!')
-
-# bytes 不可变
-b = b'Hello'
-# b[0] = ord('h')  # TypeError: 'bytes' 对象不支持赋值
-print("  bytes 不可变: b'Hello' 的 b[0] 不能赋值")
+```text
+65 97 0x4e2d
+中
+中
+A
 ```
 
-#### 3.5.4 索引与切片差异
+- `ord(c)`：给出字符，返回它的十进制码点——`'A'` 是 65、`'中` 是 20013（十六进制 0x4e2d）
+- `chr(n)`：给出码点，返回对应字符，十进制（`20013`）和十六进制（`0x4E2D`）写法都认
+- 两者严格互逆：`chr(ord('中')) == '中'`
+
+#### 2.6.2 边界行为：两条硬限制
 
 ```python
-s = "Hello"
-b = b'Hello'
-
-print("索引差异:")
-# str 索引返回字符
-print(f"  s[0] = '{s[0]}' (str 返回字符)")
-
-# bytes 索引返回整数
-print(f"  b[0] = {b[0]} (bytes 返回整数)")
-
-print("切片差异:")
-# str 切片返回 str
-print(f"  s[1:3] = '{s[1:3]}' (str 切片)")
-
-# bytes 切片返回 bytes
-print(f"  b[1:3] = {b[1:3]} (bytes 切片)")
-```
-
-这个差异在实际使用中非常重要——`bytes[0]` 返回的是整数（0~255），而不是字符。要获取字符需要用 `chr(b[0])` 或 `b[0:1].decode('ascii')`。
-
-#### 3.5.5 拼接限制
-
-`str` 和 `bytes` 不能直接拼接——必须先通过 `encode()` / `decode()` 统一类型：
-
-```python
-print("拼接限制:")
-
-# bytes + bytes: 允许
-result = b'Hello' + b' ' + b'World'
-print(f"  bytes + bytes: {result}")  # b'Hello World'
-
-# str + str: 允许
-result = 'Hello' + ' ' + 'World'
-print(f"  str + str: {result}")      # Hello World
-
-# bytes + str: 不允许
-# b'Hello' + 'World'  # TypeError
-print("  bytes + str: TypeError (不兼容)")
-
-# 如果需要拼接，先统一类型
-fixed = b'Hello' + 'World'.encode('utf-8')
-print(f"  统一后: {fixed}")  # b'HelloWorld'
-```
-
-#### 3.5.6 比较与查找
-
-```python
-print("比较与查找:")
-
-# bytes 之间的比较
-print(f"  b'Hello' == b'Hello': {b'Hello' == b'Hello'}")  # True
-print(f"  b'Hello' > b'World': {b'Hello' > b'World'}")    # False
-
-# in 检查: bytes 中查的是字节子序列
-b = "Hello中文".encode('utf-8')
-
-# str 中用字符查找
-print(f"  '中' in 'Hello中文': {'中' in 'Hello中文'}")    # True
-
-# bytes 中不能用 str 查找
-# '中' in b  # TypeError: a bytes-like object is required
-
-# 必须用字节序列查找
-print(f"  '中'.encode() in bytes: {'中'.encode('utf-8') in b}")  # True
-```
-
-#### 3.5.7 文件读写模式
-
-Python 文件读写有两种模式，分别对应 `str` 和 `bytes`：
-
-```python
-import io
-
-print("文件读写模式:")
-
-# 文本模式 (r/w): 返回/接收 str
-print("  文本模式 (r/w):")
-with io.StringIO() as f:
-    f.write("Hello中文\n")
-    f.seek(0)
-    content = f.read()
-    print(f"    读出: '{content.strip()}' (类型: {type(content).__name__})")
-# 读出: 'Hello中文' (类型: str)
-
-# 二进制模式 (rb/wb): 返回/接收 bytes
-print("  二进制模式 (rb/wb):")
-with io.BytesIO() as f:
-    f.write("Hello中文".encode('utf-8'))
-    f.seek(0)
-    raw = f.read()
-    print(f"    读出: {raw} (类型: {type(raw).__name__})")
-    # 二进制模式需要手动 decode
-    decoded = raw.decode('utf-8')
-    print(f"    解码: '{decoded}'")
-# 读出: b'Hello\xe4\xb8\xad\xe6\x96\x87' (类型: bytes)
-# 解码: 'Hello中文'
-```
-
-实际使用 `open()` 时，文本模式会自动按系统默认编码（或指定编码）处理 decode/encode。但二进制模式不做任何编码处理，你完全自己控制。
-
-### 3.6 BOM — 字节序标记
-
-BOM（Byte Order Mark）是 Unicode 字符 `U+FEFF`，用在字节流的开头来标识编码方式和字节序。
-
-#### 3.6.1 BOM 的几种形式
-
-```python
-print("BOM 的几种形式:")
-
-# UTF-8 BOM: 3 字节 EF BB BF
-print(f"  UTF-8 BOM:    {list(b'\xef\xbb\xbf')} → EF BB BF")
-
-# UTF-16 LE BOM: 2 字节 FF FE (小端序)
-print(f"  UTF-16 LE BOM: {list(b'\xff\xfe')} → FF FE")
-
-# UTF-16 BE BOM: 2 字节 FE FF (大端序)
-print(f"  UTF-16 BE BOM: {list(b'\xfe\xff')} → FE FF")
-```
-
-BOM 的核心作用是标识**字节序**——多字节编码（如 UTF-16）需要知道高位字节在前还是低位字节在前。
-
-#### 3.6.2 UTF-16 的字节序问题
-
-UTF-16 用 2 字节表示 BMP 字符，但"高位在前还是低位在前"在不同 CPU 架构上不同：
-
-```python
-print("UTF-16 字节序:")
-text = "AB"
-
-# UTF-16-LE: 小端序，低字节在前
-le_bytes = text.encode('utf-16-le')
-print(f"  UTF-16-LE: {list(le_bytes)} (A→41 00, B→42 00)")
-
-# UTF-16-BE: 大端序，高字节在前
-be_bytes = text.encode('utf-16-be')
-print(f"  UTF-16-BE: {list(be_bytes)} (A→00 41, B→00 42)")
-
-# 不指定字节序时，UTF-16 会自动加 BOM
-u16_bytes = text.encode('utf-16')
-print(f"  UTF-16 (含BOM): {list(u16_bytes)} (FF FE 是LE的BOM)")
-```
-
-Python 的 `utf-16` 默认使用小端序（LE），并在开头添加 BOM。接收方看到 `FF FE` 就知道这是小端序。UTF-8 没有字节序问题——它是按字节顺序处理的，所以 UTF-8 的 BOM 没有字节序标识的意义，仅用于标识"这是一份 UTF-8 文件"。
-
-#### 3.6.3 UTF-8 的 BOM 处理
-
-UTF-8 的 BOM 是 `EF BB BF`，不代表字节序，只是一个标记。有些编辑器（如 Windows Notepad）会在 UTF-8 文件开头自动加 BOM，可能导致读取时出现多余字符：
-
-```python
-print("UTF-8 BOM 检测与处理:")
-
-# 制造一个带 BOM 的 UTF-8 字节序列
-text_with_bom = "Hello中文"
-bom_bytes = b'\xef\xbb\xbf'  # UTF-8 BOM
-utf8_with_bom = bom_bytes + text_with_bom.encode('utf-8')
-
-print(f"  带BOM的UTF-8字节: {list(utf8_with_bom[:6])}...")
-print(f"  前三字节 = BOM? {utf8_with_bom[:3] == b'\\xef\\xbb\\xbf'}")
-
-# 方法1: 手动去除 BOM 后解码
-if utf8_with_bom[:3] == b'\xef\xbb\xbf':
-    clean = utf8_with_bom[3:].decode('utf-8')
-    print(f"  去除BOM解码: '{clean}'")  # 'Hello中文'
-```
-
-Python 提供了 `utf-8-sig` 编码——编码时自动加 BOM，解码时自动去 BOM，省去手动处理：
-
-```python
-print("\nutf-8-sig 自动处理 BOM:")
-
-# encode: utf-8-sig 会在开头添加 BOM
-encoded_sig = "Hello中文".encode('utf-8-sig')
-print(f"  encode('utf-8-sig'): {list(encoded_sig[:6])}... (含BOM)")
-
-# 对比普通 utf-8 (无BOM)
-encoded_plain = "Hello中文".encode('utf-8')
-print(f"  encode('utf-8'):    {list(encoded_plain[:6])}... (无BOM)")
-
-# decode: utf-8-sig 自动去 BOM
-print(f"  utf-8-sig 解码: '{encoded_sig.decode('utf-8-sig')}'")   # Hello中文
-
-# 普通 utf-8 也能处理带 BOM 的数据（Python 自动跳过 BOM）
-print(f"  utf-8 解码BOM版: '{encoded_sig.decode('utf-8')}'")      # Hello中文
-```
-
-#### 3.6.4 中文乱码场景分析
-
-将三种最典型的中文乱码场景汇总：
-
-| 场景 | 编码 | 解码 | 现象 |
-|------|------|------|------|
-| GBK 编码 + UTF-8 解码 | `GBK` | `UTF-8` | 解码失败（GBK 字节不符合 UTF-8 规则） |
-| UTF-8 编码 + GBK 解码 | `UTF-8` | `GBK` | 乱码 `'浣犲ソ'`（6 字节解析为 3 个 GBK 字符） |
-| UTF-8 编码 + Latin-1 解码 | `UTF-8` | `Latin-1` | 乱码 `'ä½ å¥½'`（每字节当一个 Latin-1 字符） |
-
-```python
-# 场景1: GBK编码 + UTF-8解码 → 解码失败
-original = "你好"
-gbk_encoded = original.encode('gbk')
-print(f"  场景1: GBK编码 + UTF-8解码")
-print(f"    原文: '{original}'")
-print(f"    GBK字节: {list(gbk_encoded)}")
+# ord 只接受"恰好一个字符"的字符串
 try:
-    garbled = gbk_encoded.decode('utf-8')
-    print(f"    乱码: '{garbled}'")
-except UnicodeDecodeError:
-    print(f"    解码失败")
+    ord('中文')
+except TypeError as e:
+    print(e)
 
-# 场景2: UTF-8编码 + GBK解码 → 阉字乱码
-utf8_encoded = original.encode('utf-8')
-print(f"  场景2: UTF-8编码 + GBK解码")
-print(f"    原文: '{original}'")
-print(f"    UTF-8字节: {list(utf8_encoded)}")
-garbled = utf8_encoded.decode('gbk', errors='replace')
-print(f"    乱码: '{garbled}'")
-
-# 场景3: UTF-8编码 + Latin-1解码 → 西欧乱码
-print(f"  场景3: UTF-8编码 + Latin-1解码 (HTTP常见问题)")
-garbled = utf8_encoded.decode('latin-1')
-print(f"    原文: '{original}'")
-print(f"    乱码: '{garbled}'")
-# 修复: 重新编码再正确解码
-fixed = garbled.encode('latin-1').decode('utf-8')
-print(f"    修复: '{fixed}'")
+# chr 只接受 0 ~ 0x10FFFF 的码点
+try:
+    chr(0x110000)
+except ValueError as e:
+    print(e)
+try:
+    chr(-1)
+except ValueError as e:
+    print(e)
 ```
 
-#### 3.6.5 综合编码检测与修复工具
+**运行结果**：
 
-结合 BOM 检测、逐个尝试和兜底策略，实现一个实用的编码检测工具：
+```text
+ord() expected a character, but string of length 2 found
+chr() arg not in range(0x110000)
+chr() arg not in range(0x110000)
+```
+
+| 限制 | 报错 | 说明 |
+|------|------|------|
+| `ord` 的入参必须长度为 1 | `TypeError` | 传空串 `ord('')` 或 `'中文'` 都拒绝 |
+| `chr` 的入参范围 0 ~ 0x10FFFF | `ValueError` | 上限 0x10FFFF 是 Unicode 码点空间的天花板（0x110000 = 1114112 个码点） |
+
+#### 2.6.3 应用：用码点区间理解字节数
+
+utf-8 是变长编码，**一个字符占几个字节，完全由它的码点落在哪个区间决定**：
 
 ```python
-def detect_and_decode(raw_bytes):
-    """检测编码并安全解码字节序列"""
-    # 1. 检查 BOM
-    if raw_bytes[:3] == b'\xef\xbb\xbf':
-        return raw_bytes[3:].decode('utf-8'), 'UTF-8 (BOM)'
-    if raw_bytes[:2] == b'\xff\xfe':
-        return raw_bytes[2:].decode('utf-16-le'), 'UTF-16 LE'
-    if raw_bytes[:2] == b'\xfe\xff':
-        return raw_bytes[2:].decode('utf-16-be'), 'UTF-16 BE'
-
-    # 2. 尝试 UTF-8 (最严格, 能成功基本就是 UTF-8)
-    try:
-        return raw_bytes.decode('utf-8'), 'UTF-8'
-    except UnicodeDecodeError:
-        pass
-
-    # 3. 尝试 GBK
-    try:
-        return raw_bytes.decode('gbk'), 'GBK'
-    except UnicodeDecodeError:
-        pass
-
-    # 4. 尝试 Big5
-    try:
-        return raw_bytes.decode('big5'), 'Big5'
-    except UnicodeDecodeError:
-        pass
-
-    # 5. 退化: Latin-1 不会失败
-    return raw_bytes.decode('latin-1'), 'Latin-1 (fallback)'
+for cp in [0x41, 0xE9, 0x4E2D, 0x1F600]:
+    print(f"U+{cp:04X}: {chr(cp)!r} 的 utf-8 长度 = {len(chr(cp).encode('utf-8'))}")
 ```
 
-测试检测工具：
+**运行结果**：
+
+```text
+U+0041: 'A' 的 utf-8 长度 = 1
+U+00E9: 'é' 的 utf-8 长度 = 2
+U+4E2D: '中' 的 utf-8 长度 = 3
+U+1F600: '😀' 的 utf-8 长度 = 4
+```
+
+| 码点区间 | utf-8 字节数 | 典型内容 |
+|---------|-------------|---------|
+| U+0000 ~ U+007F | 1 | 英文、数字、半角符号（ASCII 全部） |
+| U+0080 ~ U+07FF | 2 | 带重音的拉丁字母（é）、希腊、西里尔、希伯来等 |
+| U+0800 ~ U+FFFF | 3 | 中日韩汉字、平假名、谚文等 |
+| U+10000 ~ U+10FFFF | 4 | Emoji、古文字、扩展区汉字 |
+
+这张表直接回答三类实际问题：
+
+- **体积估算**：`"中文"` 在 utf-8 下每字 3 字节（都落在 3 字节区）；混入一个 😀，字节数立刻 +4
+- **排查"编不过去"**：`ord()` 查出一个字符码点超 U+FFFF，那它在 gbk（基本只有 BMP 内的汉字）里必然编不出去
+- **生成测试字符**：`chr(0x4E00)` 到 `chr(0x9FFF)` 是 CJK 统一表意文字区，做测试数据时直接按区间批量造字
+
+注意一个容易误判的地方：`len('中文😀')` 是 **4**（Python 按"码点"数长度），而 `len('中文😀'.encode('utf-8'))` 是 **10**（3+3+4 个字节）——"字符串长度"和"传输字节数"是两个量，接口的字节数限制（限长 200 字节之类）算的永远是后者。
+
+### 2.7 实战场景
+
+#### 2.7.1 文本文件：硬盘上是字节，程序里才是文本
+
+文件在磁盘上只有字节；所谓"文本文件"只是"按某种编码解释字节"的约定。两种读法对照：
 
 ```python
-test_data = [
-    (b'\xef\xbb\xbf' + "Hello".encode('utf-8'), "UTF-8 with BOM"),
-    ("你好".encode('utf-8'), "Pure UTF-8"),
-    ("你好".encode('gbk'), "GBK"),
-    ("你好".encode('big5'), "Big5"),
-    (b'\xff\xfe' + "你好".encode('utf-16-le'), "UTF-16 LE with BOM"),
-]
+import os
+path = 'user_data.txt'
+record = "用户名: 张三; 城市: 杭州"
+with open(path, 'w', encoding='utf-8') as f:
+    f.write(record)
+with open(path, 'rb') as f:               # 二进制模式：字节原貌
+    raw = f.read()
+print("文件的字节:", raw)
+print("字节数:", len(raw))
+print("按 utf-8 解码:", raw.decode('utf-8'))
 
-print("编码检测测试:")
-for raw, expected in test_data:
-    result, detected = detect_and_decode(raw)
-    print(f"  期望:{expected:<20} → 检测:{detected:<20} → '{result}'")
-
-# 输出:
-#   期望:UTF-8 with BOM        → 检测:UTF-8 (BOM)           → 'Hello'
-#   期望:Pure UTF-8            → 检测:UTF-8                 → '你好'
-#   期望:GBK                   → 检测:GBK                   → '你好'
-#   期望:Big5                  → 检测:Big5                  → '你好'
-#   期望:UTF-16 LE with BOM   → 检测:UTF-16 LE            → '你好'
+with open(path, 'r', encoding='utf-8') as f:   # 文本模式：幕后自动解码
+    print("文本模式读出的类型:", type(f.read()).__name__)
+os.remove(path)
 ```
 
-#### 3.6.6 安全读写中文文件
+**运行结果**：
+
+```text
+文件的字节: b'\xe7\x94\xa8\xe6\x88\xb7\xe5\x90\x8d: \xe5\xbc\xa0\xe4\xb8\x89; \xe5\x9f\x8e\xe5\xb8\x82: \xe6\x9d\xad\xe5\xb7\x9e'
+字节数: 33
+按 utf-8 解码: 用户名: 张三; 城市: 杭州
+文本模式读出的类型: str
+```
+
+- `'rb'` 读出来是 bytes，`f.read()` 后字节数一个不差；文本模式 `'r'` 读出来是 str——open 在幕后替你做了一次 `decode`
+- 33 个字节 = 中文 8 个字（每字 3 字节）+ 标点空格 9 个 ASCII 字符；如果文件内容有多行，每行结尾换行也是一个字节（0x0A）
+- 文本模式省心，但**必须显式传 `encoding='utf-8'`**：不传时 open 会跟随系统设置（macOS 是 UTF-8，中文 Windows 是 cp936/gbk）——同一份代码换个系统就可能静默读错
+
+#### 2.7.2 网络传输：程序边界内外手动转换
+
+程序内部用 str 处理，但网络上传的永远是字节。一次"客户端发、服务端收"的完整链路：
 
 ```python
-import io
+def server_handle(received_bytes):
+    request = received_bytes.decode('utf-8')     # 进程序：字节 → 文本
+    reply = f"PONG:{request.upper()}"
+    return reply.encode('utf-8')                # 出程序：文本 → 字节
 
-print("安全读写中文文件:")
-content = "这是一段中文内容\n包含多行文本\n第三行"
-
-# 写入: 始终使用 UTF-8
-with io.StringIO() as f:
-    f.write(content)
-    f.seek(0)
-    raw = f.read().encode('utf-8')
-    print(f"  写入内容: '{content}'")
-    print(f"  UTF-8字节: {list(raw[:20])}...")
-
-# 读取: 自动检测编码
-result, encoding = detect_and_decode(raw)
-print(f"  读取结果: '{result}' (用 {encoding} 解码)")
+sent = 'ping数据'.encode('utf-8')               # 客户端发出前编码
+got = server_handle(sent)
+print("发出的字节:", sent)
+print("收到的字节:", got)
+print("对端解码后:", got.decode('utf-8'))
 ```
 
-#### 3.6.7 Python 源文件编码声明
+**运行结果**：
 
-Python 3 默认使用 UTF-8 编码源文件，不需要在文件顶部声明编码。但在某些特殊场景（如旧系统兼容）中需要显式声明：
+```text
+发出的字节: b'ping\xe6\x95\xb0\xe6\x8d\xae'
+收到的字节: b'PONG:PING\xe6\x95\xb0\xe6\x8d\xae'
+对端解码后: PONG:PING数据
+```
+
+转换点只有两个，位置是铁律：
+
+- **收到的第一时间** decode（字节进程序的地方）
+- **发出的最后一刻** encode（文本出程序的地方）
+
+中间所有业务逻辑（upper、拼接、切片）都在 str 世界进行。如果把 bytes 直接当字符串去拼接/查找，就会撞上 2.1.4 的 TypeError 家族。
+
+#### 2.7.3 跨系统协作：统一编码 + 来路不明字节的兜底
+
+不同系统给 `open()` 预设的编码不同，这是"换台机器就乱码"的根源：
 
 ```python
-# 以下声明方式都是合法的:
-#   # -*- coding: utf-8 -*-    (Emacs 风格)
-#   # coding: utf-8           (简洁风格)
-#   # coding=utf-8            (等号风格)
-
-# Python 3 默认源文件编码: UTF-8
-# 不需要显式声明编码
-# 中文可以作为变量名 (不推荐)
+import sys, locale
+print("本机 open() 文本模式默认编码:", locale.getpreferredencoding())
+print("str.encode/str.decode 默认编码:", sys.getdefaultencoding())
 ```
 
-Python 2 默认使用 ASCII 编码源文件，所以 Python 2 的 `.py` 文件中如果有中文，必须在顶部加 `# -*- coding: utf-8 -*-`。Python 3 改为默认 UTF-8，基本不需要再声明。
+**运行结果**：
 
-## 4. 设计决策与权衡
+```text
+本机 open() 文本模式默认编码: UTF-8
+str.encode/str.decode 默认编码: utf-8
+```
 
-### 4.1 为什么 Python 3 用 str + bytes 而不是 Python 2 的 str + unicode
+这台机器（macOS）两项正好都是 UTF-8，但换到中文 Windows 上第一行会变成 `cp936`（即 gbk）。两条防线：
 
-| 维度 | Python 2 (str + unicode) | Python 3 (str + bytes) |
-|------|--------------------------|------------------------|
-| 默认字符串类型 | `str`（字节串） | `str`（Unicode） |
-| Unicode 类型 | `unicode`（独立类型） | `str`（就是 Unicode） |
-| 字节串 | `str` | `bytes`（独立类型） |
-| 自动转换 | `str` 与 `unicode` 自动转换 | `str` 与 `bytes` 严格隔离 |
-| 隐式拼接 | `str + unicode` 会隐式 encode | 抛出 `TypeError` |
+- **写死编码**：所有创建/读取文本的场合一律显式 `encoding='utf-8'`，open 的隐式默认值永远不要依赖
+- **读外来数据留试探**：来路不明的字节（旧系统导出的文件、第三方接口的响应），按"utf-8 → gbk → latin-1"顺序尝试解码，兜底结果必须抽查
 
-Python 2 的设计问题：`str` 本质是字节序列，但在很多 API 中被当作字符串使用。当字符串只有 ASCII 字符时一切正常；一旦出现非 ASCII 字符，自动隐式转换就会触发 `UnicodeDecodeError`。
+#### 2.7.4 一例完整的乱码排障
 
-Python 3 的改进：明确分离"文本"（`str`，Unicode）和"数据"（`bytes`，字节序列）。`str` 就是 Unicode 文本，`bytes` 就是原始字节，两者不能隐式转换，必须显式 `encode()` / `decode()`。这使得编码问题在开发阶段就暴露出来，而不是在生产环境随机出现。
+情景：同事在 Windows 上导出了一份中文数据，你按 utf-8 去解，当场报错：
 
-### 4.2 为什么 UTF-8 是最佳默认选择
+```python
+# data 是从对方的 gbk 导出文件里读到的字节
+data = b'\xd6\xd0\xce\xc4\xb2\xe2\xca\xd4'
+try:
+    print(data.decode('utf-8'))
+except UnicodeDecodeError as e:
+    print("按 utf-8 解失败:", e)
+print("改按 gbk 解:", data.decode('gbk'))
+```
 
-| 维度 | UTF-8 | UTF-16 | UTF-32 |
-|------|-------|--------|--------|
-| ASCII 兼容 | 完全兼容 | 不兼容 | 不兼容 |
-| 英文存储 | 1 字节 | 2 字节 | 4 字节 |
-| 中文存储 | 3 字节 | 2 字节 | 4 字节 |
-| Emoji 存储 | 4 字节 | 4 字节 | 4 字节 |
-| 字节序问题 | 无 | 有 (LE/BE) | 有 (LE/BE) |
-| 自同步性 | 有 | 无 | 无 |
-| Web 使用率 | ~98% | ~少量 | 几乎不用 |
+**运行结果**：
 
-UTF-8 的核心优势：
+```text
+按 utf-8 解失败: 'utf-8' codec can't decode byte 0xd6 in position 0: invalid continuation byte
+改按 gbk 解: 中文测试
+```
 
-- **ASCII 兼容性**：纯英文的 ASCII 文件就是合法的 UTF-8 文件，保证了向后兼容
-- **无字节序问题**：按字节顺序处理，不需要 BOM，跨平台无忧
-- **自同步性**：从字节流的任意位置开始扫描，只要遇到非延续字节（不以 `10` 开头），就能找到下一个字符的起始位置。这使得 UTF-8 在截断、拼接、搜索时具有天然优势
-- **节省空间**：对于以英文为主的文本，UTF-8 比 UTF-16 节省一半空间
+排障四步，顺序固定：
 
-UTF-16 对中文存储略优（2 字节 vs 3 字节），但多出的字节序复杂性和 ASCII 不兼容问题使得它在 Web 上的收益远不抵成本。
+1. **先读报错，不急着换 errors**：`byte 0xd6 in position 0`——第 0 个字节就是 0xd6，它在 utf-8 的合法首字节清单（`0`、`110`、`1110`、`11110` 开头）里找不到
+2. **反推真凶**：0xd6 落在 gbk 双字节组合的典型首字节区间，而且数据来自 Windows 中文环境——历史线索指向 gbk
+3. **换 gbk 解开核对**：`中文测试` 语义完整，说明猜对了
+4. **根治约定**：和数据的生产方约定统一用 utf-8，避免每个读者都要猜一遍
 
-### 4.3 GBK 等区域编码的局限性
+这个流程与 2.5.3 的两种手法一一对应：线索明确时直奔正确编码，线索模糊时按顺序试探。核心动作只有一个——**让字节报出它的来路**。
 
-GBK、Big5、Shift-JIS 等区域编码各自定义了本语言的字符编码，但它们彼此不兼容：
+## 3. 最佳实践
 
-| 问题 | 说明 |
-|------|------|
-| 互不兼容 | GBK 编码的文件在 Big5 环境下会乱码，反之亦然 |
-| 覆盖范围有限 | GBK 只支持中文 + ASCII，不支持日文、韩文等 |
-| 不支持 Emoji | GBK 编码空间没有 Emoji 的位置 |
-| 自定义扩展混乱 | 各厂商对 GBK 有不同扩展（微软 GBK vs 标准 GBK） |
-| 国际化困难 | 日文系统读取中文文件会乱码 |
+### 3.1 推荐用法与不推荐用法
 
-Unicode 和 UTF-8 的出现解构了这些问题——统一码点空间 + 可变字节编码，一套编码覆盖全世界。现代系统应该一律使用 UTF-8，GBK 等区域编码仅用于兼容遗留数据。
+| 场景 | 推荐写法 | 不推荐写法 |
+|------|---------|-----------|
+| 文本进出程序 | 网络字节收到即 decode、发出前才 encode | 在程序内部一直用 bytes 混着 str 处理 |
+| 编码选择 | 新系统一律显式 `encoding='utf-8'` | 省略参数，让 open 跟随系统默认 |
+| 遇到编码异常 | 先按四要素读报错、找对编码 | 直接加 `errors='ignore'` 把异常压下去 |
+| 处理报错 | `except UnicodeDecodeError as e` 后带上下文记录 | 裸 `except:` 吞掉所有异常 |
+| 兜底解码 | 常用编码按序试探，latin-1 结果抽查 | 无脑 latin-1 直接当真 |
+| 字符串比较/拼接 | 先统一类型再操作 | bytes 与 str 直接 `==` 或 `+` |
 
-### 4.4 errors 参数的设计权衡
+标准错误处理姿势——捕获、带上下文记录、给出替代方案，一气呵成：
 
-`errors` 参数体现了 Python 的一个设计理念——**让开发者选择失败策略**，而不是强制一种方式：
+```python
+raw = "中文文本".encode('utf-8')
+tag = "user_input"
+try:
+    text = raw.decode('ascii')
+except UnicodeDecodeError as err:
+    print(f"[{tag}] 解码失败: 编码={err.encoding}, 详情={err}")
+    text = raw.decode('utf-8', errors='replace')
+    print("已按正确编码恢复:", text)
+```
 
-| 策略 | 适合场景 | 代价 |
-|------|---------|------|
-| `strict`（默认） | 需要严格保证数据完整性的场景 | 遇到错误就终止 |
-| `ignore` | 可以接受少量数据丢失 | 数据静默丢失，开发者可能不自知 |
-| `replace` | 可视化展示（如日志显示） | 替换字符有歧义 |
-| `xmlcharrefreplace` | 生成 HTML/XML | 增加文件体积 |
-| `backslashreplace` | 调试和日志 | 转义序列不易阅读 |
-| `surrogateescape` | 处理操作系统路径名 | 保持原始字节，可无损往返 |
+**运行结果**：
 
-默认 `strict` 的选择：编码错误通常是 bug 的信号（如文件编码不一致、网络数据处理不当），默认抛异常能让问题在开发阶段暴露。但在特定场景（如 OS 路径名解码）中，`strict` 会导致正常文件读取失败，此时 `surrogateescape` 可以无损处理未知字节。
+```text
+[user_input] 解码失败: 编码=ascii, 详情='ascii' codec can't decode byte 0xe4 in position 0: ordinal not in range(128)
+已按正确编码恢复: 中文文本
+```
 
-### 4.5 UTF-8 自同步特性的价值
+示范里有三个亮眼细节：异常对象自带 `.encoding` 属性可以直接取；日志带上业务标签（`user_input`）方便事后搜日志；退路不是"换 errors 硬解"，而是"换正确编码再解"。
 
-UTF-8 的字节前缀规则带来了一个关键特性——**自同步性**（self-synchronization）。从字节流的任意位置开始，遇到以 `0` 或 `11` 开头的字节就是一个字符的起始字节；遇到以 `10` 开头的字节就是延续字节。
+### 3.2 三种常见错误模式
 
-![示例图片](../images/base/202609232256.svg)
+| # | 错误模式 | 现场表现 | 病根 |
+|---|---------|---------|------|
+| 1 | `open()` 读写不显式 encoding | 同一份代码，macOS 正常、中文 Windows 读出乱码或炸 UnicodeDecodeError | open 的默认编码随系统走（UTF-8 / cp936） |
+| 2 | 一律 `errors='replace'` 敷衍 | 数据里出现成串替换符，字节数还悄悄膨胀 | 用错误的编码解 + 用 errors 掩盖 |
+| 3 | bytes 与 str 直接混用 | TypeError 系列报错、比较永远 False | 没在边界处转换，类型从来没统一过 |
 
-这个特性的实际价值：
-- **随机访问**：从文件中间开始读取，几个字节内就能找到字符边界
-- **截断安全**：截断字节流不会产生半个字符的乱码
-- **错误隔离**：一个字节损坏只会影响当前字符，不会波及后续
+模式 2 的破坏有多大，用数据说话：
 
-UTF-16 没有这个特性——截断 2 字节序列可能产生半个字符，后续解析可能全部出错。
+```python
+text = '预算表'.encode('gbk').decode('utf-8', errors='replace')
+print("错误2 输出:", text)
+print("字符数:", len(text), "  再encode字节数:", len(text.encode('utf-8')), " vs 原字节数:", len('预算表'.encode('gbk')))
+```
+
+**运行结果**：
+
+```text
+错误2 输出: Ԥ���
+字符数: 4   再encode字节数: 11  vs 原字节数: 6
+```
+
+解读：gbk 的 6 个字节按 utf-8 误读，开头 `d4 a4` 恰好凑成 utf-8 的合法双字节组合，硬解出一个不相干的西里尔字符 `Ԥ`，剩余字节各变一个替换符。原文 `'预算表'` 彻底无法还原，再存盘还从 6 字节膨胀到 11 字节——**replace 救不了编码错误，只会把烂摊子保存下来**。
+
+### 3.3 errors 策略决策表
+
+| 使用场景 | 建议 | 理由 |
+|---------|------|------|
+| 业务数据管道（默认） | `strict` | 问题要当场爆出来，不能带病流转 |
+| 展示层、日志兜底 | `replace` | 保住长度感，肉眼能看出"这里有坏字节" |
+| 清洗脏数据、允许丢字 | `ignore` | 静默丢失，只用于确认可丢的场景 |
+| 生成 HTML 文本 | `xmlcharrefreplace`（仅 encode） | 实体交给浏览器仍能正确显示 |
+| 调试、审计字节内容 | `backslashreplace` | 坏字节以转义文本现形，信息最全 |
+
+选择口诀：**先争取 strict 成功（换对编码），实在不行才给 errors；errors 一出手，数据就已经注定失真或变形**——意识到这一点，就不会把它当万能药。
+
+### 3.4 编码选型速查
+
+```text
+拿到编码任务，怎么选方案？
+
+  能自己定编码？
+  ├─ 能 ── 常规应用/国际数据 .............. utf-8（默认答案，覆盖全 Unicode）
+  │      └─ 对接古老的中文 Windows 系统 .... 尊重接口约定，常是 gbk/cp936
+  └─ 编码已被别人定死？
+      ├─ 知道来路 ......................... 直接按对方编码 decode
+      ├─ 不知道但必须读出 ................. utf-8 → gbk → latin-1 顺序试探，兜底结果抽查
+      └─ 只想把字节安全包成文本传出去 ..... latin-1 过桥（字节级无损往返）
+```
+
+三条硬原则：
+
+- 新代码里没有理由再用 gbk/ascii 当默认，utf-8 是事实标准
+- ascii 可以理解为 utf-8 的子集（只取英文数字部分），代码里几乎不需要点名它
+- latin-1 只在"包字节"和"兜底"两个场合出场，它解出的文本不代表原意
+
+## 4. 原理
+
+### 4.1 字符集与编码方案：两层概念
+
+日常把"编码"两个字混着说，但底层其实是两层各司其职的规定：
+
+- **字符集**：给每个字符分配一个编号（码点），做的是"字符 → 码点"的花名册，如 ASCII、Unicode
+- **编码方案**：规定码点怎么拆成字节，做的是"码点 → 字节"的换算规则，如 utf-8、utf-16le
+
+```python
+# 'A' 是个老熟人：ASCII 的编号被 Unicode 原封不动继承
+print("'A' 的 ASCII 编号: 65 ；'A' 的 Unicode 码点:", hex(ord('A')))
+
+# 同一个码点，交给不同编码方案，字节完全不同
+cp = ord('中')
+print(f"U+{cp:04X} 在不同编码方案下的字节:")
+print("  utf-8   :", chr(cp).encode('utf-8'))
+print("  utf-16le:", chr(cp).encode('utf-16-le'))
+print("  gbk     :", chr(cp).encode('gbk'))
+```
+
+**运行结果**：
+
+```text
+'A' 的 ASCII 编号: 65 ；'A' 的 Unicode 码点: 0x41
+U+4E2D 在不同编码方案下的字节:
+  utf-8   : b'\xe4\xb8\xad'
+  utf-16le: b'-N'
+  gbk     : b'\xd6\xd0'
+```
+
+三种历史形态对号入座：
+
+| 名称 | 性质 | 说明 |
+|------|------|------|
+| ASCII | 字符集 + 编码方案二位一体 | 码点与字节一对一，前 128 个字符 |
+| gbk | 字符集 + 编码方案二位一体 | 汉字区扩展，中文 Windows 的系统编码 |
+| Unicode + utf-8 | 字符集与编码方案**分离** | Unicode 只发码点，utf-8/utf-16/utf-32 是不同的字节化方案 |
+
+看清分层后，很多说法就不再神秘：`'你好'` 的"Unicode 编码"这种提法实际是两步——Unicode 先给'你'发码点 U+4F60，utf-8 再把 U+4F60 换算成 3 个字节。而 `b'2d 4e'`（'中' 的 utf-16le）里恰好两位都是可显示 ASCII，打印出来变成 `b'-N'`——这再次证明：**字节怎么显示与它本来的使命无关**。
+
+### 4.2 Unicode 码点空间：1114112 个名额
+
+Unicode 给所有字符发的"身份证号"是一个有限空间：
+
+```python
+print("基本多文平面 BMP: U+0000 ~ U+FFFF（日常字符绝大部分在这里）")
+print("补充平面       : U+10000 ~ U+10FFFF（Emoji、古文字、生僻字等）")
+print("码点总数:", 0x10FFFF + 1)
+for ch in ['文', 'あ', '😀']:
+    print(f"  {ch!r} -> U+{ord(ch):04X}")
+print("ord('A') =", ord('A'), "，ASCII 中 'A' 同样是 65")
+```
+
+**运行结果**：
+
+```text
+基本多文平面 BMP: U+0000 ~ U+FFFF（日常字符绝大部分在这里）
+补充平面       : U+10000 ~ U+10FFFF（Emoji、古文字、生僻字等）
+码点总数: 1114112
+  '文' -> U+6587
+  'あ' -> U+3042
+  '😀' -> U+1F600
+ord('A') = 65 ，ASCII 中 'A' 同样是 65
+```
+
+![示例图片](../images/base/202609232254.svg)
+
+三个数字三种意义：
+
+- `0x10FFFF + 1 = 1114112`：可用码点总量，`chr()` 参数越界报的就是这个上限（0x10FFFF）
+- **BMP（U+0000 ~ U+FFFF）**：两字节以内的码点空间，中、日、韩、拉丁、希腊、阿拉伯等日常字符全部在内——这也解释了 gbk（只覆盖 BMP 内汉字）为什么装不下 😀
+- **前 128 个码点与 ASCII 完全对齐**：'A' 两种体系里都是 65。这不是巧合，是 Unicode 成立时刻意的兼容设计，utf-8 的 ASCII 兼容性全部建立在这个决定上
+
+### 4.3 str 内部：存的是码点，不是字节
+
+`str` 在 Python 3 里的正式身份就是"Unicode 字符串"，**内存里放的是码点序列**，没有任何编码信息：
+
+```python
+s = "Hello中文😀"
+print("字符串: " + s)
+print("len(str) 数的是码点个数:", len(s))
+for i, ch in enumerate(s):
+    print(f"  [{i}] {ch!r} -> U+{ord(ch):04X}")
+```
+
+**运行结果**：
+
+```text
+字符串: Hello中文😀
+len(str) 数的是码点个数: 8
+  [0] 'H' -> U+0048
+  [1] 'e' -> U+0065
+  [2] 'l' -> U+006C
+  [3] 'l' -> U+006C
+  [4] 'o' -> U+006F
+  [5] '中' -> U+4E2D
+  [6] '文' -> U+6587
+  [7] '😀' -> U+1F600
+```
+
+这一节回答了初学者最容易困惑的三个问题：
+
+- **"这个字符串是什么编码的？"——问题不成立**。`str` 只有码点，不存在"utf-8 的 str"或"gbk 的 str"，编码只在 `encode()` 那一刻才诞生
+- **`len()` 与字节数的关系**：8 个码点、10 个 utf-8 字节（1+1+1+1+1+3+3+4）——两个量各管各的记法
+- **底层实现细节**（了解即可）：CPython 按字符串中最宽字符自动选一种定宽存法，每个码点占 1、2 或 4 字节，这是性能优化，和 utf-8 的变长字节没有关系；真正落盘/传输的字节永远由 `encode()` 换算
+
+### 4.4 UTF-8 变长存储规则：1~4 字节
+
+utf-8 把 1114112 个码点装进 1~4 个变长字节里，装法由码点区间查表决定：
+
+![示例图片](../images/base/202609232255.svg)
+
+| 码点区间 | utf-8 的字节形态（x 是码点二进制位） | 字节数 |
+|---------|----------------------------------|-------|
+| U+0000 ~ U+007F | `0xxxxxxx` | 1 |
+| U+0080 ~ U+07FF | `110xxxxx 10xxxxxx` | 2 |
+| U+0800 ~ U+FFFF | `1110xxxx 10xxxxxx 10xxxxxx` | 3 |
+| U+10000 ~ U+10FFFF | `11110xxx 10xxxxxx 10xxxxxx 10xxxxxx` | 4 |
+
+规则只有两条：**首字节开头连续 1 的个数表示本字符总字节数**（`0` 开头即 1 字节），**其余字节一律以 `10` 开头**（称为延续字节，它们自己不能当首字符开头，边界自明）。
+
+```python
+for ch in ["A", "é", "中", "😀"]:
+    raw = ch.encode('utf-8')
+    hex_str = " ".join(f"0x{b:02X}" for b in raw)
+    bin_str = " ".join(f"{b:08b}" for b in raw)
+    print(f"'{ch}'（U+{ord(ch):04X}）: {hex_str}  |  {bin_str}")
+```
+
+**运行结果**：
+
+```text
+'A'（U+0041）: 0x41  |  01000001
+'é'（U+00E9）: 0xC3 0xA9  |  11000011 10101001
+'中'（U+4E2D）: 0xE4 0xB8 0xAD  |  11100100 10111000 10101101
+'😀'（U+1F600）: 0xF0 0x9F 0x98 0x80  |  11110000 10011111 10011000 10000000
+```
+
+对照规则逐个验证：
+
+- `'A'`：首字节 `0` 开头 → 单字节字符，`0x41` 与码点 65 完全一致
+- `'é'`：首字节 `110` 开头 → 双字节，第二字节 `10` 开头
+- `'中'`：首字节 `1110` 开头 → 三字节，后两个延续字节都以 `10` 开头
+- `'😀'`：首字节 `11110` 开头 → 四字节，后三个延续字节都 `10` 开头
+
+```python
+# utf-8 与 ASCII 的兼容性验证：前 128 个字符的 utf-8 编码与其编号一致
+compatible = all(
+    len(chr(cp).encode('utf-8')) == 1 and chr(cp).encode('utf-8')[0] == cp
+    for cp in range(128)
+)
+print("128 个 ASCII 字符的 utf-8 编码与其编号完全一致:", compatible)
+```
+
+**运行结果**：
+
+```text
+128 个 ASCII 字符的 utf-8 编码与其编号完全一致: True
+```
+
+这套设计还顺手解释了前文的两个现象：
+
+- **gbk 字节按 utf-8 解为什么立刻报错**：utf-8 的首字节只认 `0`、`110`、`1110`、`11110` 开头，延续字节只认 `10` 开头，gbk 的随手组合大概率两头都对不上——语法严格让错配倾向于报错而不是静默乱码
+- **utf-8 为什么是默认编码的最佳人选**：对英文世界字节级兼容（前 128 个字符编码与编号一一相同）、语法严格错配易发现、变长设计让常见字符尽量省空间
 
 ## 5. 总结
 
-本文深入讲解了 Python 字符串与字符编码的底层原理，主要介绍了以下内容：
+本文围绕 `str.encode()` 与 `bytes.decode()` 两个方法展开，主要介绍了以下内容：
 
-- **ASCII 编码**：7 位编码标准，128 个字符覆盖英文；通过 `ord()` 和 `chr()` 可以查看字符与码点的对应关系
-- **Unicode 码点空间**：统一的世界字符集，码点范围 U+0000 ~ U+10FFFF，Python 3 的 `str` 直接存储 Unicode 码点，每个字符是 `str` 的独立元素
-- **UTF-8 编码原理**：UTF-8 是变长编码方案（1~4 字节），向下兼容 ASCII，无字节序问题，有自同步特性；通过字节前缀规则（`0` / `110` / `1110` / `11110`）区分字符边界
-- **encode() / decode()**：`encode()` 将 `str` 编码为 `bytes`，`decode()` 将 `bytes` 解码为 `str`；`errors` 参数控制编解码错误行为（`strict` / `ignore` / `replace` 等）
-- **bytes 与 str 的区别**：`str` 是 Unicode 字符序列（`len()` 返回字符数），`bytes` 是字节序列（`len()` 返回字节数）；两者不能直接拼接，必须通过 `encode()` / `decode()` 转换
-- **BOM 与字节序**：UTF-16 有字节序问题（LE/BE），需要 BOM 标识；UTF-8 无字节序问题；`utf-8-sig` 编码自动处理 BOM
-- **中文乱码**：乱码的根源是编码不一致（编码用 A、解码用 B）；UTF-8 编码 + GBK 解码产生阉字乱码，UTF-8 编码 + Latin-1 解码产生西欧乱码；通过"逐个尝试"策略可以安全解码未知编码的数据
-- **设计决策**：Python 3 明确分离 `str`（文本）和 `bytes`（数据），避免了 Python 2 的隐式转换问题；UTF-8 是最佳默认编码（ASCII 兼容、无字节序问题、自同步性）；GBK 等区域编码应仅用于兼容遗留数据
+- encode 把 `str`（文本、码点）变成 `bytes`（字节序列），decode 反向还原；两个方法签名对称，都是 `encoding='utf-8', errors='strict'`，且默认编码与操作系统无关
+- bytes 是"0~255 的整数序列"：字面量、`bytes([...])`、`encode()` 三种来源；打印时可显示 ASCII 原样显示、其余按 `\xNN` 转义；遍历得到 int 而非字符
+- str 与 bytes 严格隔离：拼接、互相查找都抛 TypeError，`==` 永远 False——所有混用都要先 encode/decode 统一类型
+- encoding 参数决定字节形态与字节数：`'中'` 在 utf-8 下 3 字节、gbk 下 2 字节，ascii/latin-1 直接编码失败；编码名大小写与别名不敏感，拼错当场抛 LookupError
+- errors 参数 encode 侧有 strict/ignore/replace/xmlcharrefreplace/backslashreplace 五种策略，后两种可逆；decode 侧没有 xmlcharrefreplace；处理器名拼错是"出事才报"的延迟校验
+- 编码错配只有两种后果：utf-8 字节按 gbk 解可能静默乱码（`浣犲ソ`），gbk 字节按 utf-8 解直接报错——静默乱码比报错更危险
+- latin-1 每个字节值都有映射、解码永不失败，"按 latin-1 编回字节"可保证字节级无损往返，是修复链 `garbled.encode('latin-1').decode('utf-8')` 的过河桥
+- 往返保证只有一条：同一编码 + strict + 字符集认全部字符，必然还原；走过 ignore/replace 必然走样，替换符再编码还会膨胀（6 字节变 18 字节）
+- `UnicodeEncodeError`/`UnicodeDecodeError` 报错自带四要素：编码名、方向、出事字符/字节位置（encode 记字符位置、decode 记字节位置）、原因短语——读懂即可定位绝大多数问题
+- 乱码修复口诀："按错误编码退回字节、再按正确编码解出来"；来路不明的字节按"utf-8 → gbk → latin-1"顺序试探，latin-1 的兜底结果必须抽查
+- `ord()`/`chr()` 完成单字符与码点互转：ord 只接受一个字符，chr 只接受 0~0x10FFFF；码点区间直接决定 utf-8 的 1~4 字节宽度
+- 实战铁律：文件读写显式 `encoding='utf-8'`；网络字节进程序即 decode、出程序前才 encode；跨系统协作统一 utf-8，open 的隐式默认永远不要依赖
+- 原理四件事：字符集（花名册）与编码方案（换算规则）是两层概念，Unicode 与 utf-8/16/32 分离而 ASCII/gbk 二位一体；Unicode 共 1114112 个码点、前 128 个与 ASCII 对齐；str 内部存码点序列、编码在 encode 时才诞生；utf-8 用首字节前缀标 1~4 字节宽度、延续字节一律 `10` 开头、对 ASCII 字节级兼容

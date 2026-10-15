@@ -3,1172 +3,1250 @@ group:
   title: 【03】字符串介绍
   order: 3
 order: 18
-title: 字符串清洗方法
+title: isdecimal 与 isdigit 与 isnumeric 方法
 nav:
   title: Python基础
   order: 1
 ---
 
-# 字符串清洗方法
+# isdecimal 与 isdigit 与 isnumeric 方法
 
 ## 1. 介绍
 
-### 1.1 知识点定义
+### 1.1 什么是数字判断三方法
 
-字符串清洗是指去除字符串首尾不需要的字符——可能是空白字符、标点符号、路径前缀、文件扩展名等。Python 提供了五个专门用于首尾清洗的方法：`strip()`、`lstrip()`、`rstrip()`、`removeprefix()`、`removesuffix()`。
+`isdecimal()`、`isdigit()`、`isnumeric()` 是 Python 字符串内置的三个"数字判断"方法。它们的签名完全一样——不带参数、返回一个布尔值，用来回答同一个问题的三个不同版本：
 
-这些方法在实际开发中无处不在：每次接收用户输入、读取文件内容、解析 URL 或处理 CSV 数据时，你都需要清洗字符串的首尾。它们解决的问题很简单但很关键——"把字符串两端不干净的东西去掉"。
+> 这串字符是不是"数字"？
 
-本篇涉及的 API 速览：
+问题只有一个，但"数字"这个词的口径有三层。做手机号校验时你可能只想认 0-9；处理排版文本时要认长着数字样子的上标字符 `²`；分析中文文案时还要认"三"、"五"这类汉字数字。三个方法分别对应这三种口径，一层比一层宽：
 
-| 方法 | Python 版本 | 作用 | 参数语义 |
-|------|------------|------|---------|
-| `str.strip(chars=None)` | 3.0+ | 去除两端指定字符 | 字符集合 |
-| `str.lstrip(chars=None)` | 3.0+ | 去除左端指定字符 | 字符集合 |
-| `str.rstrip(chars=None)` | 3.0+ | 去除右端指定字符 | 字符集合 |
-| `str.removeprefix(prefix)` | 3.9+ | 精确移除前缀 | 完整字符串 |
-| `str.removesuffix(suffix)` | 3.9+ | 精确移除后缀 | 完整字符串 |
+| 方法 | 判断口径 | 一句话定位 | 典型放行样例 |
+|------|---------|-----------|-------------|
+| `isdecimal()` | 十进制数码 | 最严格：每个字符都能作十进制数位使用 | `123`、`１２３`、`٠١٢` |
+| `isdigit()` | 数字外形 | 中间层：比 isdecimal 多放行上标、下标、圆圈数字 | 在左边基础上多放行 `²`、`₂`、`①` |
+| `isnumeric()` | 数值含义 | 最宽松：凡有数值含义的字符都放行 | 在左边基础上多放行 `½`、`一`、`Ⅲ` |
 
-### 1.2 最简示例
+这三个方法在表单校验、数据清洗、文本分析中出现频率极高，同时也是最容易混淆的一组 API——三个名字都带 is、返回值都是布尔值、中文直译都是"数字判断"，但放行范围一环套一环，选错一层就可能放行危险输入或拒绝合法输入。
 
-先用最简单的代码直观感受这些方法：
+本篇的实测环境是 Python 3.12。这三个方法的判断依据都来自 Python 内置的 Unicode 字符数据库，个别字符的归属会随版本演进而变化，所以本篇给出的每一层结论都经过真实运行验证，文中所有运行结果都能用对应代码原样复现。
+
+### 1.2 最简示例：四个字符串看分层
+
+先用四个代表性字符串，把三个方法各跑一遍，四行输出就能看出三层口径的差别：
 
 ```python
-# strip：去除首尾空白
-text = "  hello world  "
-print(text.strip())    # hello world
-print(text.lstrip())   # hello world  （只去掉左侧）
-print(text.rstrip())   #   hello world （只去掉右侧）
+samples = [
+    ("123", "半角数字"),
+    ("１２３", "全角数字"),
+    ("²", "上标数字"),
+    ("一二三", "中文数字"),
+]
 
-# strip 指定字符
-print("###hello###".strip("#"))   # hello
-
-# removeprefix / removesuffix：精确匹配
-print("Hello World".removeprefix("Hello "))   # World
-print("report.csv".removesuffix(".csv"))       # report
+print(f"{'字符串':<10}{'说明':<10}{'isdecimal':<12}{'isdigit':<10}{'isnumeric'}")
+for text, label in samples:
+    print(f"{text:<10}{label:<10}"
+          f"{str(text.isdecimal()):<12}{str(text.isdigit()):<10}{text.isnumeric()}")
 ```
 
-运行结果：
+**运行结果**：
 
 ```text
-hello world
-hello world  
-  hello world
-hello
-World
-report
+字符串       说明        isdecimal   isdigit   isnumeric
+123       半角数字      True        True      True
+１２３       全角数字      True        True      True
+²         上标数字      False       True      True
+一二三       中文数字      False       False     True
 ```
 
-### 1.3 在字符串方法体系中的位置
+四行结果正好对应三种命运：
 
-字符串清洗方法属于"字符串修改"类操作的子集。从功能维度来看：
+- 半角 `123` 和全角 `１２３`：三层全过。
+- 上标 `²`：被 isdecimal 拒绝，被 isdigit 和 isnumeric 放行。
+- 中文数字 `一二三`：只有 isnumeric 放行。
+
+三个方法对同一批字符串给出三种不同的答案，这正是它们的价值所在——先想清楚你的业务口径在哪一层，再选方法。
+
+### 1.3 三层包容层级总览
+
+三个方法的放行范围不是并列关系，而是严格的包含关系：isdecimal 通过的，isdigit 一定通过；isdigit 通过的，isnumeric 一定通过。反过来则不成立。
 
 ```text
-字符串方法体系
-├── 查找类：find / rfind / index / count / in
-├── 判断类：isalpha / isdigit / isidentifier / isascii ...
-├── 拆分与连接类：split / rsplit / partition / join
-├── 替换类：replace / translate / maketrans
-├── 大小写转换类：upper / lower / title / capitalize / swapcase
-├── 对齐填充类：ljust / rjust / center / zfill
-└── 清洗类（本篇）：
-    ├── strip / lstrip / rstrip    ← 字符集合匹配，首尾去除
-    └── removeprefix / removesuffix ← 精确字符串匹配，首尾去除
+isdecimal ⊂ isdigit ⊂ isnumeric
+
+  680 个十进制数码
+  ⊂ 808 个数字外形字符
+  ⊂ 1912 个数值含义字符
 ```
 
-字符串清洗方法的核心特点：
+把每一层的"常客"画成阶梯，就是下面这棵树（外层包含内层）：
 
-- **不会修改原字符串**——Python 字符串是不可变对象，所有方法都返回新字符串
-- **只作用于首尾**——不影响字符串内部的内容
-- **两种匹配模式**——`strip` 系列基于"字符集合"逐字符匹配，`removeprefix/removesuffix` 基于"完整字符串"整体匹配
+```text
+数字判断的三层口径（外层包含内层，一层比一层宽松）
+
+isnumeric —— 有数值含义（最宽）
+├── 分数：½ ¼ ¾
+├── 汉字数字：一 三 十 百 万 亿
+├── 罗马数字：Ⅰ Ⅱ Ⅲ
+└── isdigit —— 数字外形
+    ├── 上标数字：¹ ² ³
+    ├── 下标数字：₁ ₂ ₃
+    ├── 圆圈/带圈数字：① ⑦
+    ├── 特殊地区数字：፩（埃塞俄比亚文）
+    └── isdecimal —— 十进制数码（最严）
+        ├── ASCII 数字：0 1 2 … 9
+        ├── 全角数字：０ １ ２ … ９
+        └── 多语言十进制数码：٠ ١ ٢（阿拉伯）、० १ २（天城文）
+```
+
+再用符号压缩成一张分布图（T = 通过，· = 拒绝）：
+
+```text
+同一批样例在三层的真假分布
+
+样例                isdecimal   isdigit   isnumeric
+"123"  "１２３"      T           T         T        ← 三层全过
+"²"    "₂"   "①"    ·           T         T        ← 从 isdigit 这层起通过
+"½"    "一"  "Ⅲ"     ·           ·         T        ← 只有 isnumeric 放行
+"3.14" "-1"  "1 2"   ·           ·         ·        ← 三层全拒
+""                   ·           ·         ·        ← 空字符串一并拒绝
+```
+
+最小圈里的 `123` 三层全过，最大圈独有的 `一二三` 只被 isnumeric 放行——这张分布图就是三个方法的全部性格。
+
+### 1.4 共同行为规则
+
+三个方法除了口径不同，行为规则完全一致，掌握这一张表可以省去很多单独记忆：
+
+| 规则 | 具体表现 |
+|------|---------|
+| 签名一致 | 都是无参数方法 `s.isxxx()`，返回 `bool` |
+| 整串判断 | 字符串中全部字符都满足口径才返回 True，任何字符不满足即整体 False |
+| 空字符串 | 三个方法都返回 False，等价于"没有字符满足条件" |
+| 混入杂质 | 空格、小数点、正负号、逗号任何之一出现，三个方法全部 False |
+| 判断字符不判断数值 | `"-1"`、`"3.14"` 在数学上是数，但作为字符串一律三层全拒 |
+| 基于 Unicode 数据 | 口径由 Python 内置的 Unicode 字符数据库决定，个别字符归属以实测为准 |
+
+特别注意第二条"整串判断"——`"12a3"` 里只有一个非数字字符 `a`，三个方法都会整体返回 False。它们不是"含有数字就 True"的存在判断，而是"整串是否全为某类数字字符"的构成判断。
 
 ## 2. 核心内容
 
-### 2.1 str.strip()
+### 2.1 isdecimal()：只认十进制数码（最严格）
 
-#### 2.1.1 方法签名与参数
+`isdecimal()` 判断字符串是否全部由"十进制数码"组成。十进制数码指的是能充当十进制数中一个数位的字符——ASCII 的 0-9 是最典型的一批，但它远不止这一批：全角数字、阿拉伯-印度数码、天城文数码，只要 Unicode 把它归为"十进制数码"，`isdecimal()` 都放行。
 
-```python
-str.strip(chars=None) -> str
-```
+它是三个方法中最严格的一层，也是唯一与 `int()` / `float()` 直接兼容的一层。
 
-`strip()` 接收一个可选参数 `chars`：
+#### 2.1.1 基本用法：哪些字符串能通过
 
-- **不传参数（`chars=None`）**：默认去除所有空白字符——空格、制表符 `\t`、换行符 `\n`、回车符 `\r`、垂直制表符 `\v`、换页符 `\f`，以及 Unicode 中的其他空白字符（如 NEL `\x85`、NBSP `\xa0` 等）
-- **传参数**：`chars` 是一个字符集合字符串，`strip` 会从字符串两端逐字符检查，只要当前字符在 `chars` 集合中就去除，直到遇到不在集合中的字符为止
-
-#### 2.1.2 默认行为：去除空白
-
-**示例**
+拿一组有代表性的字符串实测：
 
 ```python
-test_cases = [
-    "  hello  ",        # 两端空格
-    "\t\thello\t\t",    # 两端制表符
-    "\n\nhello\n\n",    # 两端换行
-    "  hello",          # 仅左侧空白
-    "hello  ",          # 仅右侧空白
-    "   ",              # 纯空白
-    "",                 # 空字符串
-]
-for s in test_cases:
-    print(f"  {s!r:>16} -> strip()={s.strip()!r}")
+cases = ["123", "007", "０", "１２３", "12.3", "-5", "1 2", "²", "½", "一", ""]
+
+print(f"{'字符串':<10}{'isdecimal'}")
+for text in cases:
+    display = text if text else "(空字符串)"
+    print(f"{display:<10}{text.isdecimal()}")
 ```
 
-运行结果：
+**运行结果**：
 
 ```text
-       '  hello  ' -> strip()='hello'
-   '\t\thello\t\t' -> strip()='hello'
-   '\n\nhello\n\n' -> strip()='hello'
-         '  hello' -> strip()='hello'
-         'hello  ' -> strip()='hello'
-             '   ' -> strip()=''
-                '' -> strip()=''
+字符串       isdecimal
+123       True
+007       True
+０         True
+１２３       True
+12.3      False
+-5        False
+1 2       False
+²         False
+½         False
+一         False
+(空字符串)    False
 ```
 
-**关键点说明**：
+从结果可以归纳出 isdecimal 的两条放行原则：
 
-- `strip()` 同时去除左端和右端的空白字符
-- 纯空白字符串 `"   "` 和空字符串 `""` 的 `strip()` 结果都是 `""`
-- `strip()` 不影响字符串内部的空白——`"  hello    world  ".strip()` 的结果是 `"hello    world"`，中间的多空格保留不变
+- **只认"数码"本身**：`12.3` 的小数点、`-5` 的负号、`1 2` 的空格、空串，全部拒绝。isdecimal 判断的是"字符构成"，不是"数学上是不是数"。
+- **上标、分数、汉字数字一律拒绝**：`²`、`½`、`一` 都不在这个范畴内——它们虽有数值含义，但不能当一个十进制数位来用。
 
-#### 2.1.3 指定字符集合
+#### 2.1.2 全角数字与多语言数码都在十进制范畴内
 
-`strip(chars)` 的参数 `chars` 是一个**字符集合**，不是前缀/后缀字符串。`strip` 会从字符串两端逐字符检查，只要当前字符出现在 `chars` 中的任何一个字符上，就将其去除。
-
-**示例**
+最容易出乎意料的一点：全角数字 `０-９` 通过 isdecimal，而且 `int()` 能直接转换；世界上几十种文字的十进制数码（阿拉伯-印度、天城文等）同样通过：
 
 ```python
-test_cases = [
-    ("###hello###",  "#"),       # 去除 # 号
-    ("###hello###",  "#h"),       # 去除 # 和 h
-    ("abcHELLOabc",  "abc"),     # 去除 a、b、c 三个字符
-    ("...hello...",  "."),       # 去除点号
-    ("00hello00",    "0"),       # 去除数字 0
-    ("xyhelloxy",    "xy"),       # 去除 x 和 y
-    ("__hello__",    "_"),       # 去除下划线
-]
-for s, chars in test_cases:
-    result = s.strip(chars)
-    print(f"  {s!r}.strip({chars!r}) = {result!r}")
+fullwidth = "０１２３"
+
+print(f"全角数字 '{fullwidth}':")
+print(f"  isdecimal={fullwidth.isdecimal()}, isdigit={fullwidth.isdigit()}, "
+      f"isnumeric={fullwidth.isnumeric()}")
+print(f"  int('{fullwidth}') -> {int(fullwidth)}")
+
+for text, label in [("٠١٢", "阿拉伯-印度数码"), ("०१२", "天城文数码")]:
+    print(f"{label} '{text}': isdecimal={text.isdecimal()}, int() -> {int(text)}")
 ```
 
-运行结果：
+**运行结果**：
 
 ```text
-  '###hello###'.strip('#') = 'hello'
-  '###hello###'.strip('#h') = 'ello'
-  'abcHELLOabc'.strip('abc') = 'HELLO'
-  '...hello...'.strip('.') = 'hello'
-  '00hello00'.strip('0') = 'hello'
-  'xyhelloxy'.strip('xy') = 'hello'
-  '__hello__'.strip('_') = 'hello'
+全角数字 '０１２３':
+  isdecimal=True, isdigit=True, isnumeric=True
+  int('０１２３') -> 123
+阿拉伯-印度数码 '٠١٢': isdecimal=True, int() -> 12
+天城文数码 '०१२': isdecimal=True, int() -> 12
 ```
 
-**关键点说明**：
+实测统计，Unicode 里被标为十进制数码的字符共有 680 个，覆盖全球几十种文字。日常开发用不上大部分，但要知道 isdecimal 的"全球视野"：它不是"判断 0-9"的快捷方式，而是"判断十进制数码"的世界标准口径。
 
-- `strip("#")` 从两端去除所有 `#` 字符，直到遇到非 `#` 字符为止
-- `strip("#h")` 从两端去除所有 `#` 和 `h` 字符——注意 `"###hello###"` 左侧的 `h` 也在集合中，所以 `hello` 开头的 `h` 也被去掉了，结果是 `"ello"`
-- `strip("abc")` 从两端去除所有 `a`、`b`、`c` 字符——`"abcHELLOabc"` 变成 `"HELLO"`，因为左右端的 `a/b/c` 都被去掉了，但大写 `H/E/L/L/O` 不在集合中
+#### 2.1.3 与 int()/float() 直接兼容：isdecimal 是安全转换的充分条件
 
-#### 2.1.4 strip 的字符集合机制详解
-
-`strip(chars)` 不是去除前缀/后缀字符串，而是去除"字符集合中的任意字符"。这是最容易被误解的点。
-
-**示例：理解字符集合**
+isdecimal 最核心的实用价值在这里：只要它返回 True，`int()` 和 `float()` 就一定能转换成功。用一次全量扫描验证——把 0 到 0x10FFFF 全部 1114112 个码点逐个转成单字符字符串，凡是 isdecimal 通过的都喂给 `int()` 计数失败次数：
 
 ```python
-# strip("abc") 不是去除前缀 "abc"，而是去除所有 a、b、c 字符
-s1 = "abcHelloabc"
-print(f'  "{s1}".strip("abc") = {s1.strip("abc")!r}')
-# 左端：a(去) b(去) c(去) H(停) → 左端剩 Helloabc
-# 右端：b(去) c(去) → 右端剩 Helloa → 不对，从右往左：
-# 右端：c(去) b(去) → 左端 a(停) → 结果是 Hello a → 不对
-# 实际：两端同时扫描
-# 左端：abc 被全部去掉 → 从 H 开始
-# 右端：c 被去掉、b 被去掉、a 被去掉... 但 a 不在 "abc" 中？不对，a 在！
-# 所以右端 abc 被全部去掉 → 结果是 Hello
+failed = []
+for cp in range(0x110000):
+    ch = chr(cp)
+    if ch.isdecimal():
+        try:
+            int(ch)
+        except ValueError:
+            failed.append(hex(cp))
 
-s2 = "aabccHelloccbbaa"
-print(f'  "{s2}".strip("abc") = {s2.strip("abc")!r}')
-# 左端：a a b c c → 全在集合中，全部去掉 → 从 H 开始
-# 右端：a a b b c c → 全在集合中，全部去掉 → 到 f 停止
-# 结果：Hello
+print(f"isdecimal 为 True 的字符中，int() 失败的数量: {len(failed)}")
 ```
 
-运行结果：
+**运行结果**：
 
 ```text
-  "abcHelloabc".strip("abc") = 'Hello'
-  "aabccHelloccbbaa".strip("abc") = 'Hello'
+isdecimal 为 True 的字符中，int() 失败的数量: 0
 ```
 
-**更复杂的例子**
+680 个十进制数码字符全部转换成功，无一例外。所以 `isdecimal()` 是 `int()` 安全转换的**充分条件**——转换前用它做前置检查，检查通过后调用 `int()` 不必再担心异常。
+
+不过要注意"充分"不等于"必要"：`int(" 12 ")`、`int("+5")` 都能成功，但它们三方法全 False，转换器有自己的一套语法规则，这部分落差在四象限实测里展开。
+
+### 2.2 isdigit()：放宽到"数字外形"
+
+`isdigit()` 判断的是"这串字符是否全部长得像数字"——在十进制数码的基础上，它额外放行上标、下标、圆圈数字这类"数字外形"字符。它是三层结构的中间层。
+
+#### 2.2.1 基本用法：哪里开始与 isdecimal 分岔
+
+拿同一组字符串实测 isdigit，与 isdecimal 的结果只差一行：
 
 ```python
-s = "aabccbcdEffgccbbaa"
-print(f"  原始: {s!r}")
-print(f"  lstrip('abc') = {s.lstrip('abc')!r}")
-print(f"  rstrip('abc') = {s.rstrip('abc')!r}")
-print(f"  strip('abc')  = {s.strip('abc')!r}")
+cases = ["123", "007", "１２３", "12.3", "-5", "1 2", "²", "½", "一", ""]
+
+print(f"{'字符串':<10}{'isdigit'}")
+for text in cases:
+    display = text if text else "(空字符串)"
+    print(f"{display:<10}{text.isdigit()}")
 ```
 
-运行结果：
+**运行结果**：
 
 ```text
-  原始: 'aabccbcdEffgccbbaa'
-  lstrip('abc') = 'dEffgccbbaa'
-  rstrip('abc') = 'aabccbcdEffg'
-  strip('abc')  = 'dEffg'
+字符串       isdigit
+123       True
+007       True
+１２３       True
+12.3      False
+-5        False
+1 2       False
+²         True
+½         False
+一         False
+(空字符串)    False
 ```
 
-逐字符分析 `lstrip('abc')` 的过程：
+对照 isdecimal 的结果，唯一的变化就是 `²`：isdecimal 拒绝、isdigit 放行。杂质类（小数点、负号、空格、空串）两个方法仍然全部拒绝——isdigit 放宽的是"数码范围"，不是"语法规则"。
 
-```text
-左端扫描：
-  a → 在集合中 → 去掉
-  a → 在集合中 → 去掉
-  b → 在集合中 → 去掉
-  c → 在集合中 → 去掉
-  c → 在集合中 → 去掉
-  b → 在集合中 → 去掉
-  d → 不在集合中 → 停止
-结果：dEffgccbbaa
-```
+#### 2.2.2 放宽进来的字符：上标、下标、圆圈数字
 
-逐字符分析 `rstrip('abc')` 的过程：
-
-```text
-右端扫描（从末尾往左）：
-  a → 在集合中 → 去掉
-  a → 在集合中 → 去掉
-  b → 在集合中 → 去掉
-  b → 在集合中 → 去掉
-  c → 在集合中 → 去掉
-  c → 在集合中 → 去掉
-  g → 不在集合中 → 停止
-结果：aabccbcdEffg
-```
-
-**关键点说明**：理解字符集合机制后你就明白了——`strip` 不会"看"你要去除的字符串整体是什么，它只是逐字符检查"这个字符在不在你的集合中"。这是 `strip` 和 `removeprefix/removesuffix` 的根本区别。
-
-#### 2.1.5 strip 不影响内部内容
-
-`strip` 只作用于字符串的首尾两端，不会影响字符串内部的任何字符。
-
-**示例**
+isdecimal 与 isdigit 之间的差集，实测有 128 个字符。它们的共同点是：有"数字外形"、在 Unicode 里登记了 digit 数值，但不是十进制数码。代表成员如下：
 
 ```python
-s = "   hello    world   "
-print(f"  原始: {s!r}")
-print(f"  strip(): {s.strip()!r}")
-# 内部的空格保留不变：hello    world
-```
-
-运行结果：
-
-```text
-  原始: '   hello    world   '
-  strip(): 'hello    world'
-```
-
-如果需要同时去除内部空白，需要配合 `replace` 或 `split` + `join`：
-
-```python
-s = "   hello    world   "
-# 方法一：replace
-internal_cleaned = s.strip().replace(" ", "")
-print(f"  replace: {internal_cleaned!r}")
-
-# 方法二：split + join（合并连续空白）
-collapsed = " ".join(s.split())
-print(f"  split+join: {collapsed!r}")
-```
-
-运行结果：
-
-```text
-  replace: 'helloworld'
-  split+join: 'hello world'
-```
-
-#### 2.1.6 实战：用户输入清洗
-
-`strip()` 在用户输入处理中最常见——用户经常不小心输入多余的空格或换行。
-
-**示例**
-
-```python
-user_inputs = [
-    "  alice@example.com  ",       # 两端空格
-    "\nalice@example.com\n",       # 两端换行
-    "  alice@example.com  \n",     # 混合空白
-    "alice@example.com",           # 无空白
-    "  \t  alice@example.com  \t", # 制表 + 空格
-]
-for raw in user_inputs:
-    cleaned = raw.strip()
-    print(f"  {raw!r} -> {cleaned!r}")
-```
-
-运行结果：
-
-```text
-    '  alice@example.com  ' -> 'alice@example.com'
-    '\nalice@example.com\n' -> 'alice@example.com'
-    '  alice@example.com  \n' -> 'alice@example.com'
-    'alice@example.com' -> 'alice@example.com'
-    '  \t  alice@example.com  \t' -> 'alice@example.com'
-```
-
-### 2.2 str.lstrip() 与 str.rstrip()
-
-#### 2.2.1 方法签名与参数
-
-```python
-str.lstrip(chars=None) -> str   # 只去除左端（开头）
-str.rstrip(chars=None) -> str   # 只去除右端（末尾）
-```
-
-`lstrip` 和 `rstrip` 的参数语义与 `strip` 完全一致——不传参数时去除空白，传参数时去除字符集合中的任意字符。区别只在于作用方向：`lstrip` 只从左端扫描，`rstrip` 只从右端扫描。
-
-#### 2.2.2 基本用法
-
-**示例**
-
-```python
-s = "  hello world  "
-print(f"  原始:         {s!r}")
-print(f"  lstrip():      {s.lstrip()!r}")
-print(f"  rstrip():      {s.rstrip()!r}")
-print(f"  strip():       {s.strip()!r}")
-```
-
-运行结果：
-
-```text
-  原始:         '  hello world  '
-  lstrip():      'hello world  '
-  rstrip():      '  hello world'
-  strip():       'hello world'
-```
-
-**关键点说明**：
-
-- `lstrip()` 去掉左端的空格，右端的空格保留
-- `rstrip()` 去掉右端的空格，左端的空格保留
-- `strip()` = `lstrip().rstrip()`，两端都去掉
-
-#### 2.2.3 lstrip / rstrip 指定字符
-
-**示例**
-
-```python
-# lstrip 指定字符
-print("000123".lstrip("0"))    # 123（去除左端所有 0）
-
-# rstrip 指定字符
-print("hello\n\n\n".rstrip("\n"))  # hello（去除右端所有换行）
-
-# lstrip 去除 Markdown 引用标记
-print("> > > This is a quote".lstrip("> "))  # This is a quote
-```
-
-运行结果：
-
-```text
-123
-hello
-This is a quote
-```
-
-#### 2.2.4 多行文本逐行处理
-
-`rstrip` 在文件读取后逐行处理时特别有用——`readline()` 返回的每一行末尾会带 `\n`，你需要用 `rstrip("\n")` 去掉。
-
-**示例**
-
-```python
-lines = [
-    "  line one  \n",
-    "\tline two\n",
-    "\n  line three  \n\n",
-]
-for line in lines:
-    cleaned = line.rstrip("\n")  # 只去掉末尾换行
-    print(f"  {line!r} -> rstrip('\\n')={cleaned!r}")
-```
-
-运行结果：
-
-```text
-  '  line one  \n' -> rstrip('\n')='  line one  '
-  '\tline two\n' -> rstrip('\n')='\tline two'
-  '\n  line three  \n\n' -> rstrip('\n')='\n  line three  '
-```
-
-**关键点说明**：`rstrip("\n")` 只去掉末尾换行符，不去掉空格、制表符等其他空白。如果需要同时去掉所有尾部空白，用 `rstrip()` 不传参数即可。
-
-#### 2.2.5 strip 默认去除的空白类型
-
-`strip()` / `lstrip()` / `rstrip()` 不传参数时，默认去除的空白字符不只有空格和 `\t\n\r`，而是 Unicode 标准中定义的所有空白字符。
-
-**示例**
-
-```python
-whitespace_chars = [
-    (" ",       "普通空格 (U+0020)"),
-    ("\t",      "制表符 (U+0009)"),
-    ("\n",      "换行符 (U+000A)"),
-    ("\r",      "回车符 (U+000D)"),
-    ("\v",      "垂直制表符 (U+000B)"),
-    ("\f",      "换页符 (U+000C)"),
-    ("\x1c",    "文件分隔符 (U+001C)"),
-    ("\x1d",    "组分隔符 (U+001D)"),
-    ("\x1e",    "记录分隔符 (U+001E)"),
-    ("\x1f",    "单元分隔符 (U+001F)"),
-    ("\x85",    "下一行 NEL (U+0085)"),
-    ("\xa0",    "不换行空格 NBSP (U+00A0)"),
+specials = [
+    ("²", "上标 2"),
+    ("³", "上标 3"),
+    ("₂", "下标 2"),
+    ("①", "圆圈数字 1"),
+    ("⑦", "带圈数字 7"),
+    ("፩", "埃塞俄比亚数字 1"),
 ]
 
-for char, desc in whitespace_chars:
-    s = char + "x" + char
-    result = s.strip()
-    stripped = result == "x"
-    print(f"  {desc:>25}: strip 结果 = {result!r}, 被去除 = {stripped}")
+for ch, label in specials:
+    print(f"'{ch}'（{label}）: isdecimal={ch.isdecimal()}, "
+          f"isdigit={ch.isdigit()}, isnumeric={ch.isnumeric()}")
 ```
 
-运行结果：
+**运行结果**：
 
 ```text
-            普通空格 (U+0020): strip 结果 = 'x', 被去除 = True
-              制表符 (U+0009): strip 结果 = 'x', 被去除 = True
-              换行符 (U+000A): strip 结果 = 'x', 被去除 = True
-              回车符 (U+000D): strip 结果 = 'x', 被去除 = True
-            垂直制表符 (U+000B): strip 结果 = 'x', 被去除 = True
-              换页符 (U+000C): strip 结果 = 'x', 被去除 = True
-            文件分隔符 (U+001C): strip 结果 = 'x', 被去除 = True
-             组分隔符 (U+001D): strip 结果 = 'x', 被去除 = True
-            记录分隔符 (U+001E): strip 结果 = 'x', 被去除 = True
-            单元分隔符 (U+001F): strip 结果 = 'x', 被去除 = True
-          下一行 NEL (U+0085): strip 结果 = 'x', 被去除 = True
-       不换行空格 NBSP (U+00A0): strip 结果 = 'x', 被去除 = True
+'²'（上标 2）: isdecimal=False, isdigit=True, isnumeric=True
+'³'（上标 3）: isdecimal=False, isdigit=True, isnumeric=True
+'₂'（下标 2）: isdecimal=False, isdigit=True, isnumeric=True
+'①'（圆圈数字 1）: isdecimal=False, isdigit=True, isnumeric=True
+'⑦'（带圈数字 7）: isdecimal=False, isdigit=True, isnumeric=True
+'፩'（埃塞俄比亚数字 1）: isdecimal=False, isdigit=True, isnumeric=True
 ```
 
-**关键点说明**：Python 的 `strip()` 去除的空白字符范围远超常见的空格/制表/换行，涵盖了 Unicode 标准中所有被归类为"空白"的字符。这意味着在处理国际化数据时，`strip()` 可以可靠地去除各种语言的空白字符。
+这 128 个"数字外形"字符来自世界各地：数学排版的上标下标、带圈序号、罕见文字的记数符号。它们与 680 个十进制数码合起来，就是 isdigit 的全部放行范围——实测 808 个字符。
 
-#### 2.2.6 strip() vs strip("")
+#### 2.2.3 危险落差：isdigit 放行，int() 报错
 
-**示例**
+正是这 128 个放宽进来的字符，制造了三个方法身上最著名的事故现场：`isdigit()` 返回 True，`int()` 却当场抛异常。
 
 ```python
-s = "  hello  "
-print(f"  {s!r}.strip()    = {s.strip()!r}")
-print(f"  {s!r}.strip('') = {s.strip('')!r}")
+text = "²"
+print(f"'{text}'.isdigit() -> {text.isdigit()}")
+
+if text.isdigit():
+    try:
+        int(text)
+    except ValueError as exc:
+        print(f"int('{text}') 崩溃: ValueError: {exc}")
 ```
 
-运行结果：
+**运行结果**：
 
 ```text
-  '  hello  '.strip()    = 'hello'
-  '  hello  '.strip('') = '  hello  '
+'²'.isdigit() -> True
+int('²') 崩溃: ValueError: invalid literal for int() with base 10: '²'
 ```
 
-**关键点说明**：
+污染数据里的上标字符并不罕见——从 PDF、网页复制出来的 `4²`、`注①` 都带着这类字符。一旦形成"isdigit 通过就 int()"的思维惯性，这些输入就会在运行期炸出 ValueError。
 
-- `strip()` 不传参数时，默认字符集合是"所有空白字符"
-- `strip("")` 传入空字符串作为字符集合，相当于"不去除任何字符"——字符集合是空的，没有任何字符需要匹配，所以原样返回
-- 这是 `chars=None`（使用默认空白集合）和 `chars=""`（使用空白集合）的区别
+危险区的规模实测如下：isdigit 放行的 808 个字符里，只有 680 个能被 `int()` 接受，剩下 128 个全部报错——每 6 个"数字字符串"里就潜伏着 1 个转换炸弹。所以判断"能不能安全转 int"时，isdecimal 是充分条件，isdigit 恰恰不满足。
 
-### 2.3 str.removeprefix() 与 str.removesuffix()
+### 2.3 isnumeric()：最宽的"数值含义"
 
-#### 2.3.1 方法签名与参数
+`isnumeric()` 的口径最宽：只要字符在 Unicode 里登记了数值属性——不管它是数码、汉字、分数还是罗马数字——isnumeric 都放行。它回答的问题是"这串字符有没有数值含义"，而不是"这串字符是不是数字"。
+
+#### 2.3.1 基本用法：汉字数字、分数、罗马数字都算
 
 ```python
-str.removeprefix(prefix: str) -> str    # Python 3.9+
-str.removesuffix(suffix: str) -> str    # Python 3.9+
+cases = ["123", "１２３", "½", "²", "一", "壹贰叁", "Ⅲ", "12.3", "-5", ""]
+
+print(f"{'字符串':<10}{'isnumeric'}")
+for text in cases:
+    display = text if text else "(空字符串)"
+    print(f"{display:<10}{text.isnumeric()}")
 ```
 
-`removeprefix` 和 `removesuffix` 是 Python 3.9 新增的方法。它们接收一个**完整的字符串**作为参数，精确匹配并移除：
-
-- `removeprefix(prefix)`：如果字符串以 `prefix` 开头，则移除该前缀；否则原样返回
-- `removesuffix(suffix)`：如果字符串以 `suffix` 结尾，则移除该后缀；否则原样返回
-
-它们的参数**不再是字符集合**，而是需要精确匹配的完整字符串。
-
-#### 2.3.2 removeprefix 基本用法
-
-**示例**
-
-```python
-test_cases = [
-    ("Hello World",     "Hello "),   # 有前缀，移除
-    ("Hello World",     "Hi"),       # 无前缀，原样返回
-    ("PrefixExample",   "Prefix"),   # 精确前缀
-    ("prefixexample",   "Prefix"),   # 大小写不匹配，不移除
-    ("HelloHello",      "Hello"),    # 只移除第一个出现的
-    ("",                "Hello"),    # 空字符串
-    ("Hello",           ""),         # 空前缀
-]
-for s, prefix in test_cases:
-    result = s.removeprefix(prefix)
-    print(f"  {s!r}.removeprefix({prefix!r}) = {result!r}")
-```
-
-运行结果：
+**运行结果**：
 
 ```text
-  'Hello World'.removeprefix('Hello ') = 'World'
-  'Hello World'.removeprefix('Hi') = 'Hello World'
-  'PrefixExample'.removeprefix('Prefix') = 'Example'
-  'prefixexample'.removeprefix('Prefix') = 'prefixexample'
-  'HelloHello'.removeprefix('Hello') = 'Hello'
-  ''.removeprefix('Hello') = ''
-  'Hello'.removeprefix('') = 'Hello'
+字符串       isnumeric
+123       True
+１２３       True
+½         True
+²         True
+一         True
+壹贰叁       True
+Ⅲ         True
+12.3      False
+-5        False
+(空字符串)    False
 ```
 
-**关键点说明**：
+isnumeric 把 isdigit 放行的全部照收，又额外收编了三类"只有数值含义"的字符：分数（`½`）、汉字数字（`一`、`壹`）、罗马数字（`Ⅲ`）。它是三层里唯一放行汉字数字的方法，这是它的独特价值。
 
-- `removeprefix` 严格区分大小写——`"prefixexample"` 不会被移除前缀 `"Prefix"`
-- 只移除开头的一个匹配——`"HelloHello"` 移除 `"Hello"` 后得到 `"Hello"`，不会递归移除
-- 不匹配时原样返回，不报错
-- 空前缀 `""` 不移除任何内容——任何字符串都以空字符串开头，但移除空字符串后不变
+同样注意：杂质（小数点、负号、空格）在 isnumeric 这里也照样全拒——三层方法对"语法符号一律不认"的态度完全一致。
 
-#### 2.3.3 removesuffix 基本用法
+#### 2.3.2 识别不等于可转换
 
-**示例**
+isnumeric 的名字容易让人产生"isnumeric 为 True 就能转数值"的联想。实测会把这个联想击得粉碎：
 
 ```python
-test_cases = [
-    ("Hello World",     " World"),   # 有后缀，移除
-    ("Hello World",     "Bye"),      # 无后缀，原样返回
-    ("report.csv",      ".csv"),     # 移除文件扩展名
-    ("report.CSV",      ".csv"),     # 大小写不匹配，不移除
-    ("data_final_v2",   "_v2"),      # 移除版本后缀
-    ("data_final_v2v2", "_v2"),      # 只移除末尾的一个
-    ("",                ".csv"),     # 空字符串
-]
-for s, suffix in test_cases:
-    result = s.removesuffix(suffix)
-    print(f"  {s!r}.removesuffix({suffix!r}) = {result!r}")
+cases = ["一", "一二三", "五", "½", "Ⅲ"]
+for text in cases:
+    try:
+        int_result = f"成功 -> {int(text)}"
+    except ValueError:
+        int_result = "ValueError"
+    try:
+        float_result = f"成功 -> {float(text)}"
+    except ValueError:
+        float_result = "ValueError"
+    print(f"'{text}': isnumeric={text.isnumeric()}, int() {int_result}, "
+          f"float() {float_result}")
 ```
 
-运行结果：
+**运行结果**：
 
 ```text
-  'Hello World'.removesuffix(' World') = 'Hello'
-  'Hello World'.removesuffix('Bye') = 'Hello World'
-  'report.csv'.removesuffix('.csv') = 'report'
-  'report.CSV'.removesuffix('.csv') = 'report.CSV'
-  'data_final_v2'.removesuffix('_v2') = 'data_final'
-  'data_final_v2v2'.removesuffix('_v2') = 'data_final_v2v2'
+'一': isnumeric=True, int() ValueError, float() ValueError
+'一二三': isnumeric=True, int() ValueError, float() ValueError
+'五': isnumeric=True, int() ValueError, float() ValueError
+'½': isnumeric=True, int() ValueError, float() ValueError
+'Ⅲ': isnumeric=True, int() ValueError, float() ValueError
 ```
 
-**关键点说明**：
+isnumeric 通过的这些字符串，`int()` 和 `float()` **全部失败**。原因很好理解：`int("一二三")` 应该得到多少？123？3？没有定义。isnumeric 只负责"识别"——告诉你这串字符有数值含义；而"转换"需要明确的数制规则，那是另一件事。
 
-- `removesuffix` 严格匹配末尾的完整字符串
-- `"data_final_v2v2"` 不会移除 `"_v2"` ——因为末尾是 `"v2"` 而非 `"_v2"`（字符串以 `v2` 结尾，但要匹配的后缀是 `_v2`，少了下划线）
-- 大小写敏感——`"report.CSV"` 不会移除 `".csv"`
-- 不匹配时原样返回，不报错
+数值本身是能查到的，用 `unicodedata.numeric()` 可以读取字符的数值属性：`unicodedata.numeric("一")` 得到 1.0、`unicodedata.numeric("½")` 得到 0.5。查询是对字符属性的读取，不是对字符串的转换，两者的边界在原理部分展开。
 
-#### 2.3.4 实战：文件名处理
+#### 2.3.3 覆盖面有边界：同为汉字，"五"认"两"不认
 
-`removesuffix` 在文件扩展名处理中非常实用。
-
-**示例**
+isnumeric 的"数值含义"来自 Unicode 数据库的登记，并不是按中文语感划定的。实测一批常用汉字：
 
 ```python
-filenames = [
-    "report_2024.csv",
-    "summary.pdf",
-    "data_backup_final_v2.xlsx",
-    "export.csv.xlsx",  # 双扩展名
-]
-print("  移除文件扩展名:")
-for fname in filenames:
-    # 链式调用移除多种扩展名
-    basename = fname.removesuffix(".csv").removesuffix(".pdf").removesuffix(".xlsx")
-    print(f"    {fname!r} -> {basename!r}")
+checks = ["一二三四五六七八九十", "壹贰叁肆伍陆柒捌玖拾", "百千万亿", "两", "廿", "卅", "零", "〇"]
+for text in checks:
+    print(f"'{text}': isnumeric={text.isnumeric()}")
 ```
 
-运行结果：
+**运行结果**：
 
 ```text
-  移除文件扩展名:
-    'report_2024.csv' -> 'report_2024'
-    'summary.pdf' -> 'summary'
-    'data_backup_final_v2.xlsx' -> 'data_backup_final_v2'
-    'export.csv.xlsx' -> 'export.csv'
+'一二三四五六七八九十': isnumeric=True
+'壹贰叁肆伍陆柒捌玖拾': isnumeric=True
+'百千万亿': isnumeric=True
+'两': isnumeric=False
+'廿': isnumeric=True
+'卅': isnumeric=True
+'零': isnumeric=True
+'〇': isnumeric=True
 ```
 
-`removeprefix` 在路径前缀移除中同样好用：
+三个值得划重点的实测结论：
 
-**示例**
+- 大小写数字、进位单位（百千万亿）全数通过，连冷门的"廿"（二十）、"卅"（三十）都通过。
+- **"两"不通过**——日常使用频率很高的"两"没有登记数值属性，isnumeric 对它返回 False。
+- "零"和"〇"都通过，但"〇"和 isdecimal 无缘，它走的是 isnumeric 这一层的放行。
+
+所以把 isnumeric 当"中文数字识别器"用时要清醒：它的覆盖面由 Unicode 数据库决定，版本不同结论可能有差异（比如"五"在较老的 Unicode 数据中未被收录数值属性，Python 3.12 内置数据中已登记，实测通过）。拿它做识别辅助没问题，做严格校验就会误伤。
+
+### 2.4 阶梯样例串全对照
+
+把三个方法对一组阶梯样例串的判断结果放在同一张表里，全程实跑。样例按"从三层全过到三层全拒"排好序：
 
 ```python
-paths = [
-    "/home/user/docs/report.txt",
-    "/home/user/docs/data.csv",
-    "/var/log/app.log",
-]
-base_dir = "/home/user/docs/"
-for path in paths:
-    relative = path.removeprefix(base_dir)
-    print(f"    {path!r} -> removeprefix({base_dir!r}) = {relative!r}")
-```
-
-运行结果：
-
-```text
-    '/home/user/docs/report.txt' -> removeprefix('/home/user/docs/') = 'report.txt'
-    '/home/user/docs/data.csv' -> removeprefix('/home/user/docs/') = 'data.csv'
-    '/var/log/app.log' -> removeprefix('/home/user/docs/') = '/var/log/app.log'
-```
-
-**关键点说明**：
-
-- `removesuffix(".csv")` 只能移除末尾的 `.csv`，如果文件有多个扩展名（如 `export.csv.xlsx`），只会移除最后一个 `.xlsx`，内层的 `.csv` 保留
-- `removeprefix(base_dir)` 只在路径确实以 `base_dir` 开头时才移除，不匹配则原样返回
-- 链式调用可以连续移除多种可能的扩展名——先尝试移除 `.csv`，不匹配则原样返回，再尝试 `.pdf`，依此类推
-
-### 2.4 strip vs removeprefix/removesuffix 深度对比
-
-这是本篇最重要的章节——理解 `strip` 系列和 `removeprefix/removesuffix` 系列的区别，是用好这些方法的关键。
-
-#### 2.4.1 核心区别
-
-| 维度 | strip / lstrip / rstrip | removeprefix / removesuffix |
-|------|------------------------|------------------------------|
-| 参数语义 | 字符集合 | 完整字符串 |
-| 匹配方式 | 逐字符匹配 | 整体匹配 |
-| 匹配次数 | 持续匹配直到不匹配 | 只匹配一次 |
-| 不匹配时 | 跳过该字符 | 原样返回 |
-| Python 版本 | 3.0+ | 3.9+ |
-| 典型场景 | 去除多种空白/标点 | 移除已知前缀/后缀 |
-
-#### 2.4.2 完整对比示例
-
-**示例**
-
-```python
-cases = [
-    ("###hello###",  "#",   "hello",         "##hello###"),
-    ("abcHello",     "abc", "Hello",         "Hello"),
-    ("aabbccHello",  "abc", "Hello",         "bccHello"),
+LADDER = [
+    ("0123456789", "ASCII 数字 0-9"),
+    ("１２３", "全角数字"),
+    ("٠١٢", "阿拉伯-印度数码"),
+    ("०१٢", "天城文数码"),
+    ("²", "上标 2"),
+    ("³", "上标 3"),
+    ("₂", "下标 2"),
+    ("①", "圆圈数字 1"),
+    ("⑦", "带圈数字 7"),
+    ("½", "分数 1/2"),
+    ("¼", "分数 1/4"),
+    ("一", "中文数字一"),
+    ("一二三", "中文数字串"),
+    ("壹", "中文大写壹"),
+    ("十", "汉字十（数值 10）"),
+    ("Ⅲ", "罗马数字 3"),
+    ("", "空字符串"),
+    ("3.14", "混入小数点"),
+    ("-1", "混入负号"),
+    ("1 2", "混入空格"),
 ]
 
-print(f"  {'字符串':>15} | {'参数':>6} | {'strip()':>15} | {'removeprefix()':>18}")
-print(f"  {'-'*15}-+-{'-'*6}-+-{'-'*15}-+-{'-'*18}")
-for s, arg, strip_r, prefix_r in cases:
-    print(f"  {s!r:>15} | {arg!r:>6} | {strip_r!r:>15} | {prefix_r!r:>18}")
+print(f"{'样例':<12}{'说明':<20}{'isdecimal':<11}{'isdigit':<9}{'isnumeric'}")
+for text, label in LADDER:
+    display = text if text else "(空)"
+    print(f"{display:<12}{label:<20}"
+          f"{str(text.isdecimal()):<11}{str(text.isdigit()):<9}{text.isnumeric()}")
 ```
 
-运行结果：
+**运行结果**：
 
 ```text
-    '###hello###' |    '#' |         'hello' |       '##hello###'
-       'abcHello' |  'abc' |         'Hello' |            'Hello'
-    'aabbccHello' |  'abc' |         'Hello' |         'bccHello'
+样例          说明                  isdecimal  isdigit  isnumeric
+0123456789  ASCII 数字 0-9        True       True     True
+１２３         全角数字                True       True     True
+٠١٢         阿拉伯-印度数码            True       True     True
+०१٢         天城文数码               True       True     True
+²           上标 2                False      True     True
+³           上标 3                False      True     True
+₂           下标 2                False      True     True
+①           圆圈数字 1              False      True     True
+⑦           带圈数字 7              False      True     True
+½           分数 1/2              False      False    True
+¼           分数 1/4              False      False    True
+一           中文数字一               False      False    True
+一二三         中文数字串               False      False    True
+壹           中文大写壹               False      False    True
+十           汉字十（数值 10）          False      False    True
+Ⅲ           罗马数字 3              False      False    True
+(空)         空字符串                False      False    False
+3.14        混入小数点               False      False    False
+-1          混入负号                False      False    False
+1 2         混入空格                False      False    False
 ```
 
-逐步分析 `"###hello###"` 的处理：
+前四行三层全过——十进制数码走到哪层都通行。上标、下标、带圈数字从 isdecimal 掉队、被 isdigit 接住；从分数 `½` 开始 isdigit 也弃权，只剩 isnumeric 兜底；最后四行三层全拒，是混入杂质的语法残骸。三级台阶齐齐整整。
 
-- `strip("#")`：左端 `#`(去) `#`(去) `#`(去) → 遇到 `h` 停；右端 `#`(去) `#`(去) `#`(去) → 遇到 `o` 停 → 结果 `"hello"`
-- `removeprefix("#")`：开头是 `#`，匹配前缀 `"#"` → 移除一个 `#` → 结果 `"##hello###"`
-
-逐步分析 `"aabbccHello"` 的处理：
-
-- `strip("abc")`：左端 `a`(去) `a`(去) `b`(去) `b`(去) `c`(去) `c`(去) → 遇到 `H` 停 → 结果 `"Hello"`
-- `removeprefix("abc")`：开头不是 `"abc"`（是 `"aab"`）→ 不匹配 → 原样返回 → 结果 `"aabbccHello"`
-
-**removesuffix vs rstrip 对比**
-
-**示例**
+最后把"包含关系"做成一次彻底实测——扫描全部 1114112 个 Unicode 码点，统计三层各放行多少字符、数一数有没有反例：
 
 ```python
-cases = [
-    ("data.csv",     ".csv", "data",     "data"),
-    ("data.csv.csv", ".csv", "data",     "data.csv"),
-    ("data.csvv",    ".csv", "data.csvv","data.csvv"),
-    ("data.csv",     "v",    "data.cs",  "data.csv"),
+counts = {"isdecimal": 0, "isdigit": 0, "isnumeric": 0}
+dec_but_not_dig = 0
+dig_but_not_num = 0
+
+for cp in range(0x110000):
+    ch = chr(cp)
+    if ch.isdecimal():
+        counts["isdecimal"] += 1
+        if not ch.isdigit():
+            dec_but_not_dig += 1
+    if ch.isdigit():
+        counts["isdigit"] += 1
+        if not ch.isnumeric():
+            dig_but_not_num += 1
+    if ch.isnumeric():
+        counts["isnumeric"] += 1
+
+print(f"isdecimal True: {counts['isdecimal']} 个")
+print(f"isdigit   True: {counts['isdigit']} 个")
+print(f"isnumeric True: {counts['isnumeric']} 个")
+print(f"反例（decimal 通过但 digit 不通过）: {dec_but_not_dig}")
+print(f"反例（digit 通过但 numeric 不通过）: {dig_but_not_num}")
+```
+
+**运行结果**：
+
+```text
+isdecimal True: 680 个
+isdigit   True: 808 个
+isnumeric True: 1912 个
+反例（decimal 通过但 digit 不通过）: 0
+反例（digit 通过但 numeric 不通过）: 0
+```
+
+全码点实测零反例：isdecimal ⊆ isdigit ⊆ isnumeric 成立。三个数字也值得记住——680、808、1912，口径一层比一层宽。
+
+### 2.5 与 int()/float() 转换的四象限落差
+
+三层判断是对"字符层"的裁决；int()/float() 是对"字符串"的十进制解析。两者并不完全对齐——把判断结果与转换结果交叉对照，会得到一张规则的"落差地图"：
+
+```text
+四象限落差地图（括号中为实测代表样例）
+
+  象限 1  isdecimal 通过（'123' '１２３' '०१२'）
+          → int() 成功，float() 成功
+          判定：识别即转换，最安全的一层
+
+  象限 2  仅 isdigit 通过（'²' '②' '፩'）
+          → int() 报错，float() 报错
+          判定：有数字外形、无十进位权——识别与转换在此分家
+
+  象限 3  仅 isnumeric 通过（'一' '½' 'Ⅲ'）
+          → int() 报错，float() 报错
+          判定：只有数值含义、没有进制结构——不可转换
+
+  象限 4  三方法全拒（' 12 ' '+5' '-1' '1_000' '3.14'）
+          → int() 多数成功，float() 连 '3.14' 都能收
+          判定：空白/正负号/下划线/小数点属于转换器的语法层
+```
+
+用一段代码把四个象限各抽几个实测：
+
+```python
+quadrants = [
+    ("象限 1：isdecimal 通过", ["123", "１２３", "०१२"]),
+    ("象限 2：仅 isdigit 通过", ["²", "②", "፩"]),
+    ("象限 3：仅 isnumeric 通过", ["一", "½", "Ⅲ"]),
+    ("象限 4：三方法全拒", [" 12 ", "+5", "-1", "1_000", "3.14"]),
 ]
 
-print(f"  {'字符串':>15} | {'参数':>6} | {'rstrip()':>15} | {'removesuffix()':>18}")
-print(f"  {'-'*15}-+-{'-'*6}-+-{'-'*15}-+-{'-'*18}")
-for s, arg, rstrip_r, suffix_r in cases:
-    print(f"  {s!r:>15} | {arg!r:>6} | {rstrip_r!r:>15} | {suffix_r!r:>18}")
+for quad, cases in quadrants:
+    print(f"=== {quad} ===")
+    for text in cases:
+        three = (text.isdecimal(), text.isdigit(), text.isnumeric())
+        try:
+            int_r = f"成功 -> {int(text)}"
+        except ValueError:
+            int_r = "报错"
+        try:
+            float_r = f"成功 -> {float(text)}"
+        except ValueError:
+            float_r = "报错"
+        print(f"  {text!r}: 三法={three}, int() {int_r}, float() {float_r}")
 ```
 
-运行结果：
+**运行结果**：
 
 ```text
-       'data.csv' | '.csv' |          'data' |             'data'
-   'data.csv.csv' | '.csv' |          'data' |         'data.csv'
-      'data.csvv' | '.csv' |     'data.csvv' |        'data.csvv'
-       'data.csv' |    'v' |       'data.cs' |         'data.csv'
+=== 象限 1：isdecimal 通过 ===
+  '123': 三法=(True, True, True), int() 成功 -> 123, float() 成功 -> 123.0
+  '１２３': 三法=(True, True, True), int() 成功 -> 123, float() 成功 -> 123.0
+  '०१२': 三法=(True, True, True), int() 成功 -> 12, float() 成功 -> 12.0
+=== 象限 2：仅 isdigit 通过 ===
+  '²': 三法=(False, True, True), int() 报错, float() 报错
+  '②': 三法=(False, True, True), int() 报错, float() 报错
+  '፩': 三法=(False, True, True), int() 报错, float() 报错
+=== 象限 3：仅 isnumeric 通过 ===
+  '一': 三法=(False, False, True), int() 报错, float() 报错
+  '½': 三法=(False, False, True), int() 报错, float() 报错
+  'Ⅲ': 三法=(False, False, True), int() 报错, float() 报错
+=== 象限 4：三方法全拒 ===
+  ' 12 ': 三法=(False, False, False), int() 成功 -> 12, float() 成功 -> 12.0
+  '+5': 三法=(False, False, False), int() 成功 -> 5, float() 成功 -> 5.0
+  '-1': 三法=(False, False, False), int() 成功 -> -1, float() 成功 -> -1.0
+  '1_000': 三法=(False, False, False), int() 成功 -> 1000, float() 成功 -> 1000.0
+  '3.14': 三法=(False, False, False), int() 报错, float() 成功 -> 3.14
 ```
 
-逐步分析 `"data.csv.csv"` 的处理：
+象限 1 是方法与转换器完全重合的安全区——也是 isdecimal 能放心做"int() 前置检查"的实测根据。象限 2 是三个方法身上最出名的危险落差：isdigit 放行的 128 个非数码字符，int() 一律当场报错。象限 3 说明"数值含义"救不了转换——数据库登记了数值属性不等于有十进制结构，int()/float() 一律报错。象限 4 是反向落差：三方法全拒时 int() 却常常成功，转换器的语法层（空白、正负号、下划线）根本不在字符层判断的管辖之内，float() 还额外兜下了 '3.14'。
 
-- `rstrip(".csv")`：右端 `v`(去) `s`(去) `c`(去) `.`(去) `v`(去) `s`(去) `c`(去) `.`(去) `a`(停，不在集合中) → 结果 `"data"`
-- `removesuffix(".csv")`：末尾是 `".csv"`，精确匹配 → 移除一个 → 结果 `"data.csv"`
+一句话记忆：**判断看字符层，转换看语法层——两层规则不同，落差里全是事故现场。**
 
-逐步分析 `"data.csv"` 的 `rstrip("v")` 处理：
+### 2.6 共性边界：空串与杂质一律全拒
 
-- 右端 `v`(去) `s`(停，不在集合中) → 结果 `"data.cs"`
-- 而 `removesuffix("v")` 末尾是 `v`，匹配 → 移除一个 `v` → 结果 `"data.cs"` 不对...
-
-等一下——`"data.csv"` 的 `removesuffix("v")` 应该是 `"data.cs"` 还是 `"data.csv"`？末尾确实是 `v`，所以匹配并移除 → 结果 `"data.cs"`。
-
-让我修正这个预期值：
+三层方法口径差得再大，对"语法符号"的态度完全一致——小数点、正负号、空格、逗号谁也不认，空字符串更是三法齐拒。实测一批被污染的输入：
 
 ```python
-print(f"  {'data.csv'}'.removesuffix('v') = {'data.csv'.removesuffix('v')!r}")
-# data.csv 末尾是 v，匹配后缀 "v"，移除 -> "data.cs"
+polluted = ["1 2", " 12\t", "1.5", "3.14", "-1", "+5", "1,000"]
+
+print(f"{'输入':<12}{'isdecimal':<11}{'isdigit':<9}{'isnumeric':<11}{'int()'}")
+for text in polluted:
+    try:
+        int_r = str(int(text))
+    except ValueError:
+        int_r = "报错"
+    print(f"{text!r:<12}{str(text.isdecimal()):<11}{str(text.isdigit()):<9}"
+          f"{str(text.isnumeric()):<11}{int_r}")
+
+empty = ""
+print(f"空字符串: isdecimal={empty.isdecimal()}, "
+      f"isdigit={empty.isdigit()}, isnumeric={empty.isnumeric()}")
 ```
 
-运行结果：
+**运行结果**：
 
 ```text
-  'data.csv'.removesuffix('v') = 'data.cs'
+输入          isdecimal  isdigit  isnumeric  int()
+'1 2'       False      False    False      报错
+' 12\t'     False      False    False      12
+'1.5'       False      False    False      报错
+'3.14'      False      False    False      报错
+'-1'        False      False    False      -1
+'+5'        False      False    False      5
+'1,000'     False      False    False      报错
+空字符串: isdecimal=False, isdigit=False, isnumeric=False
 ```
 
-**关键点说明**：
+| 输入特征 | 代表输入 | 三方法 | int() 实测 | 说明 |
+|---|---|---|---|---|
+| 空格混在数字中间 | `'1 2'` | 全 False | 报错 | 两段数字被隔断 |
+| 空白只包在两边 | `' 12\t'` | 全 False | 成功得到 12 | 空白是语法层符号 |
+| 小数点 | `'3.14'` | 全 False | int() 报错 | float() 能收 |
+| 正负号 | `'-1'`、`'+5'` | 全 False | 成功 | 符号是语法层符号 |
+| 千分位逗号 | `'1,000'` | 全 False | 报错 | 谁也不认，须自清洗 |
+| 空字符串 | `''` | 全 False | 报错 | 三法天然筛掉空值 |
 
-- `rstrip` 的参数是字符集合——`rstrip(".csv")` 会去掉末尾所有 `.`、`c`、`s`、`v` 字符
-- `removesuffix` 的参数是完整字符串——`removesuffix(".csv")` 只去掉末尾精确匹配的 `".csv"` 字符串
-- 当 `rstrip` 的参数是单字符时（如 `"v"`），行为看起来和 `removesuffix` 类似——但不完全一样：`rstrip("v")` 会去掉末尾**所有** `v`（如 `"datavvv"` → `"data"`），而 `removesuffix("v")` 只去掉末尾**一个** `v`（如 `"datavvv"` → `"datavv"`）
+两条结论浮出水面：
 
-#### 2.4.3 不匹配时的行为差异
+- 字符层判断对"杂质"零容忍：小数点、正负号、逗号一层都不认——这不是缺陷，正是"纯数字判断"的语义所在。
+- 转换器却额外认空白和正负号：`' 12 '`、`'-1'` 都能被 int() 静默收下。所以"三方法全拒"不等于"转换必失败"，校验前要想清楚要的是字符层的纯粹，还是转换层的宽松。
 
-`strip` 和 `removeprefix/removesuffix` 在不匹配时的行为完全不同：
+空字符串被三法齐拒这一点顺带帮了大忙：一层 isdecimal 等价于"非空 + 纯十进制数码"两重检查，空值处理可以省一半笔墨。
 
-- `strip` 遇到不在字符集合中的字符就停止——它不会报错，只是不继续去除
-- `removeprefix/removesuffix` 不匹配时原样返回——没有任何变化
+### 2.7 场景对照：三类业务怎么选口径
 
-**示例**
+#### 2.7.1 口径选择决策树
+
+三个方法分别对应三档业务语义。把选择逻辑画成决策树：
+
+```text
+输入字符串，业务要什么？
+
+  ├─ 交互输入校验（手机号 / 验证码 / 订单号）
+  │    只肯收 0-9、还要定长定开头
+  │    → isdecimal() 叠加 isascii() 白名单
+  │      放行后 int() 必然成功，转换零风险
+  │
+  ├─ 数量 / 金额输入（排版页面复制来的全角数字常见）
+  │    要变通全角、但拒绝一切"不能转 int()"的外形数字
+  │    → isdecimal()（全角数码本就放行，上标小数全挡下）
+  │
+  ├─ 数字外形核对（标注、序号、上标是否出现在位）
+  │    只关心"长得像数字"，不打算转换
+  │    → isdigit()，仅识别、不做 int() 前置
+  │
+  └─ 自然语言计数识别（中文数字、分数、罗马数字）
+       只识别"有数值含义"的片段，转换另想办法
+       → isnumeric() 扫描片段，识别≠转换
+```
+
+顺着树走一遍就是三句话：要转换安全就用 isdecimal（可再叠 isascii 白名单）；只识别外形用 isdigit；文本里捞数值含义用 isnumeric 且别指望它能装进 int()。下面把三类业务各写成一段可以直接抄走的校验代码。
+
+#### 2.7.2 场景一：手机号校验（最窄口径叠加白名单）
+
+手机号业务上只认 0-9 共 11 位、1 开头。isdecimal 承担"纯十进制"的判断，isascii 叠加"仅 ASCII 数字"的白名单——全角数字虽然是十进制数码，也要挡在门外：
 
 ```python
-s = "Hello World"
-print(f"  {s!r}.removeprefix('Hi') = {s.removeprefix('Hi')!r}")
-print(f"  {s!r}.removesuffix('Bye') = {s.removesuffix('Bye')!r}")
-print(f"  {s!r}.strip('xyz') = {s.strip('xyz')!r}")
-# strip('xyz')：H 不在 xyz 中，停；d 不在 xyz 中，停 -> 原样返回
+def validate_phone(phone):
+    """手机号：只接受 ASCII 十进制数字，11 位，1 开头"""
+    if not phone:
+        return False, "手机号不能为空"
+    if not (phone.isdecimal() and phone.isascii()):
+        return False, "只能包含数字 0-9（全角数字也拒绝）"
+    if len(phone) != 11:
+        return False, f"须为 11 位，当前 {len(phone)} 位"
+    if not phone.startswith("1"):
+        return False, "须以 1 开头"
+    return True, "合法"
+
+
+phones = ["13800138000", "１３８００１３８０００", "13800abc8000", "238001380001"]
+for phone in phones:
+    ok, msg = validate_phone(phone)
+    print(f"  [{'v' if ok else 'x'}] '{phone}': {msg}")
 ```
 
-运行结果：
+**运行结果**：
 
 ```text
-  'Hello World'.removeprefix('Hi') = 'Hello World'
-  'Hello World'.removesuffix('Bye') = 'Hello World'
-  'Hello World'.strip('xyz') = 'Hello World'
+  [v] '13800138000': 合法
+  [x] '１３８００１３８０００': 只能包含数字 0-9（全角数字也拒绝）
+  [x] '13800abc8000': 只能包含数字 0-9（全角数字也拒绝）
+  [x] '238001380001': 须为 11 位，当前 12 位
 ```
 
-### 2.5 边界情况
+第二行是活注脚：`'１３８００１３８００１'` 通过了 isdecimal（它确实是十进制数码），却拦在 isascii 这道白名单上——两个方法各司其职，"是数字"归 isdecimal 管，"是哪国数字"归 isascii 管。这条校验链里没有任何 try/except：isdecimal 放行之后 int() 必然成功，检查和转换天然同口径。
 
-#### 2.5.1 空字符串
+#### 2.7.3 场景二：商品数量（接受全角，拒绝一切不可转换）
 
-**示例**
+数量输入常来自排版页面，全角数字常见；上标、小数、负数则不该被收下。这正好是 isdecimal 的辖区——全角数码放行、其余数字外形全拒：
 
 ```python
-print(f"  ''.strip() = {''.strip()!r}")
-print(f"  ''.lstrip() = {''.lstrip()!r}")
-print(f"  ''.rstrip() = {''.rstrip()!r}")
-print(f"  ''.removeprefix('abc') = {''.removeprefix('abc')!r}")
-print(f"  ''.removesuffix('abc') = {''.removesuffix('abc')!r}")
+def validate_quantity(text):
+    """购买数量：接受全角数字（变通友好输入），但必须是可转 int 的十进制"""
+    if not text:
+        return False, "数量不能为空"
+    if not text.isdecimal():
+        return False, "必须是十进制数字"
+    quantity = int(text)
+    if quantity <= 0:
+        return False, "数量须为正整数"
+    return True, f"合法：{quantity} 件"
+
+
+quantities = ["5", "１０", "²", "3.5", "-1", ""]
+for text in quantities:
+    ok, msg = validate_quantity(text)
+    print(f"  [{'v' if ok else 'x'}] '{text}': {msg}")
 ```
 
-运行结果：
+**运行结果**：
 
 ```text
-  ''.strip() = ''
-  ''.lstrip() = ''
-  ''.rstrip() = ''
-  ''.removeprefix('abc') = ''
-  ''.removesuffix('abc') = ''
+  [v] '5': 合法：5 件
+  [v] '１０': 合法：10 件
+  [x] '²': 必须是十进制数字
+  [x] '3.5': 必须是十进制数字
+  [x] '-1': 必须是十进制数字
+  [x] '': 数量不能为空
 ```
 
-**关键点说明**：所有清洗方法对空字符串都安全地返回空字符串，不会报错。
+全角 `'１０'` 顺利转成 10——isdecimal 放行的字符恰好就是 int() 全收的字符，校验通过后转换没有任何悬念。`'²'` 则在门外就被挡下；倘若当初用 isdigit 做前置检查，'²' 会先混过检查、再在 int() 那一行炸出 ValueError——四象限里的"危险落差"在业务代码里就是这样引爆的。
 
-#### 2.5.2 空参数
+#### 2.7.4 场景三：文本计数识别（isnumeric 的本职）
 
-**示例**
+从自然语言里把数值片段捞出来，isnumeric 最合适——只有它认汉字数字。只识别、不转换：
 
 ```python
-print(f"  'hello'.strip('') = {'hello'.strip('')!r}")
-print(f"  'hello'.removeprefix('') = {'hello'.removeprefix('')!r}")
-print(f"  'hello'.removesuffix('') = {'hello'.removesuffix('')!r}")
+def recognize_numeric_tokens(text):
+    """文本数值识别：找出具有数值含义的字符段（含中文数字），只识别不转换"""
+    tokens = []
+    current = []
+    for ch in text:
+        if ch.isnumeric():
+            current.append(ch)
+        else:
+            if current:
+                tokens.append("".join(current))
+                current = []
+    if current:
+        tokens.append("".join(current))
+    return tokens
+
+
+sentences = [
+    "买了3件礼品",
+    "共三件商品，每件五元",
+    "来了两个人，坐了两小时",
+]
+for sentence in sentences:
+    tokens = recognize_numeric_tokens(sentence)
+    print(f"  '{sentence}'")
+    print(f"    isnumeric 识别出的数值片段: {tokens if tokens else '(无)'}")
 ```
 
-运行结果：
+**运行结果**：
 
 ```text
-  'hello'.strip('') = 'hello'
-  'hello'.removeprefix('') = 'hello'
-  'hello'.removesuffix('') = 'hello'
+  '买了3件礼品'
+    isnumeric 识别出的数值片段: ['3']
+  '共三件商品，每件五元'
+    isnumeric 识别出的数值片段: ['三', '五']
+  '来了两个人，坐了两小时'
+    isnumeric 识别出的数值片段: (无)
 ```
 
-**关键点说明**：
+第三句是活生生的覆盖面教训："两"不在 Unicode 的数值登记册里，识别结果为空。自然语言字段的 isnumeric 识别召回率做不到百分之百，识别环节可以认怂，转换环节必须另配汉字数字映射表或人工复核——识别与转换，一个都不能省。
 
-- `strip("")` 传入空字符集合——没有任何字符需要去掉，原样返回
-- `removeprefix("")` 传入空前缀——任何字符串都以空字符串开头，但移除空字符串后内容不变
-- `removesuffix("")` 同理
-
-#### 2.5.3 参数比字符串长
-
-**示例**
-
-```python
-print(f"  'hi'.removeprefix('hello') = {'hi'.removeprefix('hello')!r}")
-print(f"  'hi'.removesuffix('hello') = {'hi'.removesuffix('hello')!r}")
-print(f"  'hi'.strip('hello') = {'hi'.strip('hello')!r}")
-```
-
-运行结果：
-
-```text
-  'hi'.removeprefix('hello') = 'hi'
-  'hi'.removesuffix('hello') = 'hi'
-  'hi'.strip('hello') = 'i'
-```
-
-**关键点说明**：
-
-- `removeprefix` / `removesuffix` 不匹配时原样返回
-- `strip('hello')` 把 `h`、`e`、`l`、`o` 视为字符集合——`"hi"` 左端 `h` 在集合中（去掉），`i` 不在集合中停；右端 `i` 不在集合中停 → 结果 `"i"`
-
-### 2.6 链式调用
-
-`strip` 和 `removeprefix/removesuffix` 都返回新字符串，因此可以链式调用——将多个清洗步骤串联在一起。
-
-**示例**
-
-```python
-s = "  ./prefix_data_report_final_v2.csv.zip  "
-print(f"  原始: {s!r}")
-
-step1 = s.strip()
-print(f"  strip():              {step1!r}")
-
-step2 = step1.removeprefix("./")
-print(f"  removeprefix('./'):   {step2!r}")
-
-step3 = step2.removesuffix(".zip")
-print(f"  removesuffix('.zip'): {step3!r}")
-
-step4 = step3.removesuffix(".csv")
-print(f"  removesuffix('.csv'): {step4!r}")
-
-step5 = step4.removesuffix("_v2")
-print(f"  removesuffix('_v2'):  {step5!r}")
-
-step6 = step5.removeprefix("prefix_")
-print(f"  removeprefix('prefix'):{step6!r}")
-
-print(f"  最终: {step6!r}")
-```
-
-运行结果：
-
-```text
-  原始: '  ./prefix_data_report_final_v2.csv.zip  '
-  strip():              './prefix_data_report_final_v2.csv.zip'
-  removeprefix('./'):   'prefix_data_report_final_v2.csv.zip'
-  removesuffix('.zip'): 'prefix_data_report_final_v2.csv'
-  removesuffix('.csv'): 'prefix_data_report_final_v2'
-  removesuffix('_v2'):  'prefix_data_report_final'
-  removeprefix('prefix'):'data_report_final'
-  最终: 'data_report_final'
-```
-
-**与其他方法链式调用**
-
-```python
-s = "  2024-01-15  "
-# strip + split
-parts = s.strip().split("-")
-print(f"  strip().split('-'): {parts}")
-
-# strip + replace
-cleaned = s.strip().replace("-", "/")
-print(f"  strip().replace('-', '/'): {cleaned!r}")
-
-# lstrip + rstrip = strip
-s2 = "  hello  "
-print(f"  lstrip().rstrip() == strip(): {s2.lstrip().rstrip() == s2.strip()}")
-```
-
-运行结果：
-
-```text
-  strip().split('-'): ['2024', '01', '15']
-  strip().replace('-', '/'): '2024/01/15'
-  lstrip().rstrip() == strip(): True
-```
-
-### 2.7 方法选择决策表
-
-根据需求选择合适的方法：
-
-| 需求 | 推荐方法 | 示例 |
-|------|---------|------|
-| 去除首尾空白 | `strip()` | `"  hello  ".strip()` → `"hello"` |
-| 只去除左侧空白 | `lstrip()` | `"  hello  ".lstrip()` → `"hello  "` |
-| 只去除右侧空白 | `rstrip()` | `"  hello  ".rstrip()` → `"  hello"` |
-| 精确移除前缀字符串 | `removeprefix()` | `"Hello World".removeprefix("Hello ")` → `"World"` |
-| 精确移除后缀字符串 | `removesuffix()` | `"report.csv".removesuffix(".csv")` → `"report"` |
-| 去除首尾的多个指定字符 | `strip('xyz')` | `"##hello##".strip('#')` → `"hello"` |
-| 移除文件扩展名 | `removesuffix('.csv')` | `"data.csv".removesuffix('.csv')` → `"data"` |
-| 移除路径前缀 | `removeprefix('/home/')` | `"/home/user".removeprefix("/home/")` → `"user"` |
-| 移除 Markdown 引用标记 | `lstrip('> ')` | `"> > quote".lstrip('> ')` → `"quote"` |
-| 移除行尾换行符 | `rstrip('\n')` | `"line\n".rstrip('\n')` → `"line"` |
-| 去除零填充 | `lstrip('0')` | `"000123".lstrip('0')` → `"123"` |
+三个场景连成一条主线：业务越要"能安全转换"，口径就要选得越窄；业务越只要"有数值含义"，口径才可以放宽。
 
 ## 3. 最佳实践
 
-### 3.1 用户输入清洗的标准写法
+### 3.1 口径选择速查表
 
-**推荐写法**
+| 业务诉求 | 推荐口径 | 实测依据 |
+|---|---|---|
+| 手机号 / 验证码 / 订单号 | `isdecimal()` 叠加 `isascii()` | 十进制数码 + 白名单排除全角与外文字符 |
+| 数量 / 金额（接受全角输入） | `isdecimal()` | 放行即 int() 可转换——充分条件实测零反例 |
+| 数字外形展示 / 标注核对 | `isdigit()`，仅识别不转换 | 覆盖上标、带圈字符，转换必报错 |
+| 自然文本中的计数识别 | `isnumeric()` 只识别不转换 | 唯一放行汉字数字、分数、罗马数字的层 |
+| 判断"能不能安全转 int()" | `isdecimal()` 或 `try int()` | 检查口径不得宽于转换口径 |
 
-```python
-def clean_input(raw: str) -> str:
-    """标准用户输入清洗：去除首尾空白。"""
-    if not isinstance(raw, str):
-        raise TypeError("输入必须是字符串")
-    return raw.strip()
-```
+统一的纪律只有三条：
 
-**不推荐写法**
+- 检查与转换同口径：用 isdecimal 检查就敢 int()，用 isdigit 检查就别 int()。
+- isnumeric 一律不当"可转换"的前置条件——它的放行与 int() 的失败在象限图上是同一格。
+- 小数点、正负号、空白、下划线是转换器的语法层，三方法全拒——处理它们要么用 try int()/float()，要么写显式白名单。
 
-```python
-# 危险：不清洗直接使用，首尾空白可能导致逻辑错误
-username = input("请输入用户名: ")
-if username == "admin":  # 如果用户输入 "  admin  "，匹配失败
-    grant_access()
-```
+### 3.2 LBYL 与 EAFP：检查口径必须等于转换口径
 
-### 3.2 文件扩展名移除的推荐写法
-
-**推荐写法**
+判断并转换数字有两种风格。LBYL（Look Before You Leap，先检查后转换）的关键是检查口径不能比转换口径宽；EAFP（Easier to Ask Forgiveness than Permission，先转换、异常兜底）把口径问题直接交给转换器裁决。两种风格对同一批输入的表现：
 
 ```python
-def get_basename(filename: str) -> str:
-    """移除文件扩展名，返回基本名称。"""
-    # 使用 removesuffix 精确移除
-    return filename.removesuffix(".csv").removesuffix(".pdf").removesuffix(".xlsx")
+def safe_int_lbyl(value):
+    """LBYL：先检查再转换，检查必须落到 isdecimal 这一层"""
+    if value.isdecimal():
+        return int(value)
+    return None
+
+def safe_int_eafp(value):
+    """EAFP：直接转换，靠异常兜底"""
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return None
+
+for text in ["123", "１０", "²", "一", " 12 "]:
+    print(f"  {text!r:<8} LBYL -> {str(safe_int_lbyl(text)):<5} "
+          f"EAFP -> {safe_int_eafp(text)}")
 ```
 
-**不推荐写法**
-
-```python
-# 危险：使用 rstrip 移除扩展名——rstrip 的参数是字符集合！
-name = "report.csv".rstrip(".csv")
-print(name)  # 输出 "repor" 而非 "report"
-# 因为 rstrip(".csv") 会去掉末尾所有 .、c、s、v 字符
-# "report.csv" 末尾 v(去) s(去) c(去) .(去) t(停) -> "repor"
-```
-
-运行结果：
+**运行结果**：
 
 ```text
-repor
+  '123'    LBYL -> 123   EAFP -> 123
+  '１０'     LBYL -> 10    EAFP -> 10
+  '²'      LBYL -> None  EAFP -> None
+  '一'      LBYL -> None  EAFP -> None
+  ' 12 '   LBYL -> None  EAFP -> 12
 ```
 
-### 3.3 路径前缀移除的推荐写法
+三条对比结论：
 
-**推荐写法**
+- LBYL 的检查必须落在 isdecimal：换成 isdigit 就会在 `'²'` 上"检查放行、转换崩溃"，检查形同虚设。
+- EAFP 天然与转换器口径一致，`' 12 '` 这种三方法全拒但 int() 能收的空白输入也被妥善处理。
+- 两者的分岔只在边界输入上：要求"纯十进制数码才收"就用 LBYL + isdecimal；要求"转换器收得下就算数"就用 EAFP。
+
+### 3.3 常见错误模式与修正
+
+三个方法的雷区高度集中在两件事上："识别"与"转换"的错位、空值处理。下面五个模式全部实测复现、逐个修正。
+
+#### 3.3.1 用 isdigit 做 int() 的前置检查
+
+检查口径比转换口径宽，检查放行的字符转换器却收不下，事故就发生在这一格落差里：
 
 ```python
-def to_relative(path: str, base: str) -> str:
-    """将绝对路径转为相对路径。"""
-    # 确保前缀以 / 结尾，避免 "/home/user" 错误匹配 "/home/usertools"
-    if not base.endswith("/"):
-        base += "/"
-    return path.removeprefix(base)
+text = "²"
+if text.isdigit():
+    try:
+        int(text)
+    except ValueError as exc:
+        print(f"前置检查放行了，int() 却抛异常: {exc}")
 ```
 
-**不推荐写法**
-
-```python
-# 危险：使用 lstrip 移除路径前缀——lstrip 的参数是字符集合！
-path = "/home/user/docs/report.txt"
-relative = path.lstrip("/home/user/")
-print(relative)  # 输出可能不符合预期
-# lstrip("/home/user/") 把 /、h、o、m、e、u、s、r 都视为字符集合
-# 逐字符扫描：/(去) h(去) o(去) m(去) e(去) /(去) u(去) s(去) e(去) r(去) /(去) d(停)
-# 结果是 "docs/report.txt" — 刚好对？但这是因为 "docs" 以 d 开头不在集合中
-# 如果路径是 "/home/user/home/report"，结果会是 "/report" 而非 "home/report"
-```
-
-### 3.4 多步清洗流水线
-
-**推荐写法**
-
-```python
-def clean_log_line(raw: str) -> str:
-    """日志行清洗：strip 空白 → 移除日期前缀 → 合并空格。"""
-    step1 = raw.strip()                          # 去除首尾空白
-    step2 = step1.removeprefix("[2024-01-15] ")  # 移除日期前缀
-    step3 = " ".join(step2.split())              # 合并连续空格
-    return step3
-```
-
-### 3.5 理解不可变性
-
-所有清洗方法都返回新字符串，原字符串不会被修改。
-
-**示例**
-
-```python
-original = "  hello  "
-result = original.strip()
-
-print(f"  原始: {original!r}")
-print(f"  结果: {result!r}")
-print(f"  原始未被修改: {original == '  hello  '}")
-```
-
-运行结果：
+**运行结果**：
 
 ```text
-  原始: '  hello  '
-  结果: 'hello'
-  原始未被修改: True
+前置检查放行了，int() 却抛异常: invalid literal for int() with base 10: '²'
 ```
 
-**推荐写法**
+修正：安全转换的前置检查换成 isdecimal——它的放行范围与 int() 的接受范围实测完全重合，检查放行即可直接转换：
 
 ```python
-# 始终用返回值接收清洗结果
-text = "  hello  "
-text = text.strip()  # 正确：用 text 接收返回值
+text = "²"
+if text.isdecimal():
+    value = int(text)
+else:
+    print(f"'{text}' 不是十进制数码，拒绝转换")
 ```
 
-**不推荐写法**
+**运行结果**：
+
+```text
+'²' 不是十进制数码，拒绝转换
+```
+
+#### 3.3.2 把 isnumeric 当"可转数字"的前置条件
+
+isnumeric 放行的字符串，int() 大概率失败——用它做转换前置等于埋雷：
 
 ```python
-text = "  hello  "
-text.strip()  # 错误：strip 返回新字符串，text 仍然是 "  hello  "
-print(text)    # 输出 "  hello  "
+text = "一二三"
+print(f"'{text}'.isnumeric() -> {text.isnumeric()}")
+try:
+    int(text)
+except ValueError as exc:
+    print(f"int('{text}') 抛 ValueError: {exc}")
 ```
+
+**运行结果**：
+
+```text
+'一二三'.isnumeric() -> True
+int('一二三') 抛 ValueError: invalid literal for int() with base 10: '一二三'
+```
+
+修正：要读单个字符的数值，用 `unicodedata.numeric()` 查属性表，而不是硬转换：
+
+```python
+import unicodedata
+
+text = "三"
+if len(text) == 1 and text.isnumeric():
+    print(f"'{text}' 的数值属性: {unicodedata.numeric(text)}")
+```
+
+**运行结果**：
+
+```text
+'三' 的数值属性: 3.0
+```
+
+#### 3.3.3 以为"三方法全拒"就转换必失败
+
+反方向的误判同样致命——以为全 False 就能挡住 int()，实际上转换器有自己的语法层：
+
+```python
+payload = " 1200 "
+print(f"三方法返回: isdecimal={payload.isdecimal()}, "
+      f"isdigit={payload.isdigit()}, isnumeric={payload.isnumeric()}")
+print(f"但 int() 静默成功: {int(payload)}")
+```
+
+**运行结果**：
+
+```text
+三方法返回: isdecimal=False, isdigit=False, isnumeric=False
+但 int() 静默成功: 1200
+```
+
+修正：要控制字符集就写显式白名单，空白、符号一律不宽恕：
+
+```python
+payload = " 1200 "
+if payload.isdecimal() and payload.isascii():
+    print("通过白名单校验")
+else:
+    print("拒绝：含空白或非 ASCII 数字")
+```
+
+**运行结果**：
+
+```text
+拒绝：含空白或非 ASCII 数字
+```
+
+#### 3.3.4 把 isnumeric 当中文数字解析器
+
+isnumeric 的覆盖面照抄 Unicode 登记册，不照抄中文语感——高频字"两"就漏在外面：
+
+```python
+count_text = "两"
+print(f"'{count_text}'.isnumeric() -> {count_text.isnumeric()}")
+```
+
+**运行结果**：
+
+```text
+'两'.isnumeric() -> False
+```
+
+修正：抽汉字数字值，维护显式映射表，或走人工复核——登记册覆盖不了的字靠自己的清单兜底：
+
+```python
+HAN_DIGITS = {"零": 0, "一": 1, "二": 2, "三": 3, "四": 4,
+              "五": 5, "六": 6, "七": 7, "八": 8, "九": 9}
+
+text = "三"
+if text in HAN_DIGITS:
+    print(f"映射表得到: {HAN_DIGITS[text]}")
+```
+
+**运行结果**：
+
+```text
+映射表得到: 3
+```
+
+#### 3.3.5 空字符串漏判
+
+三方法对空串一律返回 False，但空串的业务语义是"没填"，不是"格式不对"——漏判空值会把"用户没输入"报成"输入非法"：
+
+```python
+for text in ["", "123"]:
+    print(f"{text!r}: isdecimal={text.isdecimal()}, isdigit={text.isdigit()}")
+```
+
+**运行结果**：
+
+```text
+'': isdecimal=False, isdigit=False
+'123': isdecimal=True, isdigit=True
+```
+
+修正：空值先单判，再谈口径：
+
+```python
+text = ""
+if not text:
+    print("输入为空，请填写内容")
+elif not text.isdecimal():
+    print("只能包含数字")
+else:
+    print(f"通过校验，准备转换: {int(text)}")
+```
+
+**运行结果**：
+
+```text
+输入为空，请填写内容
+```
+
+### 3.4 性能与复杂度
+
+三个方法在 CPython 里都是 C 层实现，对长度为 n 的字符串做一次线性扫描，时间复杂度 O(n)，且带短路优化——第一个字符不满足口径就立即返回 False，不扫完剩余部分。
+
+判断"是不是纯数字"时，不要用 `ord()` 或比较运算手写循环——内置方法和手写循环之间有一个数量级以上的差距。实测：
+
+```python
+import timeit
+
+text = "1" * 10000
+
+builtin = timeit.timeit(lambda: text.isdecimal(), number=2000)
+manual = timeit.timeit(
+    lambda: all("0" <= ch <= "9" for ch in text), number=2000
+)
+print(f"内置 isdecimal(): {builtin:.4f}s")
+print(f"手动逐字符比较:  {manual:.4f}s")
+print(f"差约 {manual / builtin:.1f} 倍")
+```
+
+**运行结果**：
+
+```text
+内置 isdecimal(): 0.0081s
+手动逐字符比较:  0.6952s
+差约 86.0 倍
+```
+
+一万字符的串扫两千次，内置方法 0.008 秒，手写循环 0.7 秒，差 86 倍（计时数字随机器性能与每次运行浮动，量级差异稳定）。手写循环除了慢，还容易写成 ASCII 比较的伪数字判断——把全角拒了、或把杂质漏了，语义和性能双输。结论就一条：能用内置判断就用内置判断，判断的"口径选择"才是真正需要动脑子的地方。
 
 ## 4. 原理
 
-### 4.1 strip 的内部实现逻辑
+### 4.1 三层对应三组 Unicode 数值属性
 
-`strip(chars)` 的实现逻辑可以用以下伪代码描述：
+三个方法的差异，根源在于它们各自查询的 Unicode 属性集合不同。Unicode 给字符登记数值信息用两套字段：
 
-```text
-函数 strip(s, chars):
-    if chars is None:
-        chars = 所有 Unicode 空白字符
+- **通用类别 General_Category**：字符的主分类。与数字相关的主要有三类——Nd（十进制数码）、No（其他数字）、Nl（字母式数字）；此外 Lo（普通表意文字）里也有一批登记了数值的汉字。
+- **数值类型 Numeric_Type**：字符"数值性"的精确分级，从内到外三层——Decimal（十进制）、Digit（数位型）、Numeric（数值型）。
 
-    left = 0
-    right = len(s) - 1
+三个方法查询的 Numeric_Type 集合一层层扩大，这正是包容关系的来源：
 
-    # 从左端扫描
-    while left <= right and s[left] in chars:
-        left += 1
+| 方法 | 放行条件（Numeric_Type） | 对照通用类别 | 实测放行字符数 |
+|------|--------------------------|--------------|---------------|
+| `isdecimal()` | 仅 Decimal | 全部落在 Nd | 680 |
+| `isdigit()` | Decimal 或 Digit | Nd，加上一部分 No | 808 |
+| `isnumeric()` | Decimal、Digit 或 Numeric | Nd + No + Nl + 有数值登记的 Lo | 1912 |
 
-    # 从右端扫描
-    while right >= left and s[right] in chars:
-        right -= 1
+拿三个代表字符各画一张"属性档案卡"，裁决规则一目了然。
 
-    return s[left : right + 1]
-```
-
-核心要点：
-
-1. `chars` 参数被当作**集合**（set）使用——`in` 操作符检查的是"字符是否在集合中"
-2. 从左端逐字符推进 `left` 指针，直到遇到不在 `chars` 中的字符
-3. 从右端逐字符推进 `right` 指针，直到遇到不在 `chars` 中的字符
-4. 返回 `s[left : right+1]` 切片
-
-`lstrip` 只执行步骤 2，`rstrip` 只执行步骤 3。
-
-### 4.2 removeprefix/removesuffix 的内部实现逻辑
-
-`removeprefix(prefix)` 的实现逻辑：
+上标 `²`，isdigit 层的代表：
 
 ```text
-函数 removeprefix(s, prefix):
-    if s.startswith(prefix):
-        return s[len(prefix):]   # 跳过前缀长度
-    else:
-        return s                 # 不匹配，原样返回
+字符 ²（上标 2）在 Unicode 数据库中的档案
+
+  通用类别 General_Category : No（Other_Number，其他数字）
+  数值类型 Numeric_Type     : Digit
+  数值     Numeric_Value     : 2
+
+  isdecimal()  只认 Decimal               → ² 是 Digit，不放行
+  isdigit()    认 Decimal 和 Digit        → 匹配 Digit，放行
+  isnumeric()  认 Decimal、Digit、Numeric  → 匹配 Digit，放行
 ```
 
-`removesuffix(suffix)` 的实现逻辑：
+分数 `½`，isnumeric 层的代表：
 
 ```text
-函数 removesuffix(s, suffix):
-    if s.endswith(suffix) and len(s) >= len(suffix):
-        return s[:len(s) - len(suffix)]  # 截掉后缀长度
-    else:
-        return s                        # 不匹配，原样返回
+字符 ½（二分之一）的档案
+
+  通用类别 General_Category : No（Other_Number）
+  数值类型 Numeric_Type     : Numeric
+  数值     Numeric_Value     : 0.25
+
+  isdecimal()  不放行（不是 Decimal）
+  isdigit()    不放行（只是长得像分数，没有 Digit 类型）
+  isnumeric()  放行（Numeric 正中靶心）
 ```
 
-核心要点：
+汉字数字"一"，汉字数字的代表：
 
-1. `removeprefix` 使用 `startswith` 做整体匹配——不是逐字符，而是将 `prefix` 作为一个完整字符串与 `s` 的开头比较
-2. `removesuffix` 使用 `endswith` 做整体匹配——将 `suffix` 作为一个完整字符串与 `s` 的末尾比较
-3. 匹配成功时返回切片，不匹配时原样返回
-4. 这两个方法的实现本质上是 `s[len(prefix):]` 和 `s[:-len(suffix)]` 的安全封装——在移除前先检查是否匹配
+```text
+字符 一 的档案
 
-### 4.3 为什么 Python 3.9 要新增 removeprefix/removesuffix
+  通用类别 General_Category : Lo（普通表意文字）
+  数值类型 Numeric_Type     : Numeric
+  数值     Numeric_Value     : 1.0
 
-在 Python 3.9 之前，开发者通常用以下方式实现"移除前缀/后缀"：
+  isdecimal()  不放行（没有十进位权）
+  isdigit()    不放行（没有数位形态）
+  isnumeric()  放行（有数值登记）
+```
+
+三张卡片对齐看：三个方法的实现逻辑一模一样——都是"逐字符查表 + 检查 Numeric_Type 是否落在集合内"，唯一的差别是集合取多大。
+
+### 4.2 用 unicodedata 实测底层属性
+
+Python 标准库的 `unicodedata` 模块直接暴露了 Unicode 字符数据库，可以亲眼验证属性档案。`unicodedata.decimal()/digit()/numeric()` 三个查询函数分别对应三层数值字段，查不到会抛 ValueError：
 
 ```python
-# 用 startswith + 切片（需要手动计算长度）
-if s.startswith(prefix):
-    result = s[len(prefix):]
+import unicodedata
 
-# 或用正则
-import re
-result = re.sub(f"^{re.escape(prefix)}", "", s)
+chars = [
+    ("5", "ASCII 数字"),
+    ("５", "全角数字"),
+    ("²", "上标 2"),
+    ("①", "圆圈数字 1"),
+    ("½", "分数 1/2"),
+    ("一", "中文数字一"),
+    ("Ⅲ", "罗马数字 3"),
+]
+
+print(f"  {'字符':<6}{'说明':<14}{'category':<10}{'decimal':<9}{'digit':<7}{'numeric'}")
+for ch, label in chars:
+    try:
+        dec = unicodedata.decimal(ch)
+    except ValueError:
+        dec = "-"
+    try:
+        dig = unicodedata.digit(ch)
+    except ValueError:
+        dig = "-"
+    try:
+        num = unicodedata.numeric(ch)
+    except ValueError:
+        num = "-"
+    print(f"  {ch:<6}{label:<14}{unicodedata.category(ch):<10}"
+          f"{str(dec):<9}{str(dig):<7}{num}")
 ```
 
-这些写法有两个问题：
+**运行结果**：
 
-1. **可读性差**——`s[len(prefix):]` 需要读者理解"这里是在移除前缀"，没有自解释性
-2. **容易出错**——忘记检查 `startswith` 就直接切片，会在不匹配时错误地截断字符串
+```text
+  字符    说明            category  decimal  digit  numeric
+  5     ASCII 数字      Nd        5        5      5.0
+  ５     全角数字          Nd        5        5      5.0
+  ²     上标 2          No        -        2      2.0
+  ①     圆圈数字 1        No        -        1      1.0
+  ½     分数 1/2        No        -        -      0.5
+  一     中文数字一         Lo        -        -      1.0
+  Ⅲ     罗马数字 3        Nl        -        -      3.0
+```
 
-`removeprefix` / `removesuffix` 的设计目的就是解决这两个问题：
+属性与三方法的裁决完全对得上：
 
-- **自解释**——方法名直接表达意图
-- **安全**——不匹配时原样返回，不会意外截断
+- ASCII `5` 与全角 `５`：category 是 Nd、decimal 有值——凡是 decimal 查得到的字符，三个方法都放行。Unicode 规定 Nd 类别与 Numeric_Type=Decimal 一一对应，所以 Nd 字符就是 isdecimal 的全部领地。
+- `²` 与 `①`：category 是 No、digit 有值但 decimal 没有——所以 isdecimal 拒绝、isdigit 放行。
+- `½`：category 是 No、只有 numeric 有值——digit 都查不到，isdigit 也拒绝，只有 isnumeric 放行。
+- `一`：category 是 Lo、有数值登记——外表是文字，数值含义是数字，仅 isnumeric 放行。
+- `Ⅲ`：category 是 Nl（字母式数字）、同样只有 numeric 有值——与汉字数字走同一条放行通道。
 
-PEP 616（提议新增这两个方法的提案）明确指出：目的是提供一种"比 `str.replace(prefix, '', 1)` 更明确、比 `str.startswith + 切片` 更简洁"的方式。
+### 4.3 int() 只认十进制数码的位权原因
 
-### 4.4 返回新字符串的不可变性
+为什么 `int()` 能收全角数字、却坚决不收有 digit 值的 `²`？关键在于十进制转换依赖"位权"。
 
-Python 字符串是不可变对象（immutable）。所有字符串方法——包括 `strip`、`removeprefix`、`removesuffix`——都不会修改原字符串，而是创建并返回一个新的字符串对象。
+`int()` 解析字符串时按"数码值 × 位权"展开求和，每个字符必须占住一个明确的数位：
 
-这意味着：
+```text
+int("１２３") 为什么成功？
+
+  组成串的每个字符都是十进制数码，各自占据明确的数位：
+      １ → 数码值 1，站在百位
+      ２ → 数码值 2，站在十位
+      ３ → 数码值 3，站在个位
+  按"数码值 × 位权"展开求和：
+      1×100 + 2×10 + 3×1 = 123   ✓
+
+int("²") 为什么失败？
+
+  ² 虽然登记了 digit 数值 2，但它没有十进位权——
+  int() 无法判断"这个 2 站在哪一位上"：
+      位权公式无从代入 → 直接抛出 ValueError   ✗
+```
+
+这样就彻底说清了四象限里的四个区段：
+
+- isdecimal 层的字符全部有十进位权（Numeric_Type=Decimal 的定义就是"能当十进制数位用"），所以 isdecimal 是 int() 成功的充分条件。
+- isdigit 层多出来的字符（`²` 等）有"数位外形"无数值地位——写成上标就是明证：它是"别人肩膀上的注释"，不占数位。
+- isnumeric 层的汉字数字、分数、罗马数字，连"按位排列"的形式都没有（"三十"要读出 30 得靠乘法合并规则），int() 无从下手。
+- 三方法全拒但 int() 成功的空白、正负号、下划线，属于转换器的"语法层"——它们描述"数怎么写"而不是"字符串里有什么字符"，与三方法管辖的"字符层"互不干涉。
+
+`unicodedata.numeric()` 与 `int()` 的区别也因此清晰：前者是查表——读出数据库给字符登记的数值（`numeric("十")` 得 10.0）；后者是解析——对字符串执行十进制文法运算。查表不需要数位结构，解析需要，所以"a 数值属性是 10"和"int() 认它是 10"是两回事。
+
+### 4.4 版本差异说明与自行实测
+
+三个方法的裁决标准全部来自 Python 内置的 Unicode 字符数据库（`unicodedata` 模块背后的数据），它**随 Python 版本更新而更新**。每次 Unicode 标准升级都会新增一批数值字符，个别既有字符也可能被补登数值属性——"五"就是活例子：较老的教材里流传着"isnumeric 不认'五'"的实验记录，那在当时的数据版本里是事实；而较新的数据已经给"五"补登了数值属性 5.0，实测结果随之翻转。
+
+这带来两条实打实的工作建议：
+
+- 写代码时，不要把"某个具体字符三层过不过"固化成跨版本的假设。校验逻辑要落在"口径"上（三层任意一层的放行规则），而不是"字符清单"上。
+- 结论以本机实测为准。一个字符的裁决有疑议时，三行代码就能问出真相：
 
 ```python
-s = "  hello  "
-s.strip()  # 这行代码什么都没改变
-print(s)   # 仍然是 "  hello  "
-
-s = s.strip()  # 必须用 s 接收返回值
-print(s)       # 现在是 "hello"
+text = "五"
+print(f"本机 '{text}' 的实测结果:")
+print(f"  isdecimal={text.isdecimal()}, isdigit={text.isdigit()}, "
+      f"isnumeric={text.isnumeric()}")
 ```
 
-不可变性的好处是安全性——你不需要担心 `strip` 会意外修改其他引用同一字符串的变量。缺点是每次操作都会创建新对象，在极端性能场景下可能有开销（但 CPython 对短字符串有驻留优化，实际开销很小）。
+**运行结果**：
+
+```text
+本机 '五' 的实测结果:
+  isdecimal=False, isdigit=False, isnumeric=True
+```
+
+同一段代码在不同 Python 小版本上跑出不同的 isnumeric 结果是完全可能的——这不是 bug，而是 Unicode 数据演进的正常现象。这也是把"业务金额、ID 校验"锚定在 isdecimal（或 isascii 白名单）这种窄口径上的另一个理由：窄口径离日常字符集最近，受数据演进的影响最小。
 
 ## 5. 总结
 
-本文围绕"字符串清洗方法"展开，主要介绍了以下内容：
+本文围绕字符串的三个数字判断方法展开，主要介绍了以下内容：
 
-- `str.strip()` / `lstrip()` / `rstrip()`：去除字符串首尾的字符，不传参数时默认去除所有 Unicode 空白字符，传参数时参数是**字符集合**——从两端逐字符匹配，遇到不在集合中的字符就停止
-- `strip` 的字符集合机制详解：`strip("abc")` 不是去除前缀 `"abc"`，而是去除两端所有 `a`、`b`、`c` 字符——这是最常见的误解
-- `str.removeprefix()` / `str.removesuffix()`（Python 3.9+）：精确匹配并移除前缀/后缀**完整字符串**，不匹配时原样返回
-- `strip` 与 `removeprefix/removesuffix` 的核心区别：前者参数是字符集合（逐字符匹配），后者参数是完整字符串（整体匹配）；前者持续匹配，后者只匹配一次
-- 链式调用：`strip` 和 `removeprefix/removesuffix` 都返回新字符串，支持链式串联多个清洗步骤
-- 方法选择决策表：根据需求选择合适的方法——去空白用 `strip`，移除已知前缀/后缀用 `removeprefix/removesuffix`
-- 最佳实践：用户输入清洗用 `strip()`，文件扩展名移除用 `removesuffix()` 而非 `rstrip()`，路径前缀移除用 `removeprefix()` 而非 `lstrip()`
-- 原理：`strip` 内部用字符集合逐字符扫描，`removeprefix/removesuffix` 内部用 `startswith/endswith` 做整体匹配后切片
-- 字符串不可变性：所有清洗方法返回新字符串，原字符串不会被修改
+- 三个方法回答同一个问题的三层口径：isdecimal 只认十进制数码（最严格），isdigit 放宽到数字外形字符（中间层），isnumeric 放宽到一切有数值含义的字符（最宽）
+- 层级关系经过全码点实测验证：isdecimal ⊆ isdigit ⊆ isnumeric 成立，1114112 个码点扫描零反例；三层放行字符数分别是 680、808、1912
+- isdecimal 的放行范围是"十进制数码"的世界口径：除了 ASCII 0-9，还包括全角数字与几十种文字的数码，且是 int()/float() 安全转换的充分条件（实测 680 个数码字符 int() 全部成功）
+- isdigit 比 isdecimal 多放行 128 个数字外形字符（上标 ²、下标 ₂、圆圈 ①、埃塞俄比亚 ፩ 等），制造了"判断通过、int() 报错"的危险区——808 个 isdigit 字符里约六分之一转不成 int
+- isnumeric 额外放行分数 ½、汉字数字一二三、罗马数字 Ⅲ 等数值含义字符，但识别不等于可转换：isnumeric 通过的这些字符串 int()/float() 全部失败
+- 汉字数字的识别覆盖面由 Unicode 数据登记决定："廿"、"卅"都通过，高频字"两"却不通过；把 isnumeric 当中文数字解析器必踩坑
+- 三方法判断"字符构成"，int()/float() 解析"数字语法"，是两套规则：三方法全 False 的 " 12 "、"+5"、"1_000" 会被 int() 照常转换成功
+- 共性边界：空字符串三层全 False；空格、小数点、正负号、逗号混入任何一个字符，三层全部 False
+- 场景决策：手机号/验证码用 isdecimal + isascii 挡住全角；数量输入用 isdecimal 顺带转 int；文本数值识别用 isnumeric 且只当识别线索；只想知道能否转换时直接 try/except int()
+- 最佳实践中把"保护 int() 转换"的哨兵固定在 isdecimal 这一层，安全校验选 LBYL（isdecimal 前置检查），解析清洗选 EAFP（try/except 直接转）
+- 原理上，三层方法对应三组 Unicode 数值属性集合（Numeric_Type 的 Decimal / Decimal+Digit / Decimal+Digit+Numeric），通用类别 Nd/No/Nl/Lo 与三层的归属一一对照；int() 只认十进制数码是因为位权展开需要每个字符占据明确数位
+- 性能上三个方法都是 C 实现的 O(n) 扫描带短路优化，实测比手写逐字符判断快 86 倍，与三方法相关的判断一律用内置方法
+- Unicode 字符数据库随 Python 版本演进，"五"等字符的 isnumeric 归属可能翻转，跨版本的校验逻辑要锚定口径而非字符清单，有疑议时用三行代码本机实测

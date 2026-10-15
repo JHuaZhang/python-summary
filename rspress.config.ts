@@ -162,72 +162,100 @@ export default defineConfig({
                     "link": "/Base/03-string-09"
                 },
                 {
-                    "text": "字符串与字符编码",
+                    "text": "encode 与 decode 方法",
                     "link": "/Base/03-string-10"
                 },
                 {
-                    "text": "字符串长度与成员判断",
+                    "text": "len 函数与字符串长度",
                     "link": "/Base/03-string-11"
                 },
                 {
-                    "text": "前缀与后缀判断",
+                    "text": "in 与 not in 运算符",
                     "link": "/Base/03-string-12"
                 },
                 {
-                    "text": "子串位置查找",
+                    "text": "startswith 与 endswith 方法",
                     "link": "/Base/03-string-13"
                 },
                 {
-                    "text": "子串计数方法",
+                    "text": "find 与 rfind 方法",
                     "link": "/Base/03-string-14"
                 },
                 {
-                    "text": "字符类型判断",
+                    "text": "index 与 rindex 方法",
                     "link": "/Base/03-string-15"
                 },
                 {
-                    "text": "大小写与格式判断",
+                    "text": "count 方法",
                     "link": "/Base/03-string-16"
                 },
                 {
-                    "text": "标识符与其他判断",
+                    "text": "isalpha 与 isalnum 与 isspace 方法",
                     "link": "/Base/03-string-17"
                 },
                 {
-                    "text": "字符串清洗方法",
+                    "text": "isdecimal 与 isdigit 与 isnumeric 方法",
                     "link": "/Base/03-string-18"
                 },
                 {
-                    "text": "大小写转换方法",
+                    "text": "isupper 与 islower 与 istitle 方法",
                     "link": "/Base/03-string-19"
                 },
                 {
-                    "text": "字符串对齐填充",
+                    "text": "isidentifier 与关键字判断",
                     "link": "/Base/03-string-20"
                 },
                 {
-                    "text": "split 与 rsplit 方法",
+                    "text": "isascii 与 isprintable 方法",
                     "link": "/Base/03-string-21"
                 },
                 {
-                    "text": "splitlines 按行分割",
+                    "text": "strip 与 lstrip 与 rstrip 方法",
                     "link": "/Base/03-string-22"
                 },
                 {
-                    "text": "partition 与 rpartition 方法",
+                    "text": "removeprefix 与 removesuffix 方法",
                     "link": "/Base/03-string-23"
                 },
                 {
-                    "text": "replace 方法",
+                    "text": "upper 与 lower 与 casefold 方法",
                     "link": "/Base/03-string-24"
                 },
                 {
-                    "text": "translate 与 maketrans 方法",
+                    "text": "capitalize 与 title 与 swapcase 方法",
                     "link": "/Base/03-string-25"
                 },
                 {
-                    "text": "replace 与 translate 对比",
+                    "text": "ljust 与 rjust 与 center 方法",
                     "link": "/Base/03-string-26"
+                },
+                {
+                    "text": "zfill 方法",
+                    "link": "/Base/03-string-27"
+                },
+                {
+                    "text": "split 与 rsplit 方法",
+                    "link": "/Base/03-string-28"
+                },
+                {
+                    "text": "splitlines 方法",
+                    "link": "/Base/03-string-29"
+                },
+                {
+                    "text": "partition 与 rpartition 方法",
+                    "link": "/Base/03-string-30"
+                },
+                {
+                    "text": "replace 方法",
+                    "link": "/Base/03-string-31"
+                },
+                {
+                    "text": "translate 与 maketrans 方法",
+                    "link": "/Base/03-string-32"
+                },
+                {
+                    "text": "replace 与 translate 对比",
+                    "link": "/Base/03-string-33"
                 }
             ]
         },
